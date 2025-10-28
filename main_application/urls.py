@@ -9,6 +9,7 @@ urlpatterns = [
     # Authentication
     path('', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('resend-2fa/', views.resend_tfa_code, name='resend_tfa_code'),
     
     # Dashboard Router
     path('dashboard/', views.dashboard, name='dashboard'),

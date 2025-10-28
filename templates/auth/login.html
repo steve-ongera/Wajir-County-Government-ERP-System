@@ -1,136 +1,763 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Wajir County ERP</title>
+    <title>Login - Wajir County ERP System</title>
+    <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="description" content="Login to the Wajir County ERP System - Enterprise Resource Planning Management Portal">
+    <meta name="keywords" content="Wajir County, ERP, System, Login, Government, Management">
+    <meta name="author" content="Wajir County Government">
+
     <style>
+        :root {
+            --persian-orange: #C18B5A;
+            --black: #000000;
+            --sea-green: #139145;
+            --sinopia: #CD4F27;
+            --chestnut: #965536;
+            --primary-color: #139145;
+            --secondary-color: #C18B5A;
+            --accent-color: #CD4F27;
+            --light-bg: #F8FAFC;
+            --background-color: #ffffff;
+            --text-primary: #000000;
+            --text-secondary: #965536;
+            --border-color: #E2E8F0;
+            --shadow-light: 0 2px 10px rgba(19, 145, 69, 0.05);
+            --shadow-medium: 0 4px 20px rgba(19, 145, 69, 0.08);
+            --border-radius: 8px;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8eef3 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
         }
+
         .login-container {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 440px;
             width: 100%;
-            max-width: 400px;
+            padding: 20px;
         }
-        .logo-section {
+
+        .county-logo {
+            height: 80px;
+            width: auto;
+            margin-bottom: 1rem;
+        }
+
+        .login-card {
+            background: var(--background-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .login-header {
+            background: var(--background-color);
+            color: var(--text-primary);
+            padding: 2rem 2rem 1.5rem;
             text-align: center;
-            margin-bottom: 30px;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
         }
-        .logo-section h1 {
-            color: #667eea;
-            font-size: 28px;
-            margin-bottom: 5px;
-        }
-        .logo-section p {
-            color: #666;
-            font-size: 14px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn-login {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        .alert {
-            padding: 12px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        .alert-error {
-            background: #fee;
-            color: #c33;
-            border: 1px solid #fcc;
-        }
-        .alert-success {
-            background: #efe;
-            color: #3c3;
-            border: 1px solid #cfc;
-        }
+
         .county-badge {
             display: inline-block;
-            background: #667eea;
+            background: var(--sea-green);
             color: white;
-            padding: 5px 15px;
+            padding: 6px 16px;
             border-radius: 20px;
             font-size: 12px;
             margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+        }
+
+        .login-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-bottom: 0;
+        }
+
+        .card-body {
+            padding: 2rem 2rem 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-label i {
+            margin-right: 0.5rem;
+            color: var(--secondary-color);
+            font-size: 1rem;
+        }
+
+        .form-control {
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background-color: #fafbfc;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--sea-green);
+            box-shadow: 0 0 0 3px rgba(19, 145, 69, 0.1);
+            background-color: white;
+            outline: none;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s ease;
+            z-index: 10;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .password-toggle:hover {
+            color: var(--sea-green);
+            background-color: rgba(19, 145, 69, 0.1);
+            border-radius: 50%;
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--sea-green) 0%, var(--persian-orange) 100%);
+            border: none;
+            padding: 0.875rem 1.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(19, 145, 69, 0.3);
+            background: linear-gradient(135deg, #0f7a38 0%, #a8754d 100%);
+        }
+
+        .alert {
+            border: none;
+            border-left: 4px solid #ef4444;
+            background-color: rgba(239, 68, 68, 0.05);
+            color: var(--text-primary);
+            border-radius: var(--border-radius);
+            padding: 1rem 1.25rem;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .alert-danger i, .alert-error i {
+            margin-right: 0.5rem;
+            color: #ef4444;
+        }
+
+        .alert-success {
+            border-left-color: var(--sea-green);
+            background-color: rgba(19, 145, 69, 0.05);
+        }
+
+        .alert-success i {
+            color: var(--sea-green);
+        }
+
+        .alert-warning {
+            border-left-color: var(--persian-orange);
+            background-color: rgba(193, 139, 90, 0.05);
+        }
+
+        .alert-warning i {
+            color: var(--persian-orange);
+        }
+
+        .alert-info {
+            border-left-color: var(--sinopia);
+            background-color: rgba(205, 79, 39, 0.05);
+        }
+
+        .alert-info i {
+            color: var(--sinopia);
+        }
+
+        .card-footer {
+            background: var(--light-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 1.25rem 2rem;
+            text-align: center;
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 50px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .security-badge i {
+            margin-right: 0.5rem;
+            color: var(--secondary-color);
+        }
+
+        .copyright {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        .copyright-text {
+            var(--text-primary);
+            font-size: 0.85rem;
+            font-weight: 400;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            margin: 1.5rem 0;
+        }
+
+        /* 2FA Specific Styles */
+        .tfa-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .tfa-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 70px;
+            height: 70px;
+            background-color: rgba(19, 145, 69, 0.1);
+            border-radius: 50%;
+            margin-bottom: 1rem;
+            color: var(--sea-green);
+            font-size: 1.5rem;
+        }
+
+        .tfa-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .tfa-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .timer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .timer-ring {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(193, 139, 90, 0.15);
+            border-radius: 50%;
+            color: var(--persian-orange);
+            font-size: 1.25rem;
+            animation: timerPulse 1s infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .timer-display {
+            text-align: center;
+        }
+
+        .timer-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: monospace;
+            color: var(--persian-orange);
+        }
+
+        .timer-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .tfa-code-input {
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.1rem;
+            letter-spacing: 0.1em;
+        }
+
+        .tfa-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-verify {
+            flex: 1;
+            background: var(--sea-green);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-verify:hover {
+            background: #0f7a38;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(19, 145, 69, 0.3);
+        }
+
+        .btn-resend {
+            padding: 0.75rem 1.25rem;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-resend:hover {
+            background-color: #f8f9fa;
+        }
+
+        .btn-back {
+            color: var(--sea-green);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+
+        .btn-back:hover {
+            color: var(--chestnut);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 576px) {
+            .login-container {
+                padding: 15px;
+            }
+            
+            .login-header {
+                padding: 1.5rem 1.5rem 1.25rem;
+            }
+            
+            .card-body {
+                padding: 1.5rem 1.5rem 1.25rem;
+            }
+            
+            .card-footer {
+                padding: 1rem 1.5rem;
+            }
+            
+            .login-title {
+                font-size: 1.3rem;
+            }
+
+            .tfa-actions {
+                flex-direction: column;
+            }
+        }
+
+        /* Loading state for button */
+        .btn-login.loading, .btn-verify.loading {
+            pointer-events: none;
+            opacity: 0.8;
+            position: relative;
+        }
+
+        .btn-login.loading .btn-text, .btn-verify.loading .btn-text {
+            visibility: hidden;
+        }
+
+        .btn-login.loading::after, .btn-verify.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin: -8px 0 0 -8px;
+            border: 2px solid transparent;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: button-loading-spinner 1s ease infinite;
+        }
+
+        @keyframes button-loading-spinner {
+            from { transform: rotate(0turn); }
+            to { transform: rotate(1turn); }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="logo-section">
-            <span class="county-badge">County Government of Wajir</span>
-            <h1>ERP System</h1>
-            <p>Enterprise Resource Planning</p>
-        </div>
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-12 login-container">
+                <div class="card login-card">
+                    <div class="login-header">
+                        <img src="{% static 'images/wajir_logo.png' %}" alt="Wajir County" class="county-logo">
+                    
+                        <h1 class="login-title">ERP Management System</h1>
+                        <p class="login-subtitle">Enterprise Resource Planning</p>
+                    </div>
+                    
+                    <div class="card-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {% if message.tags == 'success' %}
+                                        <i class="bi bi-check-circle-fill"></i>
+                                    {% elif message.tags == 'error' or message.tags == 'danger' %}
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                    {% elif message.tags == 'warning' %}
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                    {% elif message.tags == 'info' %}
+                                        <i class="bi bi-info-circle-fill"></i>
+                                    {% endif %}
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
+                        <form method="post" id="loginForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ next }}">
+                            
+                            <div class="form-group">
+                                <label for="username" class="form-label">
+                                    <i class="bi bi-person"></i>
+                                    Username
+                                </label>
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id="username" 
+                                    name="username" 
+                                    value="{{ username|default:'' }}"
+                                    placeholder="Enter your username"
+                                    autocomplete="username"
+                                    required
+                                    {% if show_tfa %}readonly{% endif %}
+                                >
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="password" class="form-label">
+                                    <i class="bi bi-lock"></i>
+                                    Password
+                                </label>
+                                <div class="password-wrapper">
+                                    <input 
+                                        type="password" 
+                                        class="form-control" 
+                                        id="password" 
+                                        name="password" 
+                                        placeholder="Enter your password"
+                                        autocomplete="current-password"
+                                        required
+                                        {% if show_tfa %}readonly{% endif %}
+                                    >
+                                    <button type="button" class="password-toggle" id="passwordToggle" aria-label="Toggle password visibility">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 2FA Section -->
+                            {% if show_tfa %}
+                                <div class="tfa-section fade-in">
+                                    <div class="text-center mb-4">
+                                        <div class="tfa-icon">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </div>
+                                        <h3 class="tfa-title">Two-Factor Authentication</h3>
+                                        <p class="tfa-subtitle">Enter the 6-digit code sent to your email</p>
+                                        
+                                        <!-- Timer Display -->
+                                        <div class="timer-container">
+                                            <div class="timer-ring">
+                                                <i class="bi bi-clock"></i>
+                                            </div>
+                                            <div class="timer-display">
+                                                <div id="timer" class="timer-value">02:00</div>
+                                                <div class="timer-label">Time Remaining</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="tfa_code" class="form-label">
+                                            <i class="bi bi-key"></i>
+                                            Verification Code
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            class="form-control tfa-code-input" 
+                                            id="tfa_code" 
+                                            name="tfa_code"
+                                            placeholder="XXX-XXX"
+                                            maxlength="7"
+                                            pattern="[0-9]{3}-[0-9]{3}"
+                                            required
+                                            autocomplete="off"
+                                        >
+                                        <small class="text-muted mt-1 d-block text-center">Format: 123-456</small>
+                                    </div>
+
+                                    <div class="tfa-actions">
+                                        <button type="submit" id="verifyBtn" class="btn-verify">
+                                            Verify Code
+                                        </button>
+                                        
+                                        <button type="button" id="resendBtn" class="btn-resend">
+                                            Resend
+                                        </button>
+                                    </div>
+
+                                    <div class="text-center mt-3">
+                                        <a href="{% url 'login' %}" class="btn-back">
+                                            <i class="bi bi-arrow-left"></i> Back to Login
+                                        </a>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="divider"></div>
+                                
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-login" id="loginButton">
+                                        <span class="btn-text">Sign In</span>
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </form>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <div class="security-badge">
+                            <i class="bi bi-shield-check"></i>
+                            Secure Login
+                        </div>
+                    </div>
                 </div>
-            {% endfor %}
-        {% endif %}
-
-        <form method="POST" action="{% url 'login' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autofocus placeholder="Enter your username">
+                
+                <div class="copyright">
+                    <div class="copyright-text">
+                        <i class="bi bi-c-circle"></i>
+                        <span>2025 Wajir County ERP System</span>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="Enter your password">
-            </div>
-            <button type="submit" class="btn-login">Login</button>
-        </form>
+        </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Password toggle functionality
+        const passwordToggle = document.getElementById('passwordToggle');
+        if (passwordToggle) {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = passwordToggle.querySelector('i');
+
+            function togglePassword() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    eyeIcon.classList.remove('bi-eye');
+                    eyeIcon.classList.add('bi-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    eyeIcon.classList.remove('bi-eye-slash');
+                    eyeIcon.classList.add('bi-eye');
+                }
+            }
+
+            passwordToggle.addEventListener('click', togglePassword);
+        }
+
+        // Form submission with loading state
+        const loginForm = document.getElementById('loginForm');
+        const loginButton = document.getElementById('loginButton');
+        const verifyBtn = document.getElementById('verifyBtn');
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', function() {
+                if (loginButton) loginButton.classList.add('loading');
+                if (verifyBtn) verifyBtn.classList.add('loading');
+            });
+        }
+
+        // Auto-dismiss alerts
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+
+        {% if show_tfa %}
+        // Timer functionality
+        let expiresAt = new Date('{{ expires_at|default:"" }}');
+        let timerElement = document.getElementById('timer');
+        let verifyBtn = document.getElementById('verifyBtn');
+        let tfaCodeInput = document.getElementById('tfa_code');
+        
+        function updateTimer() {
+            let now = new Date();
+            let timeLeft = Math.max(0, Math.floor((expiresAt - now) / 1000));
+            
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 0) {
+                timerElement.classList.add('text-danger');
+                verifyBtn.disabled = true;
+                tfaCodeInput.disabled = true;
+                clearInterval(timerInterval);
+            } else if (timeLeft <= 30) {
+                timerElement.classList.add('text-danger');
+            }
+        }
+        
+        let timerInterval = setInterval(updateTimer, 1000);
+        updateTimer();
+        
+        // Format code input
+        tfaCodeInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^0-9]/g, '');
+            if (value.length >= 3) {
+                value = value.slice(0, 3) + '-' + value.slice(3, 6);
+            }
+            e.target.value = value;
+        });
+        
+        tfaCodeInput.focus();
+        
+        // Resend code functionality
+        document.getElementById('resendBtn').addEventListener('click', function() {
+            let resendBtn = this;
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Sending...';
+            
+            fetch('{% url "resend_tfa_code" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'username=' + encodeURIComponent('{{ username }}')
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    expiresAt = new Date(data.expires_at);
+                    timerElement.classList.remove('text-danger');
+                    verifyBtn.disabled = false;
+                    tfaCodeInput.disabled = false;
+                    tfaCodeInput.value = '';
+                    tfaCodeInput.focus();
+                    clearInterval(timerInterval);
+                    timerInterval = setInterval(updateTimer, 1000);
+                    updateTimer();
+                    alert('New verification code sent to your email.');
+                }
+            })
+            .finally(() => {
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend';
+            });
+        });
+        {% endif %}
+    </script>
 </body>
 </html>
