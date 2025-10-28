@@ -1,0 +1,140 @@
+<!-- templates/dashboards/hr_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}HR Manager Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Human Resource Management Dashboard</h1>
+    <p>Staff management and HR operations</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+            <h3>{{ total_staff }}</h3>
+            <p>Total Staff</p>
+        </div>
+    </div>
+    <div class="stat-card stat-primary">
+        <div class="stat-icon">✔️</div>
+        <div class="stat-info">
+            <h3>{{ checked_in_today }}</h3>
+            <p>Checked In Today</p>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">📅</div>
+        <div class="stat-info">
+            <h3>{{ pending_leaves }}</h3>
+            <p>Pending Leave Requests</p>
+        </div>
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-icon">🏖️</div>
+        <div class="stat-info">
+            <h3>{{ approved_leaves }}</h3>
+            <p>On Leave Today</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Attendance Summary</h2>
+        <div class="summary-stats">
+            <div class="summary-item">
+                <span>Total Staff</span>
+                <strong>{{ total_staff }}</strong>
+            </div>
+            <div class="summary-item">
+                <span>Checked In</span>
+                <strong>{{ checked_in_today }}</strong>
+            </div>
+            <div class="summary-item">
+                <span>Attendance Rate</span>
+                <strong>{{ attendance_rate|floatformat:1 }}%</strong>
+            </div>
+            <div class="summary-item">
+                <span>Open Cases</span>
+                <strong>{{ open_cases }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Upcoming Trainings</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Program</th>
+                    <th>Start Date</th>
+                    <th>Duration</th>
+                    <th>Provider</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for training in upcoming_trainings %}
+                <tr>
+                    <td>{{ training.program_name }}</td>
+                    <td>{{ training.start_date|date:"M d, Y" }}</td>
+                    <td>{{ training.duration_days }} days</td>
+                    <td>{{ training.provider }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No upcoming trainings</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Recent Leave Applications</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Leave Type</th>
+                    <th>Period</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in recent_leaves %}
+                <tr>
+                    <td>{{ leave.employee.get_full_name }}</td>
+                    <td>{{ leave.leave_type.name }}</td>
+                    <td>{{ leave.start_date|date:"M d" }} - {{ leave.end_date|date:"M d" }}</td>
+                    <td><span class="badge badge-{{ leave.status }}">{{ leave.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Staff by Department</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Department</th>
+                    <th>Staff Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dept in staff_by_department %}
+                <tr>
+                    <td>{{ dept.department__name }}</td>
+                    <td><strong>{{ dept.count }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

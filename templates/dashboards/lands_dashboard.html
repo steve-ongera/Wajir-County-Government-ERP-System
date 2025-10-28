@@ -1,0 +1,138 @@
+!-- templates/dashboards/lands_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Lands Officer Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Lands & Physical Planning Dashboard</h1>
+    <p>Property and land management</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">🏘️</div>
+        <div class="stat-info">
+            <h3>{{ total_properties }}</h3>
+            <p>Total Properties</p>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">📋</div>
+        <div class="stat-info">
+            <h3>{{ pending_applications }}</h3>
+            <p>Pending Applications</p>
+        </div>
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-icon">🔍</div>
+        <div class="stat-info">
+            <h3>{{ under_review }}</h3>
+            <p>Under Review</p>
+        </div>
+    </div>
+    <div class="stat-card stat-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+            <h3>{{ active_caveats }}</h3>
+            <p>Active Caveats</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Recent Development Applications</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Application No.</th>
+                    <th>Type</th>
+                    <th>Applicant</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in recent_applications %}
+                <tr>
+                    <td>{{ app.application_number }}</td>
+                    <td>{{ app.get_application_type_display }}</td>
+                    <td>{{ app.applicant }}</td>
+                    <td><span class="badge badge-{{ app.status }}">{{ app.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Recent Property Transfers</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Parcel No.</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transfer in recent_transfers %}
+                <tr>
+                    <td>{{ transfer.property.parcel_number }}</td>
+                    <td>{{ transfer.previous_owner }}</td>
+                    <td>{{ transfer.new_owner }}</td>
+                    <td>{{ transfer.transfer_date|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Properties by Type</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Property Type</th>
+                    <th>Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in property_by_type %}
+                <tr>
+                    <td>{{ item.property_type__name }}</td>
+                    <td><strong>{{ item.count }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Recent Valuations</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Parcel No.</th>
+                    <th>Total Value</th>
+                    <th>Valuation Date</th>
+                    <th>Valuer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for valuation in recent_valuations %}
+                <tr>
+                    <td>{{ valuation.property.parcel_number }}</td>
+                    <td>KES {{ valuation.total_value|floatformat:2 }}</td>
+                    <td>{{ valuation.valuation_date|date:"M d, Y" }}</td>
+                    <td>{{ valuation.valuer_name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

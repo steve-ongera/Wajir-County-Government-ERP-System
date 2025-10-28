@@ -1,0 +1,136 @@
+<!-- templates/dashboards/admin_dashboard.html -->
+{% extends 'admin_base.html' %}
+
+{% block title %}System Administrator Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>System Administrator Dashboard</h1>
+    <p>Complete system overview and management</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+            <h3>{{ total_users }}</h3>
+            <p>Active Users</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-info">
+            <h3>{{ total_departments }}</h3>
+            <p>Departments</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">👨‍👩‍👧‍👦</div>
+        <div class="stat-info">
+            <h3>{{ total_citizens }}</h3>
+            <p>Registered Citizens</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+            <h3>{{ total_revenue_streams }}</h3>
+            <p>Revenue Streams</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Module Statistics</h2>
+        <table class="data-table">
+            <tr>
+                <td>Bills Generated</td>
+                <td><strong>{{ total_bills }}</strong></td>
+            </tr>
+            <tr>
+                <td>Payments Processed</td>
+                <td><strong>{{ total_payments }}</strong></td>
+            </tr>
+            <tr>
+                <td>Fixed Assets</td>
+                <td><strong>{{ total_assets }}</strong></td>
+            </tr>
+            <tr>
+                <td>Fleet Vehicles</td>
+                <td><strong>{{ total_vehicles }}</strong></td>
+            </tr>
+            <tr>
+                <td>Registered Patients</td>
+                <td><strong>{{ total_patients }}</strong></td>
+            </tr>
+            <tr>
+                <td>Properties</td>
+                <td><strong>{{ total_properties }}</strong></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>System Health</h2>
+        <div class="health-stats">
+            <div class="health-item">
+                <span>Active Sessions (24h)</span>
+                <span class="badge badge-success">{{ active_sessions }}</span>
+            </div>
+            <div class="health-item">
+                <span>Pending Notifications</span>
+                <span class="badge badge-warning">{{ pending_notifications }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Recent Users</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Joined</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in recent_users %}
+                <tr>
+                    <td>{{ user.get_full_name }}</td>
+                    <td>{{ user.department|default:"-" }}</td>
+                    <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Recent Audit Logs</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Model</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_audit_logs %}
+                <tr>
+                    <td>{{ log.user.username }}</td>
+                    <td><span class="badge badge-info">{{ log.action }}</span></td>
+                    <td>{{ log.model_name }}</td>
+                    <td>{{ log.timestamp|timesince }} ago</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

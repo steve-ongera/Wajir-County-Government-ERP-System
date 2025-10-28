@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Fleet Manager Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Fleet Management Dashboard</h1>
+    <p>Vehicle tracking and fleet operations</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">🚗</div>
+        <div class="stat-info">
+            <h3>{{ total_vehicles }}</h3>
+            <p>Total Vehicles</p>
+        </div>
+    </div>
+    <div class="stat-card stat-success">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+            <h3>{{ active_vehicles }}</h3>
+            <p>Active</p>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">🔧</div>
+        <div class="stat-info">
+            <h3>{{ maintenance_vehicles }}</h3>
+            <p>Under Maintenance</p>
+        </div>
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-icon">⛽</div>
+        <div class="stat-info">
+            <h3>KES {{ today_fuel_cost|floatformat:2 }}</h3>
+            <p>Today's Fuel Cost</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Fuel Consumption</h2>
+        <div class="summary-stats">
+            <div class="summary-item">
+                <span>Today's Fuel (Liters)</span>
+                <strong>{{ today_fuel_liters|floatformat:1 }} L</strong>
+            </div>
+            <div class="summary-item">
+                <span>Today's Cost</span>
+                <strong>KES {{ today_fuel_cost|floatformat:2 }}</strong>
+            </div>
+            <div class="summary-item">
+                <span>This Month (Liters)</span>
+                <strong>{{ month_fuel_liters|floatformat:1 }} L</strong>
+            </div>
+            <div class="summary-item">
+                <span>This Month Cost</span>
+                <strong>KES {{ month_fuel_cost|floatformat:2 }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Active Trips</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Trip No.</th>
+                    <th>Vehicle</th>
+                    <th>Destination</th>
+                    <th>Driver</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trip in active_trips %}
+                <tr>
+                    <td>{{ trip.trip_number }}</td>
+                    <td>{{ trip.vehicle.registration_number }}</td>
+                    <td>{{ trip.destination }}</td>
+                    <td>{{ trip.driver.get_full_name }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No active trips</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Upcoming Maintenance</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Type</th>
+                    <th>Scheduled Date</th>
+                    <th>Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for maintenance in upcoming_maintenance %}
+                <tr>
+                    <td>{{ maintenance.vehicle.registration_number }}</td>
+                    <td>{{ maintenance.get_maintenance_type_display }}</td>
+                    <td>{{ maintenance.scheduled_date|date:"M d, Y" }}</td>
+                    <td>KES {{ maintenance.cost|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No upcoming maintenance</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Recent Fuel Transactions</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Liters</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in recent_fuel_transactions %}
+                <tr>
+                    <td>{{ transaction.vehicle.registration_number }}</td>
+                    <td>{{ transaction.quantity_liters }} L</td>
+                    <td>KES {{ transaction.total_amount|floatformat:2 }}</td>
+                    <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

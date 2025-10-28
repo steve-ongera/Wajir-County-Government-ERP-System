@@ -1,0 +1,136 @@
+<!-- templates/dashboards/revenue_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Revenue Officer Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Revenue Collection Dashboard</h1>
+    <p>Revenue management and collections</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card stat-primary">
+        <div class="stat-icon">💵</div>
+        <div class="stat-info">
+            <h3>KES {{ today_collections|floatformat:2 }}</h3>
+            <p>Today's Collections</p>
+        </div>
+    </div>
+    <div class="stat-card stat-success">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+            <h3>KES {{ month_collections|floatformat:2 }}</h3>
+            <p>This Month</p>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">📋</div>
+        <div class="stat-info">
+            <h3>{{ pending_bills }}</h3>
+            <p>Pending Bills</p>
+        </div>
+    </div>
+    <div class="stat-card stat-danger">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+            <h3>{{ overdue_bills }}</h3>
+            <p>Overdue Bills</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Revenue by Stream</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Revenue Stream</th>
+                    <th>Amount Collected</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in revenue_by_stream %}
+                <tr>
+                    <td>{{ item.revenue_stream__name }}</td>
+                    <td><strong>KES {{ item.total|floatformat:2 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Collection Summary</h2>
+        <div class="summary-stats">
+            <div class="summary-item">
+                <span>Total Bills</span>
+                <strong>{{ total_bills }}</strong>
+            </div>
+            <div class="summary-item">
+                <span>Billed Amount</span>
+                <strong>KES {{ total_bills_amount|floatformat:2 }}</strong>
+            </div>
+            <div class="summary-item">
+                <span>Collected</span>
+                <strong>KES {{ total_collected|floatformat:2 }}</strong>
+            </div>
+            <div class="summary-item">
+                <span>Collection Rate</span>
+                <strong>{{ collection_rate|floatformat:1 }}%</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Recent Payments</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Receipt No.</th>
+                    <th>Payer</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in recent_payments %}
+                <tr>
+                    <td>{{ payment.receipt_number }}</td>
+                    <td>{{ payment.payer_name }}</td>
+                    <td>KES {{ payment.amount|floatformat:2 }}</td>
+                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Recent Bills</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Bill No.</th>
+                    <th>Citizen</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bill in recent_bills %}
+                <tr>
+                    <td>{{ bill.bill_number }}</td>
+                    <td>{{ bill.citizen }}</td>
+                    <td>KES {{ bill.total_amount|floatformat:2 }}</td>
+                    <td><span class="badge badge-{{ bill.status }}">{{ bill.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

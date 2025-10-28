@@ -1,0 +1,116 @@
+<!-- templates/dashboards/finance_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Finance Officer Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Finance Management Dashboard</h1>
+    <p>Financial overview and revenue analysis</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card stat-success">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+            <h3>KES {{ total_revenue|floatformat:2 }}</h3>
+            <p>Revenue This Month</p>
+        </div>
+    </div>
+    <div class="stat-card stat-primary">
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+            <h3>KES {{ total_bills_amount|floatformat:2 }}</h3>
+            <p>Billed Amount</p>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+            <h3>KES {{ outstanding_amount|floatformat:2 }}</h3>
+            <p>Outstanding</p>
+        </div>
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-icon">📈</div>
+        <div class="stat-info">
+            <h3>{{ collection_rate|floatformat:1 }}%</h3>
+            <p>Collection Rate</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <h2>Revenue by Stream (This Month)</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Revenue Stream</th>
+                    <th>Amount</th>
+                    <th>% of Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in revenue_by_stream %}
+                <tr>
+                    <td>{{ item.revenue_stream__name }}</td>
+                    <td><strong>KES {{ item.total|floatformat:2 }}</strong></td>
+                    <td>{% widthratio item.total total_revenue 100 %}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card">
+        <h2>Payment Methods Breakdown</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Transactions</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in payment_by_method %}
+                <tr>
+                    <td>{{ item.payment_method__name }}</td>
+                    <td>{{ item.count }}</td>
+                    <td><strong>KES {{ item.total|floatformat:2 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h2>Recent Payments</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Receipt No.</th>
+                <th>Payer</th>
+                <th>Revenue Stream</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in recent_payments %}
+            <tr>
+                <td>{{ payment.receipt_number }}</td>
+                <td>{{ payment.payer_name }}</td>
+                <td>{{ payment.revenue_stream.name }}</td>
+                <td>KES {{ payment.amount|floatformat:2 }}</td>
+                <td><span class="badge">{{ payment.payment_method.name }}</span></td>
+                <td>{{ payment.payment_date|date:"M d, Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

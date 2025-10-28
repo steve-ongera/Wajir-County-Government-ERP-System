@@ -1,0 +1,66 @@
+<!-- templates/dashboards/general_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Welcome, {{ user.get_full_name }}</h1>
+    <p>Your personal dashboard</p>
+</div>
+
+<div class="dashboard-card">
+    <h2>Your Profile</h2>
+    <div class="profile-info">
+        <div class="profile-item">
+            <strong>Username:</strong> {{ user.username }}
+        </div>
+        <div class="profile-item">
+            <strong>Email:</strong> {{ user.email }}
+        </div>
+        <div class="profile-item">
+            <strong>Department:</strong> {{ department|default:"Not Assigned" }}
+        </div>
+        <div class="profile-item">
+            <strong>Sub-County:</strong> {{ sub_county|default:"Not Assigned" }}
+        </div>
+        <div class="profile-item">
+            <strong>Employee Number:</strong> {{ user.employee_number|default:"Not Assigned" }}
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h2>Recent Notifications</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for notification in recent_notifications %}
+            <tr>
+                <td>{{ notification.subject }}</td>
+                <td><span class="badge">{{ notification.get_notification_type_display }}</span></td>
+                <td>{{ notification.created_at|date:"M d, Y H:i" }}</td>
+                <td>
+                    {% if notification.read_at %}
+                    <span class="badge badge-success">Read</span>
+                    {% else %}
+                    <span class="badge badge-warning">Unread</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center">No notifications</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
