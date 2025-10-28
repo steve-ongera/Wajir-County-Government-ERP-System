@@ -621,7 +621,7 @@ class Visit(models.Model):
         return f"{self.visit_number} - {self.patient.patient_number}"
 
 
-class Ward(models.Model):
+class HospitalWard(models.Model):
     """Hospital wards"""
     facility = models.ForeignKey(HealthFacility, on_delete=models.CASCADE, related_name='hospital_wards')
     name = models.CharField(max_length=200)
@@ -649,7 +649,7 @@ class Admission(models.Model):
     visit = models.OneToOneField(Visit, on_delete=models.CASCADE, related_name='admission')
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='admissions')
     
-    ward = models.ForeignKey(Ward, on_delete=models.CASCADE, related_name='admissions')
+    ward = models.ForeignKey(HospitalWard, on_delete=models.CASCADE, related_name='admissions')
     bed_number = models.CharField(max_length=20)
     
     admission_date = models.DateTimeField()
