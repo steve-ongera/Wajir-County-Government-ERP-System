@@ -10,6 +10,14 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 
 
+from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.utils import timezone
+from datetime import timedelta
+import uuid
+import random
+import string
+
+
 # ============================================================================
 # CORE MODELS - User Management & Authentication
 # ============================================================================
@@ -79,6 +87,115 @@ class UserRole(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.role.name}"
 
+class LoginAttempt(models.Model):
+    """
+    Track login attempts for security purposes
+    """
+    username = models.CharField(max_length=150)
+    ip_address = models.GenericIPAddressField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    success = models.BooleanField(default=False)
+    user_agent = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"Login attempt for {self.username} at {self.timestamp}"
+
+
+class AccountLock(models.Model):
+    """
+    Track locked accounts
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='account_lock')
+    locked_at = models.DateTimeField(auto_now_add=True)
+    failed_attempts = models.PositiveIntegerField(default=0)
+    last_attempt_ip = models.GenericIPAddressField(null=True, blank=True)
+    unlock_time = models.DateTimeField(null=True, blank=True)
+    is_locked = models.BooleanField(default=True)
+    
+    def is_account_locked(self):
+        if not self.is_locked:
+            return False
+        if self.unlock_time and timezone.now() > self.unlock_time:
+            self.is_locked = False
+            self.save()
+            return False
+        return True
+    
+    def __str__(self):
+        return f"Account lock for {self.user.username}"
+
+
+class TwoFactorCode(models.Model):
+    """
+    Store 2FA verification codes
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tfa_codes')
+    code = models.CharField(max_length=7)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField()
+    session_key = models.CharField(max_length=40)
+    
+    def save(self, *args, **kwargs):
+        if not self.code:
+            digits = ''.join(random.choices(string.digits, k=6))
+            self.code = f"{digits[:3]}-{digits[3:]}"
+        
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(minutes=2)
+        
+        super().save(*args, **kwargs)
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    def is_valid(self):
+        return not self.used and not self.is_expired()
+    
+    def mark_as_used(self):
+        self.used = True
+        self.used_at = timezone.now()
+        self.save()
+    
+    def time_remaining(self):
+        if self.is_expired():
+            return 0
+        return int((self.expires_at - timezone.now()).total_seconds())
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"2FA Code for {self.user.username} - {self.code}"
+
+
+class SecurityNotification(models.Model):
+    """
+    Security-related notifications sent to users
+    """
+    NOTIFICATION_TYPES = (
+        ('failed_login', 'Failed Login Attempt'),
+        ('account_locked', 'Account Locked'),
+        ('tfa_code', '2FA Code'),
+        ('successful_login', 'Successful Login'),
+        ('account_unlocked', 'Account Unlocked'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='security_notifications')
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    ip_address = models.GenericIPAddressField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    message = models.TextField()
+    email_sent = models.BooleanField(default=False)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.get_notification_type_display()} for {self.user.username}"
 
 # ============================================================================
 # ADMINISTRATIVE STRUCTURE
