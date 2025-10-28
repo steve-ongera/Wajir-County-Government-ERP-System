@@ -74,14 +74,15 @@ WSGI_APPLICATION = 'Wajir_Erp.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'wajirdb',           # database name
-        'USER': 'postgres',          # your postgres username
-        'PASSWORD': 'cp7kvt', # your postgres password
-        'HOST': 'localhost',         # database server
-        'PORT': '5432',              # default postgres port
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'wajirdb',
+        'USER': 'postgres',
+        'PASSWORD': 'cp7kvt',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
+
 
 AUTH_USER_MODEL = 'main_application.User'
 
@@ -144,3 +145,10 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
 
+# GDAL Configuration
+os.environ['GDAL_DATA'] = r"C:\Program Files\GDAL\gdal-data"
+os.environ['PROJ_LIB'] = r"C:\Program Files\GDAL\projlib"
+os.environ['PATH'] += os.pathsep + r"C:\Program Files\GDAL"
+
+# Tell Django exactly where the GDAL DLL is
+GDAL_LIBRARY_PATH = r"C:\Program Files\GDAL\gdal.dll"
