@@ -1,0 +1,28 @@
+Django
+djangorestframework
+django-cors-headers
+whitenoise
+psycopg2-binary
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+python-decouple
+gunicorn
+Pillow
+openpyxl
+django-crispy-forms
+crispy-bootstrap5
+django-filter
+django-extensions
+Faker
+django-widget-tweaks
+pytest
+weasyprint
+# For Africa's Talking SMS
+africastalking==1.2.6
+
+# OR for Twilio SMS
+twilio==8.10.0
+
