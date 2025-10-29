@@ -1,0 +1,1402 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Citizens - Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    /*  all the CSS from your wajir template */
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn, .report-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn, .report-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover, .report-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .search-section {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 14px 12px 42px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        background: white;
+    }
+
+    .search-input::placeholder {
+        color: #94A3B8;
+    }
+
+    .search-btn {
+        padding: 12px 24px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .search-btn:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .clear-search-btn {
+        padding: 12px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .clear-search-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+
+    .filter-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-toggle {
+        color: #64748B;
+        transition: transform 0.3s ease;
+    }
+
+    .filter-toggle.rotated {
+        transform: rotate(180deg);
+    }
+
+    .filter-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 6px;
+    }
+
+    .filter-select {
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        align-items: center;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-btn:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .clear-btn {
+        padding: 10px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .clear-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .filter-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: #3498db;
+        color: white;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .stat-value.info {
+        color: #3498db;
+    }
+
+    .stat-trend {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 8px;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .table-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .record-count {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .citizens-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .citizens-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .citizens-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .citizens-table tbody tr {
+        transition: background-color 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+
+    .citizens-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .citizens-table tbody tr.border-success {
+        border-left-color: #27ae60;
+    }
+
+    .citizens-table tbody tr.border-warning {
+        border-left-color: #f39c12;
+    }
+
+    .citizen-id {
+        font-weight: 600;
+        color: #1E293B;
+        font-family: monospace;
+    }
+
+    .citizen-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .citizen-avatar {
+        width: 40px;
+        height: 40px;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #3498db;
+    }
+
+    .citizen-avatar.business {
+        background: rgba(243, 156, 18, 0.1);
+        color: #f39c12;
+    }
+
+    .citizen-details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .citizen-name {
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 2px;
+    }
+
+    .citizen-type {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .contact-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .contact-item {
+        font-size: 13px;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .contact-item i {
+        color: #94A3B8;
+        font-size: 12px;
+    }
+
+    .location-info {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-active {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-inactive {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .portal-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .portal-yes {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .portal-no {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        font-size: 1rem;
+        transition: all 0.2s ease-in-out;
+        background-color: transparent;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        transform: scale(1.1);
+        opacity: 0.9;
+    }
+
+    .btn-outline-primary {
+        border-color: #0d6efd;
+        color: #0d6efd;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #0d6efd;
+        color: #fff;
+    }
+
+    .btn-outline-warning {
+        border-color: #ffc107;
+        color: #ffc107;
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: #ffc107;
+        color: #fff;
+    }
+
+    .btn-outline-danger {
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+    
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        color: #fff;
+    }
+
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .dropdown .btn-action {
+        width: 20px;
+        height: 20px;
+    }
+
+    .dropdown-toggle::after {
+        display: none;
+    }
+
+    .dropdown-menu {
+        min-width: 180px;
+        padding: 8px;
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        list-style: none;
+        padding-left: 0;
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        margin-top: 4px;
+        z-index: 1000;
+    }
+
+    .dropdown-menu.show {
+        display: block;
+    }
+
+    .dropdown-item {
+        padding: 8px 12px;
+        color: #334155;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .dropdown-item:hover {
+        background: #F8FAFC;
+        color: #1E293B;
+    }
+
+    .dropdown-item i {
+        margin-right: 8px;
+        font-size: 1rem;
+    }
+
+    .dropdown-divider {
+        height: 1px;
+        background: #E2E8F0;
+        margin: 8px 0;
+        border: none;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+        margin-bottom: 20px;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #F1F5F9;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .pagination-info {
+        color: #64748B;
+        font-size: 14px;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 5px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .page-item {
+        display: inline-block;
+    }
+
+    .page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        color: #64748B;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .page-link:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .page-item.active .page-link {
+        background: #3498db;
+        border-color: #3498db;
+        color: white;
+    }
+
+    .page-item.disabled .page-link {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .filter-content {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .search-section {
+            flex-direction: column;
+        }
+
+        .search-btn,
+        .clear-search-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .citizens-table {
+            font-size: 13px;
+        }
+
+        .citizens-table thead th,
+        .citizens-table tbody td {
+            padding: 10px;
+        }
+
+        .action-buttons {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Citizen Services</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Citizens Registry</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-people"></i>
+                    Citizens Registry
+                </h1>
+                <p class="page-subtitle">
+                    Manage citizen and business records in the system
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'citizen_export_excel' %}?{{ request.GET.urlencode }}" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Export to Excel
+                </a>
+                <a href="{% url 'citizen_create' %}" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Register Citizen
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-people-fill"></i>
+                    Total Citizens
+                </div>
+                <div class="stat-value">{{ stats.total|default:0|intcomma }}</div>
+                <div class="stat-trend">All registered entities</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-check-circle"></i>
+                    Active Records
+                </div>
+                <div class="stat-value success">{{ stats.active|default:0|intcomma }}</div>
+                <div class="stat-trend">Currently active</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-person"></i>
+                    Individuals
+                </div>
+                <div class="stat-value">{{ stats.individuals|default:0|intcomma }}</div>
+                <div class="stat-trend">Personal records</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-building"></i>
+                    Businesses
+                </div>
+                <div class="stat-value warning">{{ stats.businesses|default:0|intcomma }}</div>
+                <div class="stat-trend">Business entities</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-key"></i>
+                    Portal Access
+                </div>
+                <div class="stat-value info">{{ stats.portal_users|default:0|intcomma }}</div>
+                <div class="stat-trend">With portal access</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-calendar-plus"></i>
+                    Recent (30 days)
+                </div>
+                <div class="stat-value">{{ stats.recent_registrations|default:0|intcomma }}</div>
+                <div class="stat-trend">New registrations</div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form method="get" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search search-icon"></i>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        class="search-input" 
+                        placeholder="Search by ID, name, phone, email, registration number..."
+                        value="{{ search_query }}"
+                    >
+                </div>
+                
+                <!-- Preserve filters -->
+                {% if current_entity_type %}<input type="hidden" name="entity_type" value="{{ current_entity_type }}">{% endif %}
+                {% if current_sub_county %}<input type="hidden" name="sub_county" value="{{ current_sub_county }}">{% endif %}
+                {% if current_ward %}<input type="hidden" name="ward" value="{{ current_ward }}">{% endif %}
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                {% if current_has_portal %}<input type="hidden" name="has_portal" value="{{ current_has_portal }}">{% endif %}
+                {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+                {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+                
+                <button type="submit" class="search-btn">
+                    <i class="bi bi-search"></i>
+                    Search
+                </button>
+                
+                {% if search_query %}
+                <a href="{% url 'citizen_list' %}{% if current_entity_type or current_sub_county %}?{% endif %}{% if current_entity_type %}entity_type={{ current_entity_type }}&{% endif %}{% if current_sub_county %}sub_county={{ current_sub_county }}{% endif %}" class="clear-search-btn">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="filter-header" onclick="toggleFilters()">
+                <h6 class="filter-title">
+                    <i class="bi bi-funnel"></i>
+                    Filter Citizens
+                    {% if current_entity_type or current_sub_county or current_ward or current_status or current_has_portal or date_from or date_to %}
+                    <span class="filter-badge">Active</span>
+                    {% endif %}
+                </h6>
+                <i class="bi bi-chevron-down filter-toggle" id="filterToggle"></i>
+            </div>
+            
+            <div class="filter-content" id="filtersContent" style="display: none;">
+                <form method="get" id="filterForm">
+                    {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
+                    
+                    <div class="filter-content">
+                        <div class="filter-group">
+                            <label class="filter-label" for="entity_type">
+                                <i class="bi bi-person-badge"></i> Entity Type
+                            </label>
+                            <select class="filter-select" name="entity_type" id="entity_type">
+                                <option value="">All Types</option>
+                                <option value="individual" {% if current_entity_type == 'individual' %}selected{% endif %}>Individual</option>
+                                <option value="business" {% if current_entity_type == 'business' %}selected{% endif %}>Business</option>
+                                <option value="organization" {% if current_entity_type == 'organization' %}selected{% endif %}>Organization</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="sub_county">
+                                <i class="bi bi-geo-alt"></i> Sub-County
+                            </label>
+                            <select class="filter-select" name="sub_county" id="sub_county">
+                                <option value="">All Sub-Counties</option>
+                                {% for sc in sub_counties %}
+                                <option value="{{ sc.id }}" {% if current_sub_county == sc.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ sc.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="ward">
+                                <i class="bi bi-map"></i> Ward
+                            </label>
+                            <select class="filter-select" name="ward" id="ward">
+                                <option value="">All Wards</option>
+                                {% for ward in wards %}
+                                <option value="{{ ward.id }}" {% if current_ward == ward.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ ward.name }} ({{ ward.sub_county.name }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="status">
+                                <i class="bi bi-toggle-on"></i> Status
+                            </label>
+                            <select class="filter-select" name="status" id="status">
+                                <option value="">All Status</option>
+                                <option value="active" {% if current_status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="has_portal">
+                                <i class="bi bi-key"></i> Portal Access
+                            </label>
+                            <select class="filter-select" name="has_portal" id="has_portal">
+                                <option value="">All</option>
+                                <option value="true" {% if current_has_portal == 'true' %}selected{% endif %}>With Portal Access</option>
+                                <option value="false" {% if current_has_portal == 'false' %}selected{% endif %}>No Portal Access</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="date_from">
+                                <i class="bi bi-calendar-event"></i> Registered From
+                            </label>
+                            <input type="date" class="filter-select" name="date_from" id="date_from" value="{{ date_from }}">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="date_to">
+                                <i class="bi bi-calendar-check"></i> Registered To
+                            </label>
+                            <input type="date" class="filter-select" name="date_to" id="date_to" value="{{ date_to }}">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="filter-btn">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'citizen_list' %}" class="clear-btn">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Citizens Table -->
+        <div class="table-header">
+            <h6 class="table-title">
+                <i class="bi bi-table"></i>
+                Citizens List
+            </h6>
+            <span class="record-count">{{ page_obj.paginator.count|default:0 }} records</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="citizens-table">
+                <thead>
+                    <tr>
+                        <th>ID/Reg Number</th>
+                        <th>Citizen/Business</th>
+                        <th>Contact</th>
+                        <th>Location</th>
+                        <th>Portal</th>
+                        <th>Status</th>
+                        <th>Registered</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for citizen in page_obj %}
+                    <tr class="{% if citizen.is_active %}border-success{% else %}border-warning{% endif %}">
+                        <td>
+                            <span class="citizen-id">{{ citizen.unique_identifier }}</span>
+                        </td>
+                        <td>
+                            <div class="citizen-info">
+                                <div class="citizen-avatar {% if citizen.entity_type == 'business' %}business{% endif %}">
+                                    {% if citizen.entity_type == 'individual' %}
+                                        {{ citizen.first_name.0 }}{{ citizen.last_name.0 }}
+                                    {% else %}
+                                        <i class="bi bi-building"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="citizen-details">
+                                    <div class="citizen-name">
+                                        {% if citizen.entity_type == 'individual' %}
+                                            {{ citizen.first_name }} {{ citizen.last_name }}
+                                        {% else %}
+                                            {{ citizen.business_name }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="citizen-type">
+                                        <i class="bi bi-tag me-1"></i>{{ citizen.get_entity_type_display }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="contact-info">
+                                <div class="contact-item">
+                                    <i class="bi bi-telephone"></i>
+                                    {{ citizen.phone_primary }}
+                                </div>
+                                {% if citizen.email %}
+                                <div class="contact-item">
+                                    <i class="bi bi-envelope"></i>
+                                    {{ citizen.email }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="location-info">
+                                {% if citizen.ward %}
+                                <div><i class="bi bi-geo-alt me-1"></i>{{ citizen.ward.name }}</div>
+                                {% endif %}
+                                {% if citizen.sub_county %}
+                                <div><i class="bi bi-map me-1"></i>{{ citizen.sub_county.name }}</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if citizen.has_portal_access %}
+                                <span class="portal-badge portal-yes">
+                                    <i class="bi bi-check-circle"></i>Yes
+                                </span>
+                            {% else %}
+                                <span class="portal-badge portal-no">
+                                    <i class="bi bi-x-circle"></i>No
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if citizen.is_active %}
+                                <span class="status-badge status-active">
+                                    <i class="bi bi-check-circle-fill"></i>Active
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-inactive">
+                                    <i class="bi bi-x-circle-fill"></i>Inactive
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">{{ citizen.created_at|date:"M d, Y" }}</div>
+                            <div style="font-size: 11px; color: #94A3B8;">{{ citizen.created_at|timesince }} ago</div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'citizen_detail' citizen.unique_identifier %}" 
+                                   class="btn-action btn-outline-primary" 
+                                   title="View Details"
+                                   data-bs-toggle="tooltip">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'citizen_update' citizen.unique_identifier %}" 
+                                   class="btn-action btn-outline-warning" 
+                                   title="Edit Citizen"
+                                   data-bs-toggle="tooltip">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn-action btn-outline-danger" 
+                                        title="Delete Citizen"
+                                        data-bs-toggle="tooltip"
+                                        onclick="confirmDelete('{{ citizen.unique_identifier }}', '{% if citizen.entity_type == "individual" %}{{ citizen.first_name }} {{ citizen.last_name }}{% else %}{{ citizen.business_name }}{% endif %}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-inbox"></i>
+                                </div>
+                                <h3 class="empty-title">No Citizens Found</h3>
+                                <p class="empty-text">
+                                    {% if search_query %}
+                                        No citizens match your search for "{{ search_query }}".
+                                    {% else %}
+                                        Try adjusting your filters or register a new citizen.
+                                    {% endif %}
+                                </p>
+                                <a href="{% url 'citizen_create' %}" class="btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Register First Citizen
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Showing {{ page_obj.start_index|default:0 }} to {{ page_obj.end_index|default:0 }} of {{ page_obj.paginator.count|default:0 }} entries
+            </div>
+            
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_entity_type %}&entity_type={{ current_entity_type }}{% endif %}{% if current_sub_county %}&sub_county={{ current_sub_county }}{% endif %}{% if current_ward %}&ward={{ current_ward }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_has_portal %}&has_portal={{ current_has_portal }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if current_entity_type %}&entity_type={{ current_entity_type }}{% endif %}{% if current_sub_county %}&sub_county={{ current_sub_county }}{% endif %}{% if current_ward %}&ward={{ current_ward }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_has_portal %}&has_portal={{ current_has_portal }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_entity_type %}&entity_type={{ current_entity_type }}{% endif %}{% if current_sub_county %}&sub_county={{ current_sub_county }}{% endif %}{% if current_ward %}&ward={{ current_ward }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_has_portal %}&has_portal={{ current_has_portal }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% comment %} <!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to deactivate <strong id="citizenName"></strong>?</p>
+                <p class="text-muted">This action will mark the citizen as inactive. The record will be preserved but will no longer be active in the system.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Deactivate</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div> {% endcomment %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-expand filters if any filter is active
+        const hasActiveFilters = "{{ current_entity_type }}" !== "" || 
+                                "{{ current_sub_county }}" !== "" ||
+                                "{{ current_ward }}" !== "" ||
+                                "{{ current_status }}" !== "" ||
+                                "{{ current_has_portal }}" !== "" ||
+                                "{{ date_from }}" !== "" ||
+                                "{{ date_to }}" !== "";
+        
+        if (hasActiveFilters) {
+            document.getElementById('filtersContent').style.display = 'grid';
+            document.getElementById('filterToggle').classList.add('rotated');
+        }
+
+        // Auto-focus search input if search query exists
+        const searchInput = document.querySelector('.search-input');
+        const searchQuery = "{{ search_query|default:'' }}";
+        if (searchQuery && searchInput) {
+            searchInput.focus();
+            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+        }
+
+        // Initialize Bootstrap tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+
+    // Toggle filters visibility
+    function toggleFilters() {
+        const content = document.getElementById('filtersContent');
+        const toggle = document.getElementById('filterToggle');
+        
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'grid';
+            toggle.classList.add('rotated');
+        } else {
+            content.style.display = 'none';
+            toggle.classList.remove('rotated');
+        }
+    }
+
+    // Confirm delete
+    function confirmDelete(uniqueId, name) {
+        document.getElementById('citizenName').textContent = name;
+        const form = document.getElementById('deleteForm');
+        form.action = `/citizens/${uniqueId}/delete/`;
+        
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+
+    // Show success notification
+    function showNotification(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease-out;
+        `;
+        
+        toast.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check' : 'x'}-circle-fill" style="font-size: 20px;"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+</script>
+{% endblock %}

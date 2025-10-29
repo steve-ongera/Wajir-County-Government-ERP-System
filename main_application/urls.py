@@ -23,4 +23,15 @@ urlpatterns = [
     path('dashboard/finance/', views.finance_dashboard, name='finance_dashboard'),
     path('dashboard/lands/', views.lands_dashboard, name='lands_dashboard'),
     path('dashboard/general/', views.general_dashboard, name='general_dashboard'),
+
+    # Citizen Management
+    path('citizens/', views.citizen_list, name='citizen_list'),
+    path('citizens/create/', views.citizen_create, name='citizen_create'),
+    path('citizens/<str:unique_identifier>/', views.citizen_detail, name='citizen_detail'),
+    path('citizens/<str:unique_identifier>/update/', views.citizen_update, name='citizen_update'),
+    path('citizens/<str:unique_identifier>/delete/', views.citizen_delete, name='citizen_delete'),
+    path('citizens/export/excel/', views.citizen_export_excel, name='citizen_export_excel'),
+    
+    # AJAX endpoints
+    path('api/wards-by-subcounty/', views.get_wards_by_subcounty, name='get_wards_by_subcounty'),
 ]

@@ -1231,3 +1231,565 @@ def general_dashboard(request):
     }
     
     return render(request, 'dashboards/general_dashboard.html', context)
+
+
+"""
+Citizen Management Views
+Handles CRUD operations, search, filtering, and export
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q, Count, Sum
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+
+from main_application.models import (
+    Citizen, SubCounty, Ward, User, Bill, Payment,
+    CitizenDocument
+)
+
+
+@login_required
+def citizen_list(request):
+    """
+    List all citizens with search, filter, and pagination
+    """
+    # Base queryset
+    citizens = Citizen.objects.select_related(
+        'sub_county', 'ward', 'created_by'
+    ).prefetch_related('bills', 'payments')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        citizens = citizens.filter(
+            Q(unique_identifier__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(business_name__icontains=search_query) |
+            Q(phone_primary__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(registration_number__icontains=search_query)
+        )
+    
+    # Filters
+    entity_type = request.GET.get('entity_type', '')
+    sub_county_id = request.GET.get('sub_county', '')
+    ward_id = request.GET.get('ward', '')
+    status = request.GET.get('status', '')
+    has_portal = request.GET.get('has_portal', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if entity_type:
+        citizens = citizens.filter(entity_type=entity_type)
+    
+    if sub_county_id:
+        citizens = citizens.filter(sub_county_id=sub_county_id)
+    
+    if ward_id:
+        citizens = citizens.filter(ward_id=ward_id)
+    
+    if status:
+        is_active = status == 'active'
+        citizens = citizens.filter(is_active=is_active)
+    
+    if has_portal:
+        has_access = has_portal == 'true'
+        citizens = citizens.filter(has_portal_access=has_access)
+    
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            citizens = citizens.filter(created_at__date__gte=date_from_obj)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            citizens = citizens.filter(created_at__date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
+    # Order by most recent
+    citizens = citizens.order_by('-created_at')
+    
+    # Statistics
+    total_citizens = Citizen.objects.count()
+    active_citizens = Citizen.objects.filter(is_active=True).count()
+    individuals = Citizen.objects.filter(entity_type='individual').count()
+    businesses = Citizen.objects.filter(entity_type='business').count()
+    portal_users = Citizen.objects.filter(has_portal_access=True).count()
+    
+    # Recent registrations (last 30 days)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    recent_registrations = Citizen.objects.filter(
+        created_at__gte=thirty_days_ago
+    ).count()
+    
+    stats = {
+        'total': total_citizens,
+        'active': active_citizens,
+        'individuals': individuals,
+        'businesses': businesses,
+        'portal_users': portal_users,
+        'recent_registrations': recent_registrations,
+    }
+    
+    # Pagination
+    paginator = Paginator(citizens, 25)  # 25 citizens per page
+    page = request.GET.get('page', 1)
+    
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+    
+    # Get filter options
+    sub_counties = SubCounty.objects.filter(is_active=True).order_by('name')
+    wards = Ward.objects.filter(is_active=True).select_related('sub_county').order_by('name')
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'sub_counties': sub_counties,
+        'wards': wards,
+        'current_entity_type': entity_type,
+        'current_sub_county': sub_county_id,
+        'current_ward': ward_id,
+        'current_status': status,
+        'current_has_portal': has_portal,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'admin/citizens/citizen_list.html', context)
+
+
+@login_required
+def citizen_detail(request, unique_identifier):
+    """
+    View detailed information about a specific citizen
+    Uses unique_identifier (ID number or business registration number)
+    """
+    citizen = get_object_or_404(
+        Citizen.objects.select_related('sub_county', 'ward', 'created_by', 'portal_user'),
+        unique_identifier=unique_identifier
+    )
+    
+    # Get related records
+    bills = citizen.bills.select_related('revenue_stream').order_by('-created_at')[:10]
+    payments = citizen.payments.select_related('payment_method', 'revenue_stream').order_by('-created_at')[:10]
+    documents = citizen.documents.select_related('uploaded_by').order_by('-uploaded_at')
+    
+    # Financial summary
+    total_billed = citizen.bills.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_paid = citizen.payments.filter(status='completed').aggregate(Sum('amount'))['amount__sum'] or 0
+    outstanding_balance = citizen.bills.filter(
+        status__in=['issued', 'partially_paid', 'overdue']
+    ).aggregate(Sum('balance'))['balance__sum'] or 0
+    
+    # Bill statistics
+    bill_stats = {
+        'total': citizen.bills.count(),
+        'paid': citizen.bills.filter(status='paid').count(),
+        'pending': citizen.bills.filter(status__in=['issued', 'partially_paid']).count(),
+        'overdue': citizen.bills.filter(status='overdue').count(),
+    }
+    
+    context = {
+        'citizen': citizen,
+        'bills': bills,
+        'payments': payments,
+        'documents': documents,
+        'total_billed': total_billed,
+        'total_paid': total_paid,
+        'outstanding_balance': outstanding_balance,
+        'bill_stats': bill_stats,
+    }
+    
+    return render(request, 'admin/citizens/citizen_detail.html', context)
+
+
+@login_required
+def citizen_create(request):
+    """
+    Create a new citizen record
+    """
+    if request.method == 'POST':
+        entity_type = request.POST.get('entity_type')
+        unique_identifier = request.POST.get('unique_identifier')
+        
+        # Check if unique identifier already exists
+        if Citizen.objects.filter(unique_identifier=unique_identifier).exists():
+            messages.error(request, f'A citizen with ID/Registration number {unique_identifier} already exists.')
+            return render(request, 'admin/citizens/citizen_create.html', {
+                'sub_counties': SubCounty.objects.filter(is_active=True),
+                'wards': Ward.objects.filter(is_active=True),
+                'post_data': request.POST,
+            })
+        
+        # Check for duplicate phone
+        phone_primary = request.POST.get('phone_primary')
+        if Citizen.objects.filter(phone_primary=phone_primary).exists():
+            messages.error(request, f'A citizen with phone number {phone_primary} already exists.')
+            return render(request, 'admin/citizens/citizen_create.html', {
+                'sub_counties': SubCounty.objects.filter(is_active=True),
+                'wards': Ward.objects.filter(is_active=True),
+                'post_data': request.POST,
+            })
+        
+        # Check for duplicate email if provided
+        email = request.POST.get('email', '').strip()
+        if email and Citizen.objects.filter(email=email).exists():
+            messages.error(request, f'A citizen with email {email} already exists.')
+            return render(request, 'admin/citizens/citizen_create.html', {
+                'sub_counties': SubCounty.objects.filter(is_active=True),
+                'wards': Ward.objects.filter(is_active=True),
+                'post_data': request.POST,
+            })
+        
+        try:
+            # Create citizen based on entity type
+            citizen_data = {
+                'entity_type': entity_type,
+                'unique_identifier': unique_identifier,
+                'phone_primary': phone_primary,
+                'email': email if email else None,
+                'phone_secondary': request.POST.get('phone_secondary', ''),
+                'postal_address': request.POST.get('postal_address', ''),
+                'physical_address': request.POST.get('physical_address', ''),
+                'sub_county_id': request.POST.get('sub_county'),
+                'ward_id': request.POST.get('ward'),
+                'created_by': request.user,
+                'is_active': True,
+            }
+            
+            if entity_type == 'individual':
+                citizen_data.update({
+                    'first_name': request.POST.get('first_name'),
+                    'middle_name': request.POST.get('middle_name', ''),
+                    'last_name': request.POST.get('last_name'),
+                    'gender': request.POST.get('gender'),
+                })
+                
+                # Parse date of birth
+                dob = request.POST.get('date_of_birth')
+                if dob:
+                    try:
+                        citizen_data['date_of_birth'] = datetime.strptime(dob, '%Y-%m-%d').date()
+                    except ValueError:
+                        pass
+            
+            else:  # business or organization
+                citizen_data.update({
+                    'business_name': request.POST.get('business_name'),
+                    'registration_number': request.POST.get('registration_number', ''),
+                })
+            
+            citizen = Citizen.objects.create(**citizen_data)
+            
+            messages.success(
+                request,
+                f'Citizen {citizen} registered successfully with ID: {unique_identifier}'
+            )
+            return redirect('citizen_detail', unique_identifier=citizen.unique_identifier)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating citizen: {str(e)}')
+    
+    context = {
+        'sub_counties': SubCounty.objects.filter(is_active=True).order_by('name'),
+        'wards': Ward.objects.filter(is_active=True).select_related('sub_county').order_by('name'),
+    }
+    
+    return render(request, 'admin/citizens/citizen_create.html', context)
+
+
+@login_required
+def citizen_update(request, unique_identifier):
+    """
+    Update citizen information
+    """
+    citizen = get_object_or_404(Citizen, unique_identifier=unique_identifier)
+    
+    if request.method == 'POST':
+        try:
+            # Update common fields
+            citizen.phone_primary = request.POST.get('phone_primary')
+            citizen.phone_secondary = request.POST.get('phone_secondary', '')
+            citizen.email = request.POST.get('email', '') or None
+            citizen.postal_address = request.POST.get('postal_address', '')
+            citizen.physical_address = request.POST.get('physical_address', '')
+            citizen.sub_county_id = request.POST.get('sub_county')
+            citizen.ward_id = request.POST.get('ward')
+            
+            # Update type-specific fields
+            if citizen.entity_type == 'individual':
+                citizen.first_name = request.POST.get('first_name')
+                citizen.middle_name = request.POST.get('middle_name', '')
+                citizen.last_name = request.POST.get('last_name')
+                citizen.gender = request.POST.get('gender')
+                
+                dob = request.POST.get('date_of_birth')
+                if dob:
+                    try:
+                        citizen.date_of_birth = datetime.strptime(dob, '%Y-%m-%d').date()
+                    except ValueError:
+                        pass
+            else:
+                citizen.business_name = request.POST.get('business_name')
+                citizen.registration_number = request.POST.get('registration_number', '')
+            
+            citizen.save()
+            
+            messages.success(request, f'Citizen {citizen} updated successfully.')
+            return redirect('citizen_detail', unique_identifier=citizen.unique_identifier)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating citizen: {str(e)}')
+    
+    context = {
+        'citizen': citizen,
+        'sub_counties': SubCounty.objects.filter(is_active=True).order_by('name'),
+        'wards': Ward.objects.filter(is_active=True).select_related('sub_county').order_by('name'),
+    }
+    
+    return render(request, 'admin/citizens/citizen_update.html', context)
+
+
+@login_required
+def citizen_delete(request, unique_identifier):
+    """
+    Soft delete a citizen (mark as inactive)
+    """
+    if request.method == 'POST':
+        citizen = get_object_or_404(Citizen, unique_identifier=unique_identifier)
+        
+        # Check if citizen has active bills
+        active_bills = citizen.bills.filter(
+            status__in=['issued', 'partially_paid']
+        ).count()
+        
+        if active_bills > 0:
+            messages.error(
+                request,
+                f'Cannot delete citizen with {active_bills} active bill(s). Please settle all bills first.'
+            )
+            return redirect('citizen_detail', unique_identifier=unique_identifier)
+        
+        # Soft delete
+        citizen.is_active = False
+        citizen.save()
+        
+        messages.success(request, f'Citizen {citizen} has been deactivated.')
+        return redirect('citizen_list')
+    
+    return redirect('citizen_list')
+
+
+@login_required
+def citizen_export_excel(request):
+    """
+    Export filtered citizens to Excel
+    """
+    # Apply same filters as list view
+    citizens = Citizen.objects.select_related('sub_county', 'ward', 'created_by')
+    
+    # Search
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        citizens = citizens.filter(
+            Q(unique_identifier__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(business_name__icontains=search_query) |
+            Q(phone_primary__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+    
+    # Filters
+    entity_type = request.GET.get('entity_type', '')
+    sub_county_id = request.GET.get('sub_county', '')
+    ward_id = request.GET.get('ward', '')
+    status = request.GET.get('status', '')
+    has_portal = request.GET.get('has_portal', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if entity_type:
+        citizens = citizens.filter(entity_type=entity_type)
+    if sub_county_id:
+        citizens = citizens.filter(sub_county_id=sub_county_id)
+    if ward_id:
+        citizens = citizens.filter(ward_id=ward_id)
+    if status:
+        is_active = status == 'active'
+        citizens = citizens.filter(is_active=is_active)
+    if has_portal:
+        has_access = has_portal == 'true'
+        citizens = citizens.filter(has_portal_access=has_access)
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            citizens = citizens.filter(created_at__date__gte=date_from_obj)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            citizens = citizens.filter(created_at__date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
+    citizens = citizens.order_by('-created_at')
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Citizens Export"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'ID/Registration #',
+        'Entity Type',
+        'Full Name/Business Name',
+        'Gender',
+        'Date of Birth',
+        'Phone Primary',
+        'Phone Secondary',
+        'Email',
+        'Sub-County',
+        'Ward',
+        'Physical Address',
+        'Postal Address',
+        'Portal Access',
+        'Status',
+        'Registration Date',
+        'Created By',
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data rows
+    for row_num, citizen in enumerate(citizens, 2):
+        if citizen.entity_type == 'individual':
+            full_name = f"{citizen.first_name} {citizen.middle_name} {citizen.last_name}".strip()
+            gender = citizen.gender or ''
+            dob = citizen.date_of_birth.strftime('%Y-%m-%d') if citizen.date_of_birth else ''
+        else:
+            full_name = citizen.business_name or ''
+            gender = 'N/A'
+            dob = 'N/A'
+        
+        row_data = [
+            citizen.unique_identifier,
+            citizen.get_entity_type_display(),
+            full_name,
+            gender,
+            dob,
+            citizen.phone_primary,
+            citizen.phone_secondary or '',
+            citizen.email or '',
+            citizen.sub_county.name if citizen.sub_county else '',
+            citizen.ward.name if citizen.ward else '',
+            citizen.physical_address or '',
+            citizen.postal_address or '',
+            'Yes' if citizen.has_portal_access else 'No',
+            'Active' if citizen.is_active else 'Inactive',
+            citizen.created_at.strftime('%Y-%m-%d %H:%M'),
+            citizen.created_by.get_full_name() if citizen.created_by else '',
+        ]
+        
+        for col_num, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            
+            # Alignment
+            if col_num in [1, 5, 6, 15]:  # ID, phones, date
+                cell.alignment = Alignment(horizontal='left')
+            else:
+                cell.alignment = Alignment(horizontal='left', wrap_text=True)
+    
+    # Adjust column widths
+    column_widths = {
+        'A': 20,  # ID
+        'B': 15,  # Entity Type
+        'C': 30,  # Name
+        'D': 10,  # Gender
+        'E': 15,  # DOB
+        'F': 15,  # Phone 1
+        'G': 15,  # Phone 2
+        'H': 25,  # Email
+        'I': 20,  # Sub-County
+        'J': 20,  # Ward
+        'K': 35,  # Physical Address
+        'L': 20,  # Postal Address
+        'M': 12,  # Portal
+        'N': 10,  # Status
+        'O': 18,  # Reg Date
+        'P': 20,  # Created By
+    }
+    
+    for col, width in column_widths.items():
+        ws.column_dimensions[col].width = width
+    
+    # Freeze header row
+    ws.freeze_panes = 'A2'
+    
+    # Prepare response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    
+    filename = f'citizens_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+
+@login_required
+def get_wards_by_subcounty(request):
+    """
+    AJAX endpoint to get wards by sub-county
+    """
+    sub_county_id = request.GET.get('sub_county_id')
+    
+    if not sub_county_id:
+        return JsonResponse({'wards': []})
+    
+    wards = Ward.objects.filter(
+        sub_county_id=sub_county_id,
+        is_active=True
+    ).values('id', 'name').order_by('name')
+    
+    return JsonResponse({'wards': list(wards)})
