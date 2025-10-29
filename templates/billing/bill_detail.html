@@ -1,0 +1,1004 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Bill Details - {{ bill.bill_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .header-left {
+        flex: 1;
+        min-width: 300px;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .bill-number-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 8px 0 0 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c0392b;
+    }
+
+    .btn-success {
+        background: #27ae60;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #229954;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-draft {
+        background: #E2E8F0;
+        color: #64748B;
+    }
+
+    .status-issued {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .status-partially_paid {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-paid {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-overdue {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .status-cancelled {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    .status-waived {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .detail-card {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .card-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 12px 0;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .detail-label {
+        font-size: 13px;
+        color: #64748B;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        font-size: 14px;
+        color: #1E293B;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .detail-value.amount {
+        font-family: 'Courier New', monospace;
+        font-size: 15px;
+    }
+
+    .detail-value.positive {
+        color: #27ae60;
+    }
+
+    .detail-value.negative {
+        color: #e74c3c;
+    }
+
+    .summary-card {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border: none;
+        color: white;
+    }
+
+    .summary-card .card-title {
+        color: rgba(255, 255, 255, 0.9);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+
+    .summary-card .detail-row {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .summary-card .detail-label {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .summary-card .detail-value {
+        color: white;
+        font-size: 16px;
+    }
+
+    .summary-total {
+        padding-top: 16px;
+        margin-top: 16px;
+        border-top: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .summary-total .detail-label {
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .summary-total .detail-value {
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #E2E8F0;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .record-count {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-bottom: 24px;
+    }
+
+    .data-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .data-table thead th:last-child {
+        text-align: right;
+    }
+
+    .data-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .data-table tbody td:last-child {
+        text-align: right;
+    }
+
+    .data-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .table-footer {
+        background: #F8FAFC;
+        border-top: 2px solid #3498db;
+    }
+
+    .table-footer td {
+        font-weight: 700;
+        color: #1E293B;
+        font-size: 15px;
+    }
+
+    .payment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .payment-completed {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .payment-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .payment-failed {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .payment-reversed {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: #F8FAFC;
+        border-radius: 8px;
+        border: 2px dashed #E2E8F0;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FECACA;
+    }
+
+    .alert-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+        border: 1px solid #BFDBFE;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #E2E8F0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-bottom: 24px;
+    }
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -26px;
+        top: 4px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #3498db;
+    }
+
+    .timeline-marker.success {
+        border-color: #27ae60;
+    }
+
+    .timeline-marker.warning {
+        border-color: #f39c12;
+    }
+
+    .timeline-marker.danger {
+        border-color: #e74c3c;
+    }
+
+    .timeline-content {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px;
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .timeline-title {
+        font-weight: 600;
+        color: #1E293B;
+        font-size: 14px;
+    }
+
+    .timeline-date {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .timeline-description {
+        font-size: 13px;
+        color: #64748B;
+        line-height: 1.5;
+    }
+
+    @media print {
+        .header-actions,
+        .breadcrumb,
+        .btn-primary,
+        .btn-secondary {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'bill_list' %}">Bills</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">{{ bill.bill_number }}</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="section-container">
+        <div class="page-header">
+            <div class="header-left">
+                <h1 class="page-title">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Bill Details
+                </h1>
+                <div style="margin-top: 12px;">
+                    <span class="bill-number-badge">
+                        <i class="bi bi-hash"></i>
+                        {{ bill.bill_number }}
+                    </span>
+                    <span class="status-badge status-{{ bill.status }}">
+                        {% if bill.status == 'draft' %}
+                            <i class="bi bi-file-earmark"></i>
+                        {% elif bill.status == 'issued' %}
+                            <i class="bi bi-send"></i>
+                        {% elif bill.status == 'partially_paid' %}
+                            <i class="bi bi-clock-history"></i>
+                        {% elif bill.status == 'paid' %}
+                            <i class="bi bi-check-circle-fill"></i>
+                        {% elif bill.status == 'overdue' %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        {% elif bill.status == 'cancelled' %}
+                            <i class="bi bi-x-circle-fill"></i>
+                        {% elif bill.status == 'waived' %}
+                            <i class="bi bi-dash-circle-fill"></i>
+                        {% endif %}
+                        {{ bill.get_status_display }}
+                    </span>
+                </div>
+                <p class="page-subtitle">
+                    Created on {{ bill.created_at|date:"d M Y, h:i A" }}
+                    {% if bill.created_by %}
+                    by {{ bill.created_by.get_full_name }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="header-actions">
+                <button onclick="window.print()" class="btn-secondary">
+                    <i class="bi bi-printer"></i>
+                    Print
+                </button>
+                <a href="#" class="btn-secondary">
+                    <i class="bi bi-download"></i>
+                    Download PDF
+                </a>
+                {% if bill.status == 'issued' or bill.status == 'partially_paid' %}
+                <a href="#" class="btn-success">
+                    <i class="bi bi-cash-coin"></i>
+                    Record Payment
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Overdue Alert -->
+        {% if bill.status == 'overdue' %}
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill" style="font-size: 20px;"></i>
+            <div>
+                <strong>This bill is overdue!</strong> 
+                Due date was {{ bill.due_date|date:"d M Y" }}. 
+                Outstanding balance: <strong>KES {{ bill.balance|floatformat:2|intcomma }}</strong>
+            </div>
+        </div>
+        {% elif bill.status == 'partially_paid' %}
+        <div class="alert alert-warning">
+            <i class="bi bi-info-circle-fill" style="font-size: 20px;"></i>
+            <div>
+                <strong>Partial Payment Received</strong>
+                Remaining balance: <strong>KES {{ bill.balance|floatformat:2|intcomma }}</strong>
+            </div>
+        </div>
+        {% elif bill.status == 'paid' %}
+        <div class="alert alert-info" style="background: #D1FAE5; border-color: #A7F3D0; color: #065F46;">
+            <i class="bi bi-check-circle-fill" style="font-size: 20px;"></i>
+            <div>
+                <strong>Payment Complete</strong>
+                This bill has been fully paid.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Details Grid -->
+        <div class="details-grid">
+            <!-- Citizen Information -->
+            <div class="detail-card">
+                <h6 class="card-title">
+                    <i class="bi bi-person-circle"></i>
+                    Citizen/Business Information
+                </h6>
+                <div class="detail-row">
+                    <span class="detail-label">Name</span>
+                    <span class="detail-value">
+                        {% if bill.citizen.entity_type == 'business' %}
+                            {{ bill.citizen.business_name }}
+                        {% else %}
+                            {{ bill.citizen.first_name }} {{ bill.citizen.last_name }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Entity Type</span>
+                    <span class="detail-value">{{ bill.citizen.get_entity_type_display }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Phone</span>
+                    <span class="detail-value">{{ bill.citizen.phone_primary }}</span>
+                </div>
+                {% if bill.citizen.email %}
+                <div class="detail-row">
+                    <span class="detail-label">Email</span>
+                    <span class="detail-value">{{ bill.citizen.email }}</span>
+                </div>
+                {% endif %}
+                <div class="detail-row">
+                    <span class="detail-label">ID Number</span>
+                    <span class="detail-value">{{ bill.citizen.unique_identifier }}</span>
+                </div>
+            </div>
+
+            <!-- Bill Information -->
+            <div class="detail-card">
+                <h6 class="card-title">
+                    <i class="bi bi-file-text"></i>
+                    Bill Information
+                </h6>
+                <div class="detail-row">
+                    <span class="detail-label">Bill Date</span>
+                    <span class="detail-value">{{ bill.bill_date|date:"d M Y" }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Due Date</span>
+                    <span class="detail-value">{{ bill.due_date|date:"d M Y" }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Revenue Stream</span>
+                    <span class="detail-value">{{ bill.revenue_stream.name }}</span>
+                </div>
+                {% if bill.sub_county %}
+                <div class="detail-row">
+                    <span class="detail-label">Sub County</span>
+                    <span class="detail-value">{{ bill.sub_county.name }}</span>
+                </div>
+                {% endif %}
+                {% if bill.ward %}
+                <div class="detail-row">
+                    <span class="detail-label">Ward</span>
+                    <span class="detail-value">{{ bill.ward.name }}</span>
+                </div>
+                {% endif %}
+                {% if bill.description %}
+                <div class="detail-row">
+                    <span class="detail-label">Description</span>
+                    <span class="detail-value">{{ bill.description }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Bill Summary -->
+            <div class="detail-card summary-card">
+                <h6 class="card-title">
+                    <i class="bi bi-calculator"></i>
+                    Bill Summary
+                </h6>
+                <div class="detail-row">
+                    <span class="detail-label">Bill Amount</span>
+                    <span class="detail-value amount">KES {{ bill.bill_amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% if bill.penalty_amount > 0 %}
+                <div class="detail-row">
+                    <span class="detail-label">Penalty Amount</span>
+                    <span class="detail-value amount negative">KES {{ bill.penalty_amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endif %}
+                <div class="detail-row">
+                    <span class="detail-label">Total Amount</span>
+                    <span class="detail-value amount">KES {{ bill.total_amount|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Amount Paid</span>
+                    <span class="detail-value amount positive">KES {{ bill.amount_paid|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="detail-row summary-total">
+                    <span class="detail-label">Outstanding Balance</span>
+                    <span class="detail-value amount {% if bill.balance > 0 %}negative{% else %}positive{% endif %}">
+                        KES {{ bill.balance|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        {% if line_items %}
+        <div class="section-header">
+            <h6 class="section-title">
+                <i class="bi bi-list-ul"></i>
+                Bill Line Items
+            </h6>
+            <span class="record-count">{{ line_items.count }} item{{ line_items.count|pluralize }}</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th style="text-align: center;">Quantity</th>
+                        <th style="text-align: right;">Unit Price</th>
+                        <th style="text-align: right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in line_items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.description }}</strong>
+                            {% if item.charge_rate %}
+                            <br>
+                            <small style="color: #64748B;">{{ item.charge_rate.name }}</small>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">{{ item.quantity|floatformat:2 }}</td>
+                        <td style="text-align: right; font-family: 'Courier New', monospace;">
+                            KES {{ item.unit_price|floatformat:2|intcomma }}
+                        </td>
+                        <td style="text-align: right; font-family: 'Courier New', monospace; font-weight: 600;">
+                            KES {{ item.amount|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-footer">
+                    <tr>
+                        <td colspan="3" style="text-align: right;">SUBTOTAL:</td>
+                        <td style="text-align: right; font-family: 'Courier New', monospace;">
+                            KES {{ bill.bill_amount|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% if bill.penalty_amount > 0 %}
+                    <tr>
+                        <td colspan="3" style="text-align: right;">PENALTY:</td>
+                        <td style="text-align: right; font-family: 'Courier New', monospace; color: #e74c3c;">
+                            KES {{ bill.penalty_amount|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr style="font-size: 16px;">
+                        <td colspan="3" style="text-align: right;">TOTAL:</td>
+                        <td style="text-align: right; font-family: 'Courier New', monospace;">
+                            KES {{ bill.total_amount|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Payment History -->
+        <div class="section-header" style="margin-top: 32px;">
+            <h6 class="section-title">
+                <i class="bi bi-clock-history"></i>
+                Payment History
+            </h6>
+            {% if payments %}
+            <span class="record-count">{{ payments.count }} payment{{ payments.count|pluralize }}</span>
+            {% endif %}
+        </div>
+
+        {% if payments %}
+        <div class="timeline">
+            {% for payment in payments %}
+            <div class="timeline-item">
+                <div class="timeline-marker {% if payment.status == 'completed' %}success{% elif payment.status == 'failed' %}danger{% elif payment.status == 'reversed' %}warning{% endif %}"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <div>
+                            <span class="timeline-title">
+                                <i class="bi bi-receipt"></i>
+                                Receipt #{{ payment.receipt_number }}
+                            </span>
+                            <span class="payment-badge payment-{{ payment.status }}">
+                                {% if payment.status == 'completed' %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                {% elif payment.status == 'pending' %}
+                                    <i class="bi bi-clock"></i>
+                                {% elif payment.status == 'failed' %}
+                                    <i class="bi bi-x-circle-fill"></i>
+                                {% elif payment.status == 'reversed' %}
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                {% endif %}
+                                {{ payment.get_status_display }}
+                            </span>
+                        </div>
+                        <span class="timeline-date">
+                            <i class="bi bi-calendar3"></i>
+                            {{ payment.payment_date|date:"d M Y, h:i A" }}
+                        </span>
+                    </div>
+                    <div class="timeline-description">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px;">
+                            <div>
+                                <strong style="color: #64748B; font-size: 12px;">Amount Paid</strong>
+                                <div style="font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; color: #27ae60;">
+                                    KES {{ payment.amount|floatformat:2|intcomma }}
+                                </div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748B; font-size: 12px;">Payment Method</strong>
+                                <div style="font-size: 14px; font-weight: 600;">{{ payment.payment_method.name }}</div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748B; font-size: 12px;">Transaction Ref</strong>
+                                <div style="font-size: 14px; font-weight: 600; font-family: monospace;">
+                                    {{ payment.transaction_reference }}
+                                </div>
+                            </div>
+                            {% if payment.collected_by %}
+                            <div>
+                                <strong style="color: #64748B; font-size: 12px;">Collected By</strong>
+                                <div style="font-size: 14px; font-weight: 600;">{{ payment.collected_by.get_full_name }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if payment.notes %}
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #E2E8F0;">
+                            <strong style="color: #64748B; font-size: 12px;">Notes</strong>
+                            <p style="font-size: 13px; color: #334155; line-height: 1.5; margin-top: 6px;">
+                                {{ payment.notes }}
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-wallet2 empty-icon"></i>
+            <h3 class="empty-title">No Payments Recorded</h3>
+            <p class="empty-text">No payments have been recorded for this bill yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    // Add any JavaScript functionality here
+    document.addEventListener('DOMContentLoaded', function() {
+        // Example: Add animation to timeline items on scroll
+        const timelineItems = document.querySelectorAll('.timeline-item');
+        
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '0';
+                    entry.target.style.transform = 'translateX(-20px)';
+                    
+                    setTimeout(() => {
+                        entry.target.style.transition = 'all 0.5s ease';
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateX(0)';
+                    }, 100);
+                    
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+        
+        timelineItems.forEach(item => {
+            observer.observe(item);
+        });
+
+        // Print functionality
+        const printButton = document.querySelector('[onclick="window.print()"]');
+        if (printButton) {
+            printButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.print();
+            });
+        }
+
+        // Confirmation dialogs
+        const dangerButtons = document.querySelectorAll('.btn-danger');
+        dangerButtons.forEach(button => {
+            if (!button.hasAttribute('onclick')) {
+                button.addEventListener('click', function(e) {
+                    if (!confirm('Are you sure you want to perform this action?')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+            }
+        });
+    });
+
+    // Format currency on page load
+    function formatCurrency() {
+        const currencyElements = document.querySelectorAll('.amount');
+        currencyElements.forEach(element => {
+            const value = element.textContent.trim();
+            if (value.includes('KES')) {
+                // Already formatted
+                return;
+            }
+        });
+    }
+
+    // Call on page load
+    formatCurrency();
+</script>
+{% endblock %}
