@@ -689,10 +689,10 @@
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
             <div class="submenu" id="submenu-billing">
-                <a href="#" class="submenu-item">All Bills</a>
-                <a href="#" class="submenu-item">Generate Bills</a>
-                <a href="#" class="submenu-item">Overdue Bills</a>
-                <a href="#" class="submenu-item">Bill Reports</a>
+                <a href="{% url 'bill_list'%}" class="submenu-item">All Bills</a>
+                <a href="{% url 'generate_bills'%}" class="submenu-item">Generate Bills</a>
+                <a href="{% url 'overdue_bills'%}" class="submenu-item">Overdue Bills</a>
+                <a href="{% url 'bill_reports'%}" class="submenu-item">Bill Reports</a>
             </div>
 
             <div class="menu-item has-submenu" data-submenu="payments">

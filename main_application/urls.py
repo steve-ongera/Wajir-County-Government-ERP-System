@@ -49,4 +49,13 @@ urlpatterns = [
     path('budgets/export/', views.revenue_budget_export, name='budget_export'),
     path('collections/report/', views.collection_report, name='collection_report'),
     path('collections/report/export/', views.collection_report_export, name='collection_report_export'),
+
+    # Bill List
+    path('bills/', views.bill_list, name='bill_list'),
+    path('bills/<int:bill_id>/', views.bill_detail, name='bill_detail'),
+    path('bills/generate/', views.generate_bills, name='generate_bills'),
+    path('bills/overdue/', views.overdue_bills, name='overdue_bills'),
+    path('bills/reports/', views.bill_reports, name='bill_reports'),
+    path('bills/export/', views.export_bills_excel, name='export_bills_excel'),
+    path('bills/overdue/export/', views.export_overdue_bills_excel, name='export_overdue_bills_excel'),
 ]

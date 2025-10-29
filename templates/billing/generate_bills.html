@@ -1,0 +1,527 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Generate Bills - Billing Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .form-section {
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3498db;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .required {
+        color: #e74c3c;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        padding: 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .line-items-section {
+        margin-top: 30px;
+    }
+
+    .line-items-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .add-line-btn {
+        padding: 8px 16px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .add-line-btn:hover {
+        background: #2980b9;
+    }
+
+    .line-item {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr 40px;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding: 12px;
+        background: #F8FAFC;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .remove-line-btn {
+        padding: 8px;
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .remove-line-btn:hover {
+        background: #c0392b;
+    }
+
+    .totals-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #F8FAFC;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .total-row:last-child {
+        border-bottom: none;
+        font-size: 18px;
+        font-weight: 700;
+        color: #1E293B;
+        padding-top: 16px;
+        margin-top: 8px;
+        border-top: 2px solid #3498db;
+    }
+
+    .total-label {
+        font-weight: 600;
+        color: #64748B;
+    }
+
+    .total-value {
+        font-weight: 700;
+        font-family: 'Courier New', monospace;
+        color: #1E293B;
+    }
+
+    .form-actions {
+        margin-top: 30px;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'bill_list' %}">Billing Management</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Generate Bills</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="bi bi-file-earmark-plus"></i>
+                Generate New Bill
+            </h1>
+            <p class="page-subtitle">
+                Create a new bill for a citizen or business
+            </p>
+        </div>
+
+        <!-- Bill Form -->
+        <form method="post" id="billForm">
+            {% csrf_token %}
+            
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-info-circle"></i>
+                    Basic Information
+                </h3>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="citizen_id">
+                            Citizen/Business <span class="required">*</span>
+                        </label>
+                        <select class="form-select" name="citizen_id" id="citizen_id" required>
+                            <option value="">Select Citizen/Business</option>
+                            {% for citizen in citizens %}
+                            <option value="{{ citizen.id }}">
+                                {% if citizen.entity_type == 'business' %}
+                                    {{ citizen.business_name }}
+                                {% else %}
+                                    {{ citizen.first_name }} {{ citizen.last_name }}
+                                {% endif %}
+                                - {{ citizen.phone_primary }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="revenue_stream_id">
+                            Revenue Stream <span class="required">*</span>
+                        </label>
+                        <select class="form-select" name="revenue_stream_id" id="revenue_stream_id" required>
+                            <option value="">Select Revenue Stream</option>
+                            {% for stream in revenue_streams %}
+                            <option value="{{ stream.id }}">{{ stream.name }} ({{ stream.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="bill_date">
+                            Bill Date <span class="required">*</span>
+                        </label>
+                        <input type="date" class="form-input" name="bill_date" id="bill_date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="due_date">
+                            Due Date <span class="required">*</span>
+                        </label>
+                        <input type="date" class="form-input" name="due_date" id="due_date" required>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label" for="description">
+                            Description
+                        </label>
+                        <textarea class="form-textarea" name="description" id="description" placeholder="Enter bill description..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="form-section line-items-section">
+                <div class="line-items-header">
+                    <h3 class="section-title" style="margin: 0; border: none;">
+                        <i class="bi bi-list-ul"></i>
+                        Line Items
+                    </h3>
+                    <button type="button" class="add-line-btn" onclick="addLineItem()">
+                        <i class="bi bi-plus-circle"></i>
+                        Add Line Item
+                    </button>
+                </div>
+                
+                <div id="lineItemsContainer">
+                    <div class="line-item" data-line-index="0">
+                        <input type="text" class="form-input" name="line_item_description[]" placeholder="Description" required>
+                        <input type="number" class="form-input" name="line_item_quantity[]" placeholder="Quantity" value="1" step="0.01" min="0" required onchange="calculateLineTotal(0)">
+                        <input type="number" class="form-input" name="line_item_unit_price[]" placeholder="Unit Price" step="0.01" min="0" required onchange="calculateLineTotal(0)">
+                        <input type="number" class="form-input" placeholder="Amount" step="0.01" readonly data-line-total="0">
+                        <button type="button" class="remove-line-btn" onclick="removeLineItem(this)" style="visibility: hidden;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amounts -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-currency-exchange"></i>
+                    Amounts
+                </h3>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="bill_amount">
+                            Bill Amount <span class="required">*</span>
+                        </label>
+                        <input type="number" class="form-input" name="bill_amount" id="bill_amount" step="0.01" min="0" value="0" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="penalty_amount">
+                            Penalty Amount
+                        </label>
+                        <input type="number" class="form-input" name="penalty_amount" id="penalty_amount" step="0.01" min="0" value="0" onchange="calculateTotals()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totals -->
+            <div class="totals-section">
+                <div class="total-row">
+                    <span class="total-label">Subtotal:</span>
+                    <span class="total-value" id="subtotal">KES 0.00</span>
+                </div>
+                <div class="total-row">
+                    <span class="total-label">Penalty:</span>
+                    <span class="total-value" id="penalty">KES 0.00</span>
+                </div>
+                <div class="total-row">
+                    <span class="total-label">Total Amount:</span>
+                    <span class="total-value" id="totalAmount">KES 0.00</span>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'bill_list' %}" class="btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Generate Bill
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let lineItemIndex = 1;
+
+    // Set today's date as default
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('bill_date').value = today;
+        
+        // Set due date to 30 days from today
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+        document.getElementById('due_date').value = dueDate.toISOString().split('T')[0];
+    });
+
+    function addLineItem() {
+        const container = document.getElementById('lineItemsContainer');
+        const lineItem = document.createElement('div');
+        lineItem.className = 'line-item';
+        lineItem.setAttribute('data-line-index', lineItemIndex);
+        
+        lineItem.innerHTML = `
+            <input type="text" class="form-input" name="line_item_description[]" placeholder="Description" required>
+            <input type="number" class="form-input" name="line_item_quantity[]" placeholder="Quantity" value="1" step="0.01" min="0" required onchange="calculateLineTotal(${lineItemIndex})">
+            <input type="number" class="form-input" name="line_item_unit_price[]" placeholder="Unit Price" step="0.01" min="0" required onchange="calculateLineTotal(${lineItemIndex})">
+            <input type="number" class="form-input" placeholder="Amount" step="0.01" readonly data-line-total="${lineItemIndex}">
+            <button type="button" class="remove-line-btn" onclick="removeLineItem(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        
+        container.appendChild(lineItem);
+        lineItemIndex++;
+        
+        // Show remove button on first item if there are now multiple items
+        updateRemoveButtons();
+    }
+
+    function removeLineItem(button) {
+        const lineItem = button.closest('.line-item');
+        lineItem.remove();
+        calculateTotals();
+        updateRemoveButtons();
+    }
+
+    function updateRemoveButtons() {
+        const lineItems = document.querySelectorAll('.line-item');
+        lineItems.forEach((item, index) => {
+            const removeBtn = item.querySelector('.remove-line-btn');
+            if (lineItems.length === 1) {
+                removeBtn.style.visibility = 'hidden';
+            } else {
+                removeBtn.style.visibility = 'visible';
+            }
+        });
+    }
+
+    function calculateLineTotal(index) {
+        const lineItem = document.querySelector(`[data-line-index="${index}"]`);
+        const quantity = parseFloat(lineItem.querySelector('input[name="line_item_quantity[]"]').value) || 0;
+        const unitPrice = parseFloat(lineItem.querySelector('input[name="line_item_unit_price[]"]').value) || 0;
+        const total = quantity * unitPrice;
+        
+        lineItem.querySelector(`[data-line-total="${index}"]`).value = total.toFixed(2);
+        
+        calculateTotals();
+    }
+
+    function calculateTotals() {
+        let subtotal = 0;
+        
+        document.querySelectorAll('[data-line-total]').forEach(input => {
+            subtotal += parseFloat(input.value) || 0;
+        });
+        
+        const penalty = parseFloat(document.getElementById('penalty_amount').value) || 0;
+        const total = subtotal + penalty;
+        
+        document.getElementById('bill_amount').value = subtotal.toFixed(2);
+        document.getElementById('subtotal').textContent = `KES ${subtotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+        document.getElementById('penalty').textContent = `KES ${penalty.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+        document.getElementById('totalAmount').textContent = `KES ${total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    }
+</script>
+{% endblock %}

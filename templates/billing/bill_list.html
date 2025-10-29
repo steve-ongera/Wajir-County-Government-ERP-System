@@ -1,0 +1,923 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}All Bills - Billing Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-card.success::before {
+        background: linear-gradient(180deg, #27ae60, #229954);
+    }
+
+    .stat-card.warning::before {
+        background: linear-gradient(180deg, #f39c12, #e67e22);
+    }
+
+    .stat-card.danger::before {
+        background: linear-gradient(180deg, #e74c3c, #c0392b);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .stat-value.danger {
+        color: #e74c3c;
+    }
+
+    .search-section {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 14px 12px 42px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        background: white;
+    }
+
+    .search-btn {
+        padding: 12px 24px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .search-btn:hover {
+        background: #2980b9;
+    }
+
+    .clear-search-btn {
+        padding: 12px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+
+    .filter-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-toggle {
+        color: #64748B;
+        transition: transform 0.3s ease;
+    }
+
+    .filter-toggle.rotated {
+        transform: rotate(180deg);
+    }
+
+    .filter-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 6px;
+    }
+
+    .filter-select, .filter-input {
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .clear-btn {
+        padding: 10px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .filter-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: #3498db;
+        color: white;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .table-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .record-count {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .bills-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .bills-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .bills-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .bills-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .bills-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .bill-number {
+        font-weight: 600;
+        color: #3498db;
+        font-family: monospace;
+    }
+
+    .citizen-name {
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-draft {
+        background: #E2E8F0;
+        color: #64748B;
+    }
+
+    .status-issued {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .status-partially_paid {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-paid {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-overdue {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .status-cancelled {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    .status-waived {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .amount {
+        font-weight: 600;
+        font-family: 'Courier New', monospace;
+    }
+
+    .amount.positive {
+        color: #27ae60;
+    }
+
+    .amount.negative {
+        color: #e74c3c;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+        background: white;
+        color: #64748B;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Billing Management</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">All Bills</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-file-earmark-text"></i>
+                    All Bills
+                </h1>
+                <p class="page-subtitle">
+                    Manage and track all billing records
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'export_bills_excel' %}?{{ request.GET.urlencode }}" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Export to Excel
+                </a>
+                <a href="{% url 'generate_bills' %}" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Generate Bill
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-file-text"></i>
+                    Total Bills
+                </div>
+                <div class="stat-value">{{ stats.total|intcomma }}</div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-label">
+                    <i class="bi bi-check-circle"></i>
+                    Paid
+                </div>
+                <div class="stat-value success">{{ stats.paid|intcomma }}</div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-label">
+                    <i class="bi bi-clock-history"></i>
+                    Partially Paid
+                </div>
+                <div class="stat-value warning">{{ stats.partially_paid|intcomma }}</div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-label">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Overdue
+                </div>
+                <div class="stat-value danger">{{ stats.overdue|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-currency-exchange"></i>
+                    Total Billed
+                </div>
+                <div class="stat-value">KES {{ stats.total_amount|floatformat:2|intcomma }}</div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-label">
+                    <i class="bi bi-cash-stack"></i>
+                    Total Collected
+                </div>
+                <div class="stat-value success">KES {{ stats.total_paid|floatformat:2|intcomma }}</div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-label">
+                    <i class="bi bi-wallet2"></i>
+                    Outstanding
+                </div>
+                <div class="stat-value danger">KES {{ stats.total_balance|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form method="get" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search search-icon"></i>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        class="search-input" 
+                        placeholder="Search by bill number, citizen name, or revenue stream..."
+                        value="{{ search_query }}"
+                    >
+                </div>
+                
+                <!-- Preserve filters -->
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                {% if current_revenue_stream %}<input type="hidden" name="revenue_stream" value="{{ current_revenue_stream }}">{% endif %}
+                {% if current_sub_county %}<input type="hidden" name="sub_county" value="{{ current_sub_county }}">{% endif %}
+                {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+                {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+                
+                <button type="submit" class="search-btn">
+                    <i class="bi bi-search"></i>
+                    Search
+                </button>
+                
+                {% if search_query %}
+                <a href="{% url 'bill_list' %}" class="clear-search-btn">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="filter-header" onclick="toggleFilters()">
+                <h6 class="filter-title">
+                    <i class="bi bi-funnel"></i>
+                    Filter Bills
+                    {% if current_status or current_revenue_stream or current_sub_county or date_from or date_to %}
+                    <span class="filter-badge">Active</span>
+                    {% endif %}
+                </h6>
+                <i class="bi bi-chevron-down filter-toggle" id="filterToggle"></i>
+            </div>
+            
+            <div class="filter-content" id="filtersContent" style="display: none;">
+                <form method="get" id="filterForm">
+                    {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
+                    
+                    <div class="filter-content">
+                        <div class="filter-group">
+                            <label class="filter-label" for="status">
+                                <i class="bi bi-toggle-on"></i> Status
+                            </label>
+                            <select class="filter-select" name="status" id="status">
+                                <option value="">All Status</option>
+                                {% for status_code, status_name in bill_statuses %}
+                                <option value="{{ status_code }}" {% if current_status == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="revenue_stream">
+                                <i class="bi bi-cash-stack"></i> Revenue Stream
+                            </label>
+                            <select class="filter-select" name="revenue_stream" id="revenue_stream">
+                                <option value="">All Revenue Streams</option>
+                                {% for stream in revenue_streams %}
+                                <option value="{{ stream.id }}" {% if current_revenue_stream == stream.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ stream.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="sub_county">
+                                <i class="bi bi-geo-alt"></i> Sub County
+                            </label>
+                            <select class="filter-select" name="sub_county" id="sub_county">
+                                <option value="">All Sub Counties</option>
+                                {% for sc in sub_counties %}
+                                <option value="{{ sc.id }}" {% if current_sub_county == sc.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ sc.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="date_from">
+                                <i class="bi bi-calendar"></i> Date From
+                            </label>
+                            <input type="date" class="filter-input" name="date_from" id="date_from" value="{{ date_from }}">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="date_to">
+                                <i class="bi bi-calendar"></i> Date To
+                            </label>
+                            <input type="date" class="filter-input" name="date_to" id="date_to" value="{{ date_to }}">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="filter-btn">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'bill_list' %}" class="clear-btn">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Bills Table -->
+        <div class="table-header">
+            <h6 class="table-title">
+                <i class="bi bi-table"></i>
+                Bills List
+            </h6>
+            <span class="record-count">{{ bills.count }} records</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="bills-table">
+                <thead>
+                    <tr>
+                        <th>Bill Number</th>
+                        <th>Date</th>
+                        <th>Citizen/Business</th>
+                        <th>Revenue Stream</th>
+                        <th>Total Amount</th>
+                        <th>Amount Paid</th>
+                        <th>Balance</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in bills %}
+                    <tr>
+                        <td>
+                            <span class="bill-number">{{ bill.bill_number }}</span>
+                        </td>
+                        <td>{{ bill.bill_date|date:"d M Y" }}</td>
+                        <td>
+                            <div class="citizen-name">
+                                {% if bill.citizen.entity_type == 'business' %}
+                                    {{ bill.citizen.business_name }}
+                                {% else %}
+                                    {{ bill.citizen.first_name }} {{ bill.citizen.last_name }}
+                                {% endif %}
+                            </div>
+                            <small style="color: #94A3B8;">{{ bill.citizen.phone_primary }}</small>
+                        </td>
+                        <td>{{ bill.revenue_stream.name }}</td>
+                        <td>
+                            <span class="amount">KES {{ bill.total_amount|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td>
+                            <span class="amount positive">KES {{ bill.amount_paid|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td>
+                            <span class="amount {% if bill.balance > 0 %}negative{% endif %}">
+                                KES {{ bill.balance|floatformat:2|intcomma }}
+                            </span>
+                        </td>
+                        <td>{{ bill.due_date|date:"d M Y" }}</td>
+                        <td>
+                            <span class="status-badge status-{{ bill.status }}">
+                                {% if bill.status == 'draft' %}
+                                    <i class="bi bi-file-earmark"></i>
+                                {% elif bill.status == 'issued' %}
+                                    <i class="bi bi-send"></i>
+                                {% elif bill.status == 'partially_paid' %}
+                                    <i class="bi bi-clock-history"></i>
+                                {% elif bill.status == 'paid' %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                {% elif bill.status == 'overdue' %}
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                {% elif bill.status == 'cancelled' %}
+                                    <i class="bi bi-x-circle-fill"></i>
+                                {% elif bill.status == 'waived' %}
+                                    <i class="bi bi-dash-circle-fill"></i>
+                                {% endif %}
+                                {{ bill.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'bill_detail' bill.id %}" 
+                                   class="btn-action" 
+                                   title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="#" 
+                                   class="btn-action" 
+                                   title="Print">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-inbox"></i>
+                                </div>
+                                <h3 class="empty-title">No Bills Found</h3>
+                                <p class="empty-text">
+                                    {% if search_query %}
+                                        No bills match your search for "{{ search_query }}".
+                                    {% else %}
+                                        Start by generating your first bill.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleFilters() {
+        const content = document.getElementById('filtersContent');
+        const toggle = document.getElementById('filterToggle');
+        
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'grid';
+            toggle.classList.add('rotated');
+        } else {
+            content.style.display = 'none';
+            toggle.classList.remove('rotated');
+        }
+    }
+
+    // Auto-expand filters if any filter is active
+    document.addEventListener('DOMContentLoaded', function() {
+        const hasActiveFilters = "{{ current_status }}" !== "" || 
+                                "{{ current_revenue_stream }}" !== "" ||
+                                "{{ current_sub_county }}" !== "" ||
+                                "{{ date_from }}" !== "" ||
+                                "{{ date_to }}" !== "";
+        
+        if (hasActiveFilters) {
+            document.getElementById('filtersContent').style.display = 'grid';
+            document.getElementById('filterToggle').classList.add('rotated');
+        }
+    });
+</script>
+{% endblock %}

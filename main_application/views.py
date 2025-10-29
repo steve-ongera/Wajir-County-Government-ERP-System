@@ -3270,3 +3270,656 @@ def collection_report_export(request):
     wb.save(response)
     
     return response
+
+
+"""
+Billing Management Views
+Handles all billing operations including listing, generation, and reporting
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, Count, Avg
+from django.http import HttpResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+from decimal import Decimal
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+
+# Import models (adjust based on your app structure)
+from .models import (
+    Bill, BillLineItem, Citizen, RevenueStream, 
+    SubCounty, Ward, Payment, ChargeRate
+)
+
+
+@login_required
+def bill_list(request):
+    """
+    Display all bills with filtering and search functionality
+    """
+    bills = Bill.objects.select_related(
+        'citizen', 'revenue_stream', 'sub_county', 'ward', 'created_by'
+    ).prefetch_related('line_items', 'payments')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        bills = bills.filter(
+            Q(bill_number__icontains=search_query) |
+            Q(citizen__first_name__icontains=search_query) |
+            Q(citizen__last_name__icontains=search_query) |
+            Q(citizen__business_name__icontains=search_query) |
+            Q(revenue_stream__name__icontains=search_query)
+        )
+    
+    # Filters
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        bills = bills.filter(status=status_filter)
+    
+    revenue_stream_filter = request.GET.get('revenue_stream', '')
+    if revenue_stream_filter:
+        bills = bills.filter(revenue_stream_id=revenue_stream_filter)
+    
+    sub_county_filter = request.GET.get('sub_county', '')
+    if sub_county_filter:
+        bills = bills.filter(sub_county_id=sub_county_filter)
+    
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        bills = bills.filter(bill_date__gte=date_from)
+    if date_to:
+        bills = bills.filter(bill_date__lte=date_to)
+    
+    # Order by most recent
+    bills = bills.order_by('-bill_date', '-created_at')
+    
+    # Statistics
+    stats = {
+        'total': bills.count(),
+        'draft': bills.filter(status='draft').count(),
+        'issued': bills.filter(status='issued').count(),
+        'partially_paid': bills.filter(status='partially_paid').count(),
+        'paid': bills.filter(status='paid').count(),
+        'overdue': bills.filter(status='overdue').count(),
+        'cancelled': bills.filter(status='cancelled').count(),
+        'total_amount': bills.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
+        'total_paid': bills.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0,
+        'total_balance': bills.aggregate(Sum('balance'))['balance__sum'] or 0,
+    }
+    
+    # Get filter options
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    sub_counties = SubCounty.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'bills': bills,
+        'stats': stats,
+        'search_query': search_query,
+        'current_status': status_filter,
+        'current_revenue_stream': revenue_stream_filter,
+        'current_sub_county': sub_county_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'revenue_streams': revenue_streams,
+        'sub_counties': sub_counties,
+        'bill_statuses': Bill.BILL_STATUS_CHOICES,
+    }
+    
+    return render(request, 'billing/bill_list.html', context)
+
+
+@login_required
+def bill_detail(request, bill_id):
+    """
+    Display detailed information about a specific bill
+    """
+    bill = get_object_or_404(
+        Bill.objects.select_related(
+            'citizen', 'revenue_stream', 'sub_county', 
+            'ward', 'created_by'
+        ).prefetch_related('line_items', 'payments'),
+        id=bill_id
+    )
+    
+    # Get payment history
+    payments = bill.payments.select_related('payment_method', 'collected_by').order_by('-payment_date')
+    
+    context = {
+        'bill': bill,
+        'payments': payments,
+        'line_items': bill.line_items.all(),
+    }
+    
+    return render(request, 'billing/bill_detail.html', context)
+
+
+@login_required
+def generate_bills(request):
+    """
+    Generate new bills - form and processing
+    """
+    if request.method == 'POST':
+        try:
+            # Get form data
+            citizen_id = request.POST.get('citizen_id')
+            revenue_stream_id = request.POST.get('revenue_stream_id')
+            bill_date = request.POST.get('bill_date')
+            due_date = request.POST.get('due_date')
+            description = request.POST.get('description', '')
+            
+            citizen = get_object_or_404(Citizen, id=citizen_id)
+            revenue_stream = get_object_or_404(RevenueStream, id=revenue_stream_id)
+            
+            # Generate bill number
+            today = timezone.now()
+            bill_count = Bill.objects.filter(
+                bill_date__year=today.year,
+                bill_date__month=today.month
+            ).count()
+            bill_number = f"BL{today.strftime('%Y%m')}{str(bill_count + 1).zfill(5)}"
+            
+            # Calculate totals
+            bill_amount = Decimal(request.POST.get('bill_amount', '0'))
+            penalty_amount = Decimal(request.POST.get('penalty_amount', '0'))
+            total_amount = bill_amount + penalty_amount
+            
+            # Create bill
+            bill = Bill.objects.create(
+                bill_number=bill_number,
+                citizen=citizen,
+                revenue_stream=revenue_stream,
+                bill_date=bill_date,
+                due_date=due_date,
+                bill_amount=bill_amount,
+                penalty_amount=penalty_amount,
+                total_amount=total_amount,
+                balance=total_amount,
+                status='issued',
+                sub_county=citizen.sub_county,
+                ward=citizen.ward,
+                description=description,
+                created_by=request.user
+            )
+            
+            # Create line items
+            line_item_descriptions = request.POST.getlist('line_item_description[]')
+            line_item_quantities = request.POST.getlist('line_item_quantity[]')
+            line_item_unit_prices = request.POST.getlist('line_item_unit_price[]')
+            
+            for i, desc in enumerate(line_item_descriptions):
+                if desc.strip():
+                    quantity = Decimal(line_item_quantities[i])
+                    unit_price = Decimal(line_item_unit_prices[i])
+                    amount = quantity * unit_price
+                    
+                    BillLineItem.objects.create(
+                        bill=bill,
+                        description=desc,
+                        quantity=quantity,
+                        unit_price=unit_price,
+                        amount=amount
+                    )
+            
+            messages.success(request, f'Bill {bill_number} generated successfully!')
+            return redirect('bill_detail', bill_id=bill.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error generating bill: {str(e)}')
+    
+    # GET request - show form
+    citizens = Citizen.objects.filter(is_active=True).order_by('first_name', 'business_name')
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    charge_rates = ChargeRate.objects.filter(is_active=True).select_related('revenue_stream')
+    
+    context = {
+        'citizens': citizens,
+        'revenue_streams': revenue_streams,
+        'charge_rates': charge_rates,
+    }
+    
+    return render(request, 'billing/generate_bills.html', context)
+
+
+@login_required
+def overdue_bills(request):
+    """
+    Display all overdue bills
+    """
+    today = timezone.now().date()
+    
+    bills = Bill.objects.select_related(
+        'citizen', 'revenue_stream', 'sub_county', 'ward'
+    ).filter(
+        Q(status='issued') | Q(status='partially_paid'),
+        due_date__lt=today
+    ).prefetch_related('payments')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        bills = bills.filter(
+            Q(bill_number__icontains=search_query) |
+            Q(citizen__first_name__icontains=search_query) |
+            Q(citizen__last_name__icontains=search_query) |
+            Q(citizen__business_name__icontains=search_query)
+        )
+    
+    # Filters
+    revenue_stream_filter = request.GET.get('revenue_stream', '')
+    if revenue_stream_filter:
+        bills = bills.filter(revenue_stream_id=revenue_stream_filter)
+    
+    sub_county_filter = request.GET.get('sub_county', '')
+    if sub_county_filter:
+        bills = bills.filter(sub_county_id=sub_county_filter)
+    
+    # Calculate days overdue and categorize
+    bills_with_overdue = []
+    for bill in bills:
+        days_overdue = (today - bill.due_date).days
+        bill.days_overdue = days_overdue
+        
+        # Categorize by overdue period
+        if days_overdue <= 30:
+            bill.overdue_category = '1-30 days'
+        elif days_overdue <= 60:
+            bill.overdue_category = '31-60 days'
+        elif days_overdue <= 90:
+            bill.overdue_category = '61-90 days'
+        else:
+            bill.overdue_category = '90+ days'
+        
+        bills_with_overdue.append(bill)
+    
+    # Order by days overdue (most overdue first)
+    bills_with_overdue.sort(key=lambda x: x.days_overdue, reverse=True)
+    
+    # Statistics
+    stats = {
+        'total': len(bills_with_overdue),
+        'total_balance': sum(bill.balance for bill in bills_with_overdue),
+        'avg_days_overdue': sum(bill.days_overdue for bill in bills_with_overdue) / len(bills_with_overdue) if bills_with_overdue else 0,
+        'overdue_1_30': sum(1 for bill in bills_with_overdue if bill.days_overdue <= 30),
+        'overdue_31_60': sum(1 for bill in bills_with_overdue if 31 <= bill.days_overdue <= 60),
+        'overdue_61_90': sum(1 for bill in bills_with_overdue if 61 <= bill.days_overdue <= 90),
+        'overdue_90_plus': sum(1 for bill in bills_with_overdue if bill.days_overdue > 90),
+    }
+    
+    # Get filter options
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    sub_counties = SubCounty.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'bills': bills_with_overdue,
+        'stats': stats,
+        'search_query': search_query,
+        'current_revenue_stream': revenue_stream_filter,
+        'current_sub_county': sub_county_filter,
+        'revenue_streams': revenue_streams,
+        'sub_counties': sub_counties,
+    }
+    
+    return render(request, 'billing/overdue_bills.html', context)
+
+
+@login_required
+def bill_reports(request):
+    """
+    Display billing reports and analytics
+    """
+    # Date range filter
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if not date_from:
+        date_from = (timezone.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    if not date_to:
+        date_to = timezone.now().strftime('%Y-%m-%d')
+    
+    bills = Bill.objects.filter(
+        bill_date__gte=date_from,
+        bill_date__lte=date_to
+    ).select_related('revenue_stream', 'sub_county')
+    
+    # Overall statistics
+    overall_stats = {
+        'total_bills': bills.count(),
+        'total_billed': bills.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
+        'total_collected': bills.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0,
+        'total_outstanding': bills.aggregate(Sum('balance'))['balance__sum'] or 0,
+        'collection_rate': 0,
+    }
+    
+    if overall_stats['total_billed'] > 0:
+        overall_stats['collection_rate'] = (
+            overall_stats['total_collected'] / overall_stats['total_billed'] * 100
+        )
+    
+    # Status breakdown
+    status_breakdown = []
+    for status_code, status_name in Bill.BILL_STATUS_CHOICES:
+        count = bills.filter(status=status_code).count()
+        amount = bills.filter(status=status_code).aggregate(
+            Sum('total_amount')
+        )['total_amount__sum'] or 0
+        
+        status_breakdown.append({
+            'status': status_name,
+            'count': count,
+            'amount': amount,
+        })
+    
+    # Revenue stream breakdown
+    stream_breakdown = bills.values(
+        'revenue_stream__code',
+        'revenue_stream__name'
+    ).annotate(
+        bill_count=Count('id'),
+        total_billed=Sum('total_amount'),
+        total_collected=Sum('amount_paid'),
+        outstanding=Sum('balance')
+    ).order_by('-total_billed')[:10]
+    
+    # Sub-county breakdown
+    subcounty_breakdown = bills.values(
+        'sub_county__name'
+    ).annotate(
+        bill_count=Count('id'),
+        total_billed=Sum('total_amount'),
+        total_collected=Sum('amount_paid'),
+        outstanding=Sum('balance')
+    ).order_by('-total_billed')[:10]
+    
+    # Monthly trend (last 6 months)
+    monthly_trend = []
+    for i in range(5, -1, -1):
+        date = timezone.now() - timedelta(days=30*i)
+        month_start = date.replace(day=1)
+        if i == 0:
+            month_end = timezone.now()
+        else:
+            next_month = month_start + timedelta(days=32)
+            month_end = next_month.replace(day=1) - timedelta(days=1)
+        
+        month_bills = Bill.objects.filter(
+            bill_date__gte=month_start,
+            bill_date__lte=month_end
+        )
+        
+        monthly_trend.append({
+            'month': month_start.strftime('%b %Y'),
+            'bills': month_bills.count(),
+            'billed': month_bills.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
+            'collected': month_bills.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0,
+        })
+    
+    context = {
+        'date_from': date_from,
+        'date_to': date_to,
+        'overall_stats': overall_stats,
+        'status_breakdown': status_breakdown,
+        'stream_breakdown': stream_breakdown,
+        'subcounty_breakdown': subcounty_breakdown,
+        'monthly_trend': monthly_trend,
+    }
+    
+    return render(request, 'billing/bill_reports.html', context)
+
+
+@login_required
+def export_bills_excel(request):
+    """
+    Export bills to Excel with all filters applied
+    """
+    # Get filtered bills (same logic as bill_list)
+    bills = Bill.objects.select_related(
+        'citizen', 'revenue_stream', 'sub_county', 'ward', 'created_by'
+    )
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        bills = bills.filter(
+            Q(bill_number__icontains=search_query) |
+            Q(citizen__first_name__icontains=search_query) |
+            Q(citizen__last_name__icontains=search_query) |
+            Q(citizen__business_name__icontains=search_query)
+        )
+    
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        bills = bills.filter(status=status_filter)
+    
+    revenue_stream_filter = request.GET.get('revenue_stream', '')
+    if revenue_stream_filter:
+        bills = bills.filter(revenue_stream_id=revenue_stream_filter)
+    
+    sub_county_filter = request.GET.get('sub_county', '')
+    if sub_county_filter:
+        bills = bills.filter(sub_county_id=sub_county_filter)
+    
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        bills = bills.filter(bill_date__gte=date_from)
+    if date_to:
+        bills = bills.filter(bill_date__lte=date_to)
+    
+    bills = bills.order_by('-bill_date')
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bills Report"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Bill Number', 'Bill Date', 'Due Date', 'Citizen/Business', 
+        'Revenue Stream', 'Sub County', 'Ward', 'Bill Amount', 
+        'Penalty', 'Total Amount', 'Amount Paid', 'Balance', 
+        'Status', 'Created By', 'Created At'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data rows
+    for row_num, bill in enumerate(bills, 2):
+        citizen_name = bill.citizen.business_name if bill.citizen.entity_type == 'business' else f"{bill.citizen.first_name} {bill.citizen.last_name}"
+        
+        data = [
+            bill.bill_number,
+            bill.bill_date.strftime('%Y-%m-%d'),
+            bill.due_date.strftime('%Y-%m-%d'),
+            citizen_name,
+            bill.revenue_stream.name,
+            bill.sub_county.name if bill.sub_county else '',
+            bill.ward.name if bill.ward else '',
+            float(bill.bill_amount),
+            float(bill.penalty_amount),
+            float(bill.total_amount),
+            float(bill.amount_paid),
+            float(bill.balance),
+            bill.get_status_display(),
+            bill.created_by.get_full_name() if bill.created_by else '',
+            bill.created_at.strftime('%Y-%m-%d %H:%M'),
+        ]
+        
+        for col_num, value in enumerate(data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            
+            # Format currency columns
+            if col_num in [8, 9, 10, 11, 12]:
+                cell.number_format = '#,##0.00'
+    
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column].width = adjusted_width
+    
+    # Add summary row
+    summary_row = bills.count() + 3
+    ws.cell(row=summary_row, column=1, value="TOTALS:").font = Font(bold=True)
+    ws.cell(row=summary_row, column=8, value=float(sum(b.bill_amount for b in bills))).number_format = '#,##0.00'
+    ws.cell(row=summary_row, column=9, value=float(sum(b.penalty_amount for b in bills))).number_format = '#,##0.00'
+    ws.cell(row=summary_row, column=10, value=float(sum(b.total_amount for b in bills))).number_format = '#,##0.00'
+    ws.cell(row=summary_row, column=11, value=float(sum(b.amount_paid for b in bills))).number_format = '#,##0.00'
+    ws.cell(row=summary_row, column=12, value=float(sum(b.balance for b in bills))).number_format = '#,##0.00'
+    
+    # Prepare response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=Bills_Report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+@login_required
+def export_overdue_bills_excel(request):
+    """
+    Export overdue bills to Excel
+    """
+    today = timezone.now().date()
+    
+    bills = Bill.objects.select_related(
+        'citizen', 'revenue_stream', 'sub_county', 'ward'
+    ).filter(
+        Q(status='issued') | Q(status='partially_paid'),
+        due_date__lt=today
+    )
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        bills = bills.filter(
+            Q(bill_number__icontains=search_query) |
+            Q(citizen__first_name__icontains=search_query) |
+            Q(citizen__last_name__icontains=search_query) |
+            Q(citizen__business_name__icontains=search_query)
+        )
+    
+    revenue_stream_filter = request.GET.get('revenue_stream', '')
+    if revenue_stream_filter:
+        bills = bills.filter(revenue_stream_id=revenue_stream_filter)
+    
+    sub_county_filter = request.GET.get('sub_county', '')
+    if sub_county_filter:
+        bills = bills.filter(sub_county_id=sub_county_filter)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Overdue Bills"
+    
+    # Styling
+    header_fill = PatternFill(start_color="e74c3c", end_color="e74c3c", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Bill Number', 'Citizen/Business', 'Revenue Stream', 
+        'Bill Date', 'Due Date', 'Days Overdue', 'Total Amount', 
+        'Amount Paid', 'Balance', 'Sub County', 'Contact Phone', 'Status'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data rows
+    for row_num, bill in enumerate(bills, 2):
+        citizen_name = bill.citizen.business_name if bill.citizen.entity_type == 'business' else f"{bill.citizen.first_name} {bill.citizen.last_name}"
+        days_overdue = (today - bill.due_date).days
+        
+        data = [
+            bill.bill_number,
+            citizen_name,
+            bill.revenue_stream.name,
+            bill.bill_date.strftime('%Y-%m-%d'),
+            bill.due_date.strftime('%Y-%m-%d'),
+            days_overdue,
+            float(bill.total_amount),
+            float(bill.amount_paid),
+            float(bill.balance),
+            bill.sub_county.name if bill.sub_county else '',
+            bill.citizen.phone_primary,
+            bill.get_status_display(),
+        ]
+        
+        for col_num, value in enumerate(data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            
+            # Format currency columns
+            if col_num in [7, 8, 9]:
+                cell.number_format = '#,##0.00'
+            
+            # Highlight severely overdue bills
+            if col_num == 6 and days_overdue > 90:
+                cell.fill = PatternFill(start_color="ffcccc", end_color="ffcccc", fill_type="solid")
+    
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column].width = adjusted_width
+    
+    # Prepare response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=Overdue_Bills_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
