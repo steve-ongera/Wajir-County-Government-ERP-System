@@ -40,206 +40,237 @@
         color: #2980b9;
     }
 
-    .section-container {
+    /* Main Layout Grid */
+    .citizen-detail-container {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    /* Left Profile Section */
+    .profile-section {
         background: white;
-        border-radius: 8px;
-        padding: 24px;
+        border-radius: 12px;
+        padding: 0;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        margin-bottom: 24px;
         border: 1px solid #E2E8F0;
+        position: sticky;
+        top: 20px;
+        height: fit-content;
     }
 
-    .page-header {
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #F1F5F9;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        gap: 16px;
+    .profile-header {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        padding: 32px 24px;
+        border-radius: 12px 12px 0 0;
+        text-align: center;
+        position: relative;
     }
 
-    .citizen-header-info {
-        display: flex;
-        align-items: center;
-        gap: 20px;
+    .profile-header::after {
+        content: "";
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 100px;
+        background: white;
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .citizen-avatar-large {
-        width: 80px;
-        height: 80px;
-        background: rgba(52, 152, 219, 0.1);
+    .profile-avatar {
+        width: 90px;
+        height: 90px;
+        background: white;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
-        font-weight: 600;
-        font-size: 2rem;
+        margin: 0 auto 16px;
+        font-weight: 700;
+        font-size: 2.5rem;
         color: #3498db;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        position: relative;
+        z-index: 10;
+        border: 4px solid white;
     }
 
-    .citizen-avatar-large.business {
-        background: rgba(243, 156, 18, 0.1);
+    .profile-avatar.business {
         color: #f39c12;
     }
 
-    .citizen-title-group h1 {
-        font-size: 24px;
-        font-weight: 600;
-        color: #1E293B;
+    .profile-name {
+        font-size: 20px;
+        font-weight: 700;
+        color: white;
         margin-bottom: 8px;
     }
 
-    .citizen-meta {
+    .profile-id {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+    }
+
+    .profile-body {
+        padding: 40px 24px 24px;
+    }
+
+    .profile-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .profile-stat {
+        text-align: center;
+        padding: 16px 12px;
+        background: #F8FAFC;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .profile-stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+
+    .profile-stat-value.success {
+        color: #27ae60;
+    }
+
+    .profile-stat-value.danger {
+        color: #ef4444;
+    }
+
+    .profile-stat-label {
+        font-size: 11px;
+        color: #64748B;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .profile-info-group {
+        margin-bottom: 24px;
+    }
+
+    .profile-info-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
         display: flex;
         align-items: center;
-        gap: 16px;
-        flex-wrap: wrap;
+        gap: 6px;
     }
 
-    .meta-badge {
-        display: inline-flex;
+    .profile-info-item {
+        padding: 12px 0;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .profile-info-item:last-child {
+        border-bottom: none;
+    }
+
+    .profile-info-label {
+        font-size: 11px;
+        color: #94A3B8;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+
+    .profile-info-value {
+        font-size: 14px;
+        color: #1E293B;
+        font-weight: 500;
+        display: flex;
         align-items: center;
         gap: 6px;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 600;
     }
 
-    .meta-badge.success {
+    .profile-info-value i {
+        color: #3498db;
+        font-size: 14px;
+    }
+
+    .profile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 16px;
+        border-top: 1px solid #E2E8F0;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+
+    .status-badge.active {
         background: #D1FAE5;
         color: #065F46;
     }
 
-    .meta-badge.warning {
+    .status-badge.inactive {
         background: #FEF3C7;
         color: #92400E;
     }
 
-    .meta-badge.info {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-
-    .btn-primary, .btn-secondary, .btn-danger {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .btn-primary {
-        background: #3498db;
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: #2980b9;
-        color: white;
-    }
-
-    .btn-secondary {
+    /* Right Content Section */
+    .content-section {
         background: white;
-        color: #64748B;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         border: 1px solid #E2E8F0;
-    }
-
-    .btn-secondary:hover {
-        background: #F8FAFC;
-        border-color: #CBD5E1;
-    }
-
-    .btn-danger {
-        background: #ef4444;
-        color: white;
-    }
-
-    .btn-danger:hover {
-        background: #dc2626;
-    }
-
-    /* Stats Cards */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-
-    .stat-card {
-        background: white;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 20px;
-        position: relative;
         overflow: hidden;
     }
 
-    .stat-card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 4px;
-        height: 100%;
-        background: linear-gradient(180deg, #3498db, #2980b9);
+    .content-header {
+        padding: 24px 32px;
+        border-bottom: 1px solid #E2E8F0;
+        background: #F8FAFC;
     }
 
-    .stat-label {
-        font-size: 13px;
-        font-weight: 600;
-        color: #64748B;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-    }
-
-    .stat-value {
-        font-size: 28px;
+    .content-header h2 {
+        font-size: 22px;
         font-weight: 700;
         color: #1E293B;
-        line-height: 1;
+        margin: 0;
     }
 
-    .stat-value.success {
-        color: #27ae60;
-    }
-
-    .stat-value.warning {
-        color: #f39c12;
-    }
-
-    .stat-value.danger {
-        color: #ef4444;
-    }
-
-    /* Tabs */
+    /* Tabs Navigation */
     .nav-tabs {
-        border-bottom: 2px solid #E2E8F0;
-        margin-bottom: 24px;
         display: flex;
-        flex-wrap: wrap;
+        padding: 0 32px;
+        background: white;
+        border-bottom: 2px solid #E2E8F0;
+        margin: 0;
+        list-style: none;
         gap: 4px;
     }
 
     .nav-tabs .nav-link {
-        padding: 12px 24px;
+        padding: 16px 24px;
         border: none;
         border-bottom: 3px solid transparent;
         color: #64748B;
@@ -251,6 +282,9 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        text-decoration: none;
+        position: relative;
+        margin-bottom: -2px;
     }
 
     .nav-tabs .nav-link:hover {
@@ -264,8 +298,23 @@
         background: transparent;
     }
 
+    .nav-tabs .nav-link .badge {
+        background: #E2E8F0;
+        color: #64748B;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .nav-tabs .nav-link.active .badge {
+        background: #3498db;
+        color: white;
+    }
+
     .tab-content {
-        min-height: 300px;
+        padding: 32px;
+        min-height: 400px;
     }
 
     .tab-pane {
@@ -288,37 +337,118 @@
         }
     }
 
-    /* Info Grid */
+    /* Financial Summary Cards */
+    .financial-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .financial-card {
+        background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+        border: 2px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .financial-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #3498db, #2980b9);
+    }
+
+    .financial-card.success::before {
+        background: linear-gradient(90deg, #27ae60, #229954);
+    }
+
+    .financial-card.danger::before {
+        background: linear-gradient(90deg, #ef4444, #dc2626);
+    }
+
+    .financial-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .financial-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .financial-value.success {
+        color: #27ae60;
+    }
+
+    .financial-value.danger {
+        color: #ef4444;
+    }
+
+    /* Section Title */
+    .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F1F5F9;
+    }
+
+    .section-title i {
+        color: #3498db;
+    }
+
+    /* Info Grid for Overview */
     .info-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-bottom: 24px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px 32px;
+        margin-bottom: 32px;
     }
 
     .info-item {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
     }
 
     .info-label {
-        font-size: 12px;
-        font-weight: 600;
-        color: #64748B;
+        font-size: 11px;
+        font-weight: 700;
+        color: #94A3B8;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
 
     .info-value {
-        font-size: 14px;
+        font-size: 15px;
         color: #1E293B;
         font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .info-value i {
-        color: #94A3B8;
-        margin-right: 6px;
+        color: #3498db;
     }
 
     /* Table Styles */
@@ -326,19 +456,21 @@
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
-        margin-bottom: 20px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        overflow: hidden;
     }
 
     .data-table thead th {
         background: #F8FAFC;
-        padding: 12px 16px;
+        padding: 14px 16px;
         text-align: left;
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 11px;
+        font-weight: 700;
         color: #64748B;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        border-bottom: 1px solid #E2E8F0;
+        border-bottom: 2px solid #E2E8F0;
     }
 
     .data-table tbody td {
@@ -346,6 +478,10 @@
         border-bottom: 1px solid #F1F5F9;
         font-size: 14px;
         color: #334155;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
     }
 
     .data-table tbody tr:hover {
@@ -389,13 +525,13 @@
 
     .empty-state {
         text-align: center;
-        padding: 60px 20px;
+        padding: 80px 20px;
     }
 
     .empty-icon {
-        font-size: 48px;
+        font-size: 64px;
         color: #CBD5E1;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
     }
 
     .empty-title {
@@ -414,37 +550,43 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px;
+        padding: 20px;
         background: #F8FAFC;
         border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        margin-bottom: 12px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .document-item:hover {
+        border-color: #3498db;
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
     }
 
     .document-info {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
     }
 
     .document-icon {
-        width: 40px;
-        height: 40px;
+        width: 48px;
+        height: 48px;
         background: white;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
+        border: 2px solid #E2E8F0;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #3498db;
-        font-size: 20px;
+        font-size: 24px;
     }
 
     .document-details h6 {
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 600;
         color: #1E293B;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
     }
 
     .document-meta {
@@ -452,17 +594,58 @@
         color: #64748B;
     }
 
-    .btn-download {
-        padding: 8px 16px;
-        background: white;
-        color: #3498db;
-        border: 1px solid #3498db;
-        border-radius: 6px;
-        font-size: 13px;
+    .btn-primary, .btn-secondary, .btn-danger, .btn-download {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
         text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .btn-download {
+        padding: 8px 16px;
+        background: white;
+        color: #3498db;
+        border: 2px solid #3498db;
     }
 
     .btn-download:hover {
@@ -470,18 +653,49 @@
         color: white;
     }
 
+    .bill-stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .bill-stats-badges {
+        display: flex;
+        gap: 12px;
+    }
+
+    @media (max-width: 1200px) {
+        .citizen-detail-container {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-section {
+            position: relative;
+            top: 0;
+        }
+    }
+
     @media (max-width: 768px) {
-        .citizen-header-info {
-            flex-direction: column;
-            align-items: flex-start;
+        .financial-summary {
+            grid-template-columns: 1fr;
         }
 
         .info-grid {
             grid-template-columns: 1fr;
         }
 
-        .stats-grid {
+        .profile-stats {
             grid-template-columns: 1fr;
+        }
+
+        .tab-content {
+            padding: 20px;
+        }
+
+        .nav-tabs {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
     }
 </style>
@@ -506,237 +720,122 @@
         </ol>
     </nav>
 
-    <div class="section-container">
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="citizen-header-info">
-                <div class="citizen-avatar-large {% if citizen.entity_type == 'business' %}business{% endif %}">
+    <!-- Main Grid Layout -->
+    <div class="citizen-detail-container">
+        <!-- Left Profile Section (4 columns) -->
+        <div class="profile-section">
+            <div class="profile-header">
+                <div class="profile-avatar {% if citizen.entity_type == 'business' %}business{% endif %}">
                     {% if citizen.entity_type == 'individual' %}
                         {{ citizen.first_name.0 }}{{ citizen.last_name.0 }}
                     {% else %}
                         <i class="bi bi-building"></i>
                     {% endif %}
                 </div>
-                <div class="citizen-title-group">
-                    <h1>
-                        {% if citizen.entity_type == 'individual' %}
-                            {{ citizen.first_name }} {{ citizen.middle_name }} {{ citizen.last_name }}
-                        {% else %}
-                            {{ citizen.business_name }}
-                        {% endif %}
-                    </h1>
-                    <div class="citizen-meta">
-                        <span class="meta-badge {% if citizen.is_active %}success{% else %}warning{% endif %}">
-                            <i class="bi bi-{% if citizen.is_active %}check-circle-fill{% else %}x-circle-fill{% endif %}"></i>
-                            {% if citizen.is_active %}Active{% else %}Inactive{% endif %}
-                        </span>
-                        <span class="meta-badge info">
-                            <i class="bi bi-tag"></i>
-                            {{ citizen.get_entity_type_display }}
-                        </span>
-                        <span class="meta-badge info">
-                            <i class="bi bi-hash"></i>
-                            {{ citizen.unique_identifier }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="header-actions">
-                <a href="{% url 'citizen_update' citizen.unique_identifier %}" class="btn-primary">
-                    <i class="bi bi-pencil"></i>
-                    Edit Citizen
-                </a>
-                <a href="{% url 'citizen_list' %}" class="btn-secondary">
-                    <i class="bi bi-arrow-left"></i>
-                    Back to List
-                </a>
-            </div>
-        </div>
-
-        <!-- Financial Summary Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Total Billed</div>
-                <div class="stat-value">KES {{ total_billed|floatformat:2|intcomma }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Paid</div>
-                <div class="stat-value success">KES {{ total_paid|floatformat:2|intcomma }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Outstanding Balance</div>
-                <div class="stat-value {% if outstanding_balance > 0 %}danger{% else %}success{% endif %}">
-                    KES {{ outstanding_balance|floatformat:2|intcomma }}
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Bills</div>
-                <div class="stat-value">{{ bill_stats.total }}</div>
-            </div>
-        </div>
-
-        <!-- Tabs Navigation -->
-        <ul class="nav nav-tabs" role="tablist">
-            <li class="nav-item">
-                <button class="nav-link active" data-tab="overview" onclick="switchTab('overview')">
-                    <i class="bi bi-person-badge"></i>
-                    Overview
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-tab="bills" onclick="switchTab('bills')">
-                    <i class="bi bi-receipt"></i>
-                    Bills ({{ bill_stats.total }})
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-tab="payments" onclick="switchTab('payments')">
-                    <i class="bi bi-credit-card"></i>
-                    Payments
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" data-tab="documents" onclick="switchTab('documents')">
-                    <i class="bi bi-file-earmark-text"></i>
-                    Documents ({{ documents.count }})
-                </button>
-            </li>
-        </ul>
-
-        <!-- Tab Content -->
-        <div class="tab-content">
-            <!-- Overview Tab -->
-            <div class="tab-pane active" id="overview">
-                <h5 style="font-size: 16px; font-weight: 600; color: #1E293B; margin-bottom: 20px;">
-                    <i class="bi bi-info-circle"></i> Basic Information
-                </h5>
-                <div class="info-grid">
+                <div class="profile-name">
                     {% if citizen.entity_type == 'individual' %}
-                        <div class="info-item">
-                            <div class="info-label">First Name</div>
-                            <div class="info-value">{{ citizen.first_name }}</div>
-                        </div>
-                        {% if citizen.middle_name %}
-                        <div class="info-item">
-                            <div class="info-label">Middle Name</div>
-                            <div class="info-value">{{ citizen.middle_name }}</div>
-                        </div>
-                        {% endif %}
-                        <div class="info-item">
-                            <div class="info-label">Last Name</div>
-                            <div class="info-value">{{ citizen.last_name }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Date of Birth</div>
-                            <div class="info-value">
-                                <i class="bi bi-calendar"></i>
-                                {{ citizen.date_of_birth|date:"M d, Y"|default:"Not provided" }}
-                            </div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Gender</div>
-                            <div class="info-value">{{ citizen.gender|default:"Not specified" }}</div>
-                        </div>
+                        {{ citizen.first_name }} {{ citizen.last_name }}
                     {% else %}
-                        <div class="info-item">
-                            <div class="info-label">Business Name</div>
-                            <div class="info-value">{{ citizen.business_name }}</div>
-                        </div>
-                        {% if citizen.registration_number %}
-                        <div class="info-item">
-                            <div class="info-label">Registration Number</div>
-                            <div class="info-value">{{ citizen.registration_number }}</div>
-                        </div>
-                        {% endif %}
+                        {{ citizen.business_name }}
                     {% endif %}
-                    
-                    <div class="info-item">
-                        <div class="info-label">ID/Registration Number</div>
-                        <div class="info-value">
-                            <i class="bi bi-hash"></i>
-                            {{ citizen.unique_identifier }}
-                        </div>
+                </div>
+                <div class="profile-id">ID: {{ citizen.unique_identifier }}</div>
+            </div>
+
+            <div class="profile-body">
+                <div class="status-badge {% if citizen.is_active %}active{% else %}inactive{% endif %}">
+                    <i class="bi bi-{% if citizen.is_active %}check-circle-fill{% else %}x-circle-fill{% endif %}"></i>
+                    {% if citizen.is_active %}Active Account{% else %}Inactive Account{% endif %}
+                </div>
+
+                <!-- Financial Stats -->
+                <div class="profile-stats">
+                    <div class="profile-stat">
+                        <div class="profile-stat-value">{{ bill_stats.total }}</div>
+                        <div class="profile-stat-label">Total Bills</div>
+                    </div>
+                    <div class="profile-stat">
+                        <div class="profile-stat-value success">{{ bill_stats.paid }}</div>
+                        <div class="profile-stat-label">Paid</div>
+                    </div>
+                    <div class="profile-stat">
+                        <div class="profile-stat-value">{{ bill_stats.pending }}</div>
+                        <div class="profile-stat-label">Pending</div>
+                    </div>
+                    <div class="profile-stat">
+                        <div class="profile-stat-value danger">{{ bill_stats.overdue }}</div>
+                        <div class="profile-stat-label">Overdue</div>
                     </div>
                 </div>
 
-                <h5 style="font-size: 16px; font-weight: 600; color: #1E293B; margin: 32px 0 20px;">
-                    <i class="bi bi-telephone"></i> Contact Information
-                </h5>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Primary Phone</div>
-                        <div class="info-value">
-                            <i class="bi bi-telephone"></i>
+                <!-- Contact Information -->
+                <div class="profile-info-group">
+                    <div class="profile-info-title">
+                        <i class="bi bi-telephone"></i>
+                        Contact
+                    </div>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Primary Phone</div>
+                        <div class="profile-info-value">
+                            <i class="bi bi-phone"></i>
                             {{ citizen.phone_primary }}
                         </div>
                     </div>
                     {% if citizen.phone_secondary %}
-                    <div class="info-item">
-                        <div class="info-label">Secondary Phone</div>
-                        <div class="info-value">
-                            <i class="bi bi-telephone"></i>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Secondary Phone</div>
+                        <div class="profile-info-value">
+                            <i class="bi bi-phone"></i>
                             {{ citizen.phone_secondary }}
                         </div>
                     </div>
                     {% endif %}
                     {% if citizen.email %}
-                    <div class="info-item">
-                        <div class="info-label">Email Address</div>
-                        <div class="info-value">
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Email</div>
+                        <div class="profile-info-value">
                             <i class="bi bi-envelope"></i>
                             {{ citizen.email }}
                         </div>
                     </div>
                     {% endif %}
-                    {% if citizen.postal_address %}
-                    <div class="info-item">
-                        <div class="info-label">Postal Address</div>
-                        <div class="info-value">
-                            <i class="bi bi-mailbox"></i>
-                            {{ citizen.postal_address }}
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
 
-                <h5 style="font-size: 16px; font-weight: 600; color: #1E293B; margin: 32px 0 20px;">
-                    <i class="bi bi-geo-alt"></i> Location Information
-                </h5>
-                <div class="info-grid">
+                <!-- Location Information -->
+                <div class="profile-info-group">
+                    <div class="profile-info-title">
+                        <i class="bi bi-geo-alt"></i>
+                        Location
+                    </div>
                     {% if citizen.sub_county %}
-                    <div class="info-item">
-                        <div class="info-label">Sub-County</div>
-                        <div class="info-value">
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Sub-County</div>
+                        <div class="profile-info-value">
                             <i class="bi bi-map"></i>
                             {{ citizen.sub_county.name }}
                         </div>
                     </div>
                     {% endif %}
                     {% if citizen.ward %}
-                    <div class="info-item">
-                        <div class="info-label">Ward</div>
-                        <div class="info-value">
-                            <i class="bi bi-geo-alt"></i>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Ward</div>
+                        <div class="profile-info-value">
+                            <i class="bi bi-geo-alt-fill"></i>
                             {{ citizen.ward.name }}
                         </div>
                     </div>
                     {% endif %}
-                    {% if citizen.physical_address %}
-                    <div class="info-item" style="grid-column: 1 / -1;">
-                        <div class="info-label">Physical Address</div>
-                        <div class="info-value">{{ citizen.physical_address }}</div>
-                    </div>
-                    {% endif %}
                 </div>
 
-                <h5 style="font-size: 16px; font-weight: 600; color: #1E293B; margin: 32px 0 20px;">
-                    <i class="bi bi-shield-check"></i> Account Information
-                </h5>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Portal Access</div>
-                        <div class="info-value">
+                <!-- Account Info -->
+                <div class="profile-info-group">
+                    <div class="profile-info-title">
+                        <i class="bi bi-shield-check"></i>
+                        Account
+                    </div>
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Portal Access</div>
+                        <div class="profile-info-value">
                             {% if citizen.has_portal_access %}
                                 <span class="badge badge-success">
                                     <i class="bi bi-check-circle"></i> Enabled
@@ -748,143 +847,384 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Status</div>
-                        <div class="info-value">
-                            {% if citizen.is_active %}
-                                <span class="badge badge-success">Active</span>
-                            {% else %}
-                                <span class="badge badge-warning">Inactive</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Registered On</div>
-                        <div class="info-value">
+                    <div class="profile-info-item">
+                        <div class="profile-info-label">Registered</div>
+                        <div class="profile-info-value">
                             <i class="bi bi-calendar-check"></i>
-                            {{ citizen.created_at|date:"M d, Y H:i" }}
-                        </div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Last Updated</div>
-                        <div class="info-value">
-                            <i class="bi bi-clock"></i>
-                            {{ citizen.updated_at|date:"M d, Y H:i" }}
+                            {{ citizen.created_at|date:"M d, Y" }}
                         </div>
                     </div>
                 </div>
+
+                <!-- Action Buttons -->
+                <div class="profile-actions">
+                    <a href="{% url 'citizen_update' citizen.unique_identifier %}" class="btn-primary">
+                        <i class="bi bi-pencil"></i>
+                        Edit Profile
+                    </a>
+                    <a href="{% url 'citizen_list' %}" class="btn-secondary">
+                        <i class="bi bi-arrow-left"></i>
+                        Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Content Section (8 columns) -->
+        <div class="content-section">
+            <div class="content-header">
+                <h2>Citizen Information</h2>
             </div>
 
-            <!-- Bills Tab -->
-            <div class="tab-pane" id="bills">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h5 style="font-size: 16px; font-weight: 600; color: #1E293B; margin: 0;">
-                        <i class="bi bi-receipt"></i> Recent Bills
-                    </h5>
-                    <div style="display: flex; gap: 12px;">
-                        <span class="badge badge-success">Paid: {{ bill_stats.paid }}</span>
-                        <span class="badge badge-warning">Pending: {{ bill_stats.pending }}</span>
-                        <span class="badge badge-danger">Overdue: {{ bill_stats.overdue }}</span>
-                    </div>
-                </div>
-
-                {% if bills %}
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Bill Number</th>
-                                <th>Revenue Stream</th>
-                                <th>Bill Date</th>
-                                <th>Due Date</th>
-                                <th>Amount</th>
-                                <th>Paid</th>
-                                <th>Balance</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for bill in bills %}
-                            <tr>
-                                <td><strong>{{ bill.bill_number }}</strong></td>
-                                <td>{{ bill.revenue_stream.name }}</td>
-                                <td>{{ bill.bill_date|date:"M d, Y" }}</td>
-                                <td>{{ bill.due_date|date:"M d, Y" }}</td>
-                                <td>KES {{ bill.total_amount|floatformat:2|intcomma }}</td>
-                                <td>KES {{ bill.amount_paid|floatformat:2|intcomma }}</td>
-                                <td>KES {{ bill.balance|floatformat:2|intcomma }}</td>
-                                <td>
-                                    {% if bill.status == 'paid' %}
-                                        <span class="badge badge-success">Paid</span>
-                                    {% elif bill.status == 'overdue' %}
-                                        <span class="badge badge-danger">Overdue</span>
-                                    {% elif bill.status == 'partially_paid' %}
-                                        <span class="badge badge-warning">Partially Paid</span>
-                                    {% else %}
-                                        <span class="badge badge-info">{{ bill.get_status_display }}</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <i class="bi bi-credit-card"></i>
-                    </div>
-                    <h3 class="empty-title">No Payments Found</h3>
-                    <p class="empty-text">This citizen has not made any payments yet.</p>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Documents Tab -->
-            <div class="tab-pane" id="documents">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h5 style="font-size: 16px; font-weight: 600; color: #1E293B; margin: 0;">
-                        <i class="bi bi-file-earmark-text"></i> Uploaded Documents
-                    </h5>
-                    <button class="btn-primary" onclick="alert('Upload document feature')">
-                        <i class="bi bi-upload"></i>
-                        Upload Document
+            <!-- Tabs Navigation -->
+            <ul class="nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-tab="overview" onclick="switchTab('overview')">
+                        <i class="bi bi-person-badge"></i>
+                        Overview
                     </button>
-                </div>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-tab="bills" onclick="switchTab('bills')">
+                        <i class="bi bi-receipt"></i>
+                        Bills
+                        <span class="badge">{{ bill_stats.total }}</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-tab="payments" onclick="switchTab('payments')">
+                        <i class="bi bi-credit-card"></i>
+                        Payments
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-tab="documents" onclick="switchTab('documents')">
+                        <i class="bi bi-file-earmark-text"></i>
+                        Documents
+                        <span class="badge">{{ documents.count }}</span>
+                    </button>
+                </li>
+            </ul>
 
-                {% if documents %}
-                    {% for document in documents %}
-                    <div class="document-item">
-                        <div class="document-info">
-                            <div class="document-icon">
-                                <i class="bi bi-file-earmark-pdf"></i>
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Overview Tab -->
+                <div class="tab-pane active" id="overview">
+                    <!-- Financial Summary -->
+                    <div class="financial-summary">
+                        <div class="financial-card">
+                            <div class="financial-label">
+                                <i class="bi bi-receipt"></i>
+                                Total Billed
                             </div>
-                            <div class="document-details">
-                                <h6>{{ document.document_type }}</h6>
-                                <div class="document-meta">
-                                    {% if document.document_number %}
-                                        <span>{{ document.document_number }}</span> • 
-                                    {% endif %}
-                                    Uploaded by {{ document.uploaded_by.get_full_name }} • 
-                                    {{ document.uploaded_at|date:"M d, Y" }}
+                            <div class="financial-value">KES {{ total_billed|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div class="financial-card success">
+                            <div class="financial-label">
+                                <i class="bi bi-check-circle"></i>
+                                Total Paid
+                            </div>
+                            <div class="financial-value success">KES {{ total_paid|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div class="financial-card {% if outstanding_balance > 0 %}danger{% else %}success{% endif %}">
+                            <div class="financial-label">
+                                <i class="bi bi-exclamation-circle"></i>
+                                Outstanding
+                            </div>
+                            <div class="financial-value {% if outstanding_balance > 0 %}danger{% else %}success{% endif %}">
+                                KES {{ outstanding_balance|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Information -->
+                    <h3 class="section-title">
+                        <i class="bi bi-person"></i>
+                        Personal Information
+                    </h3>
+                    <div class="info-grid">
+                        {% if citizen.entity_type == 'individual' %}
+                            <div class="info-item">
+                                <div class="info-label">First Name</div>
+                                <div class="info-value">{{ citizen.first_name }}</div>
+                            </div>
+                            {% if citizen.middle_name %}
+                            <div class="info-item">
+                                <div class="info-label">Middle Name</div>
+                                <div class="info-value">{{ citizen.middle_name }}</div>
+                            </div>
+                            {% endif %}
+                            <div class="info-item">
+                                <div class="info-label">Last Name</div>
+                                <div class="info-value">{{ citizen.last_name }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Date of Birth</div>
+                                <div class="info-value">
+                                    <i class="bi bi-calendar"></i>
+                                    {{ citizen.date_of_birth|date:"M d, Y"|default:"Not provided" }}
                                 </div>
                             </div>
+                            <div class="info-item">
+                                <div class="info-label">Gender</div>
+                                <div class="info-value">{{ citizen.gender|default:"Not specified" }}</div>
+                            </div>
+                        {% else %}
+                            <div class="info-item">
+                                <div class="info-label">Business Name</div>
+                                <div class="info-value">{{ citizen.business_name }}</div>
+                            </div>
+                            {% if citizen.registration_number %}
+                            <div class="info-item">
+                                <div class="info-label">Registration Number</div>
+                                <div class="info-value">{{ citizen.registration_number }}</div>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                        <div class="info-item">
+                            <div class="info-label">Unique Identifier</div>
+                            <div class="info-value">
+                                <i class="bi bi-hash"></i>
+                                {{ citizen.unique_identifier }}
+                            </div>
                         </div>
-                        <a href="{{ document.file.url }}" class="btn-download" target="_blank">
-                            <i class="bi bi-download"></i>
-                            Download
-                        </a>
+                        <div class="info-item">
+                            <div class="info-label">Entity Type</div>
+                            <div class="info-value">
+                                <i class="bi bi-tag"></i>
+                                {{ citizen.get_entity_type_display }}
+                            </div>
+                        </div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <i class="bi bi-file-earmark"></i>
+
+                    <!-- Address Information -->
+                    {% if citizen.physical_address or citizen.postal_address %}
+                    <h3 class="section-title">
+                        <i class="bi bi-house"></i>
+                        Address Information
+                    </h3>
+                    <div class="info-grid">
+                        {% if citizen.physical_address %}
+                        <div class="info-item" style="grid-column: 1 / -1;">
+                            <div class="info-label">Physical Address</div>
+                            <div class="info-value">
+                                <i class="bi bi-pin-map"></i>
+                                {{ citizen.physical_address }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if citizen.postal_address %}
+                        <div class="info-item">
+                            <div class="info-label">Postal Address</div>
+                            <div class="info-value">
+                                <i class="bi bi-mailbox"></i>
+                                {{ citizen.postal_address }}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
-                    <h3 class="empty-title">No Documents</h3>
-                    <p class="empty-text">No documents have been uploaded for this citizen.</p>
+                    {% endif %}
+
+                    <!-- System Information -->
+                    <h3 class="section-title">
+                        <i class="bi bi-clock-history"></i>
+                        System Information
+                    </h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Created On</div>
+                            <div class="info-value">
+                                <i class="bi bi-calendar-plus"></i>
+                                {{ citizen.created_at|date:"M d, Y H:i" }}
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Last Updated</div>
+                            <div class="info-value">
+                                <i class="bi bi-clock"></i>
+                                {{ citizen.updated_at|date:"M d, Y H:i" }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
+
+                <!-- Bills Tab -->
+                <div class="tab-pane" id="bills">
+                    <div class="bill-stats-header">
+                        <h3 class="section-title" style="margin: 0; padding: 0; border: none;">
+                            <i class="bi bi-receipt"></i>
+                            Bills History
+                        </h3>
+                        <div class="bill-stats-badges">
+                            <span class="badge badge-success">
+                                <i class="bi bi-check-circle"></i>
+                                Paid: {{ bill_stats.paid }}
+                            </span>
+                            <span class="badge badge-warning">
+                                <i class="bi bi-clock"></i>
+                                Pending: {{ bill_stats.pending }}
+                            </span>
+                            <span class="badge badge-danger">
+                                <i class="bi bi-exclamation-circle"></i>
+                                Overdue: {{ bill_stats.overdue }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if bills %}
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Bill Number</th>
+                                    <th>Revenue Stream</th>
+                                    <th>Bill Date</th>
+                                    <th>Due Date</th>
+                                    <th>Amount</th>
+                                    <th>Paid</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in bills %}
+                                <tr>
+                                    <td><strong>{{ bill.bill_number }}</strong></td>
+                                    <td>{{ bill.revenue_stream.name }}</td>
+                                    <td>{{ bill.bill_date|date:"M d, Y" }}</td>
+                                    <td>{{ bill.due_date|date:"M d, Y" }}</td>
+                                    <td><strong>KES {{ bill.total_amount|floatformat:2|intcomma }}</strong></td>
+                                    <td>KES {{ bill.amount_paid|floatformat:2|intcomma }}</td>
+                                    <td>KES {{ bill.balance|floatformat:2|intcomma }}</td>
+                                    <td>
+                                        {% if bill.status == 'paid' %}
+                                            <span class="badge badge-success">
+                                                <i class="bi bi-check-circle"></i> Paid
+                                            </span>
+                                        {% elif bill.status == 'overdue' %}
+                                            <span class="badge badge-danger">
+                                                <i class="bi bi-exclamation-circle"></i> Overdue
+                                            </span>
+                                        {% elif bill.status == 'partially_paid' %}
+                                            <span class="badge badge-warning">
+                                                <i class="bi bi-clock"></i> Partial
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-info">{{ bill.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                        <h3 class="empty-title">No Bills Found</h3>
+                        <p class="empty-text">This citizen has not been billed yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Payments Tab -->
+                <div class="tab-pane" id="payments">
+                    <h3 class="section-title">
+                        <i class="bi bi-credit-card"></i>
+                        Payment History
+                    </h3>
+                    
+                    {% if payments %}
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Payment Date</th>
+                                    <th>Reference Number</th>
+                                    <th>Bill Number</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"M d, Y H:i" }}</td>
+                                    <td><strong>{{ payment.reference_number }}</strong></td>
+                                    <td>{{ payment.bill.bill_number }}</td>
+                                    <td><strong>KES {{ payment.amount|floatformat:2|intcomma }}</strong></td>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                    <td>
+                                        <span class="badge badge-success">
+                                            <i class="bi bi-check-circle"></i> Confirmed
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-credit-card"></i>
+                        </div>
+                        <h3 class="empty-title">No Payments Found</h3>
+                        <p class="empty-text">This citizen has not made any payments yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Documents Tab -->
+                <div class="tab-pane" id="documents">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <h3 class="section-title" style="margin: 0; padding: 0; border: none;">
+                            <i class="bi bi-file-earmark-text"></i>
+                            Uploaded Documents
+                        </h3>
+                        <button class="btn-primary" onclick="alert('Upload document feature coming soon')">
+                            <i class="bi bi-upload"></i>
+                            Upload Document
+                        </button>
+                    </div>
+
+                    {% if documents %}
+                        {% for document in documents %}
+                        <div class="document-item">
+                            <div class="document-info">
+                                <div class="document-icon">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </div>
+                                <div class="document-details">
+                                    <h6>{{ document.document_type }}</h6>
+                                    <div class="document-meta">
+                                        {% if document.document_number %}
+                                            <span><i class="bi bi-hash"></i> {{ document.document_number }}</span> • 
+                                        {% endif %}
+                                        <span><i class="bi bi-person"></i> {{ document.uploaded_by.get_full_name }}</span> • 
+                                        <span><i class="bi bi-calendar"></i> {{ document.uploaded_at|date:"M d, Y" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="{{ document.file.url }}" class="btn-download" target="_blank">
+                                <i class="bi bi-download"></i>
+                                Download
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="bi bi-file-earmark"></i>
+                        </div>
+                        <h3 class="empty-title">No Documents</h3>
+                        <p class="empty-text">No documents have been uploaded for this citizen yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
