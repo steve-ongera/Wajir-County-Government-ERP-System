@@ -1,0 +1,746 @@
+{% extends "admin_base.html" %}
+{% load humanize %}
+{% block title %}Bank Reconciliations{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .stat-value.danger {
+        color: #e74c3c;
+    }
+
+    .filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+
+    .filter-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-toggle {
+        color: #64748B;
+        transition: transform 0.3s ease;
+    }
+
+    .filter-toggle.rotated {
+        transform: rotate(180deg);
+    }
+
+    .filter-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 6px;
+    }
+
+    .filter-select, .filter-input {
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .clear-btn {
+        padding: 10px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .filter-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: #3498db;
+        color: white;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .reconciliation-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .reconciliation-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .reconciliation-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .reconciliation-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .reconciliation-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .bank-account {
+        font-weight: 600;
+        color: #1E293B;
+        font-family: monospace;
+    }
+
+    .amount-display {
+        font-weight: 600;
+        font-family: monospace;
+    }
+
+    .amount-positive {
+        color: #27ae60;
+    }
+
+    .amount-negative {
+        color: #e74c3c;
+    }
+
+    .variance-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .variance-zero {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .variance-non-zero {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-reconciled {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+        background: white;
+        color: #64748B;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .pagination a, .pagination span {
+        padding: 8px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        color: #64748B;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+
+    .pagination a:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .pagination .current {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Payments</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Bank Reconciliations</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-calculator"></i>
+                    Bank Reconciliations
+                </h1>
+                <p class="page-subtitle">
+                    View and manage bank reconciliation records
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'reconciliation_create' %}" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    New Reconciliation
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-collection"></i>
+                    Total Records
+                </div>
+                <div class="stat-value">{{ stats.total_count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-check-circle"></i>
+                    Reconciled
+                </div>
+                <div class="stat-value success">{{ stats.reconciled_count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-clock"></i>
+                    Pending
+                </div>
+                <div class="stat-value warning">{{ stats.pending_count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Total Variance
+                </div>
+                <div class="stat-value {% if stats.total_variance == 0 %}success{% else %}danger{% endif %}">
+                    KES {{ stats.total_variance|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="filter-header" onclick="toggleFilters()">
+                <h6 class="filter-title">
+                    <i class="bi bi-funnel"></i>
+                    Filters
+                    {% if current_bank or current_status or date_from or date_to %}
+                    <span class="filter-badge">Active</span>
+                    {% endif %}
+                </h6>
+                <i class="bi bi-chevron-down filter-toggle" id="filterToggle"></i>
+            </div>
+            
+            <div class="filter-content" id="filtersContent" style="display: none;">
+                <form method="get" id="filterForm">
+                    <div class="filter-content">
+                        <div class="filter-group">
+                            <label class="filter-label" for="bank_account">
+                                <i class="bi bi-bank"></i> Bank Account
+                            </label>
+                            <select class="filter-select" name="bank_account" id="bank_account">
+                                <option value="">All Accounts</option>
+                                {% for account in bank_accounts %}
+                                <option value="{{ account }}" {% if current_bank == account %}selected{% endif %}>
+                                    {{ account }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="status">
+                                <i class="bi bi-toggle-on"></i> Status
+                            </label>
+                            <select class="filter-select" name="status" id="status">
+                                <option value="">All Status</option>
+                                <option value="reconciled" {% if current_status == 'reconciled' %}selected{% endif %}>Reconciled</option>
+                                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="date_from">
+                                <i class="bi bi-calendar"></i> Date From
+                            </label>
+                            <input type="date" class="filter-input" name="date_from" id="date_from" value="{{ date_from }}">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label class="filter-label" for="date_to">
+                                <i class="bi bi-calendar"></i> Date To
+                            </label>
+                            <input type="date" class="filter-input" name="date_to" id="date_to" value="{{ date_to }}">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="filter-btn">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'reconciliation_list' %}" class="clear-btn">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Reconciliations Table -->
+        <div class="table-responsive">
+            <table class="reconciliation-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Bank Account</th>
+                        <th>Opening Balance</th>
+                        <th>Total Receipts</th>
+                        <th>Total Payments</th>
+                        <th>Closing Balance</th>
+                        <th>Variance</th>
+                        <th>Status</th>
+                        <th>Reconciled By</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for recon in reconciliations %}
+                    <tr>
+                        <td>{{ recon.reconciliation_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="bank-account">{{ recon.bank_account }}</span>
+                        </td>
+                        <td>
+                            <span class="amount-display">KES {{ recon.opening_balance|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td>
+                            <span class="amount-display amount-positive">
+                                KES {{ recon.total_receipts|floatformat:2|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="amount-display amount-negative">
+                                KES {{ recon.total_payments|floatformat:2|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="amount-display">KES {{ recon.closing_balance|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td>
+                            <span class="variance-badge {% if recon.variance == 0 %}variance-zero{% else %}variance-non-zero{% endif %}">
+                                {% if recon.variance == 0 %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                {% endif %}
+                                KES {{ recon.variance|floatformat:2|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge {% if recon.is_reconciled %}status-reconciled{% else %}status-pending{% endif %}">
+                                {% if recon.is_reconciled %}
+                                    <i class="bi bi-check-circle-fill"></i> Reconciled
+                                {% else %}
+                                    <i class="bi bi-clock-fill"></i> Pending
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if recon.reconciled_by %}
+                                <div style="font-weight: 600; color: #1E293B;">{{ recon.reconciled_by.get_full_name }}</div>
+                                {% if recon.reconciled_at %}
+                                <small style="color: #94A3B8;">{{ recon.reconciled_at|date:"d/m/Y H:i" }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span style="color: #94A3B8;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'reconciliation_detail' recon.id %}" 
+                                   class="btn-action" 
+                                   title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if not recon.is_reconciled %}
+                                <a href="{% url 'reconciliation_update' recon.id %}" 
+                                   class="btn-action" 
+                                   title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-calculator"></i>
+                                </div>
+                                <h3 class="empty-title">No Reconciliation Records Found</h3>
+                                <p class="empty-text">
+                                    No bank reconciliation records have been created yet.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if reconciliations.has_other_pages %}
+        <div class="pagination">
+            {% if reconciliations.has_previous %}
+                <a href="?page=1{% if current_bank %}&bank_account={{ current_bank }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">« First</a>
+                <a href="?page={{ reconciliations.previous_page_number }}{% if current_bank %}&bank_account={{ current_bank }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">‹ Prev</a>
+            {% endif %}
+
+            <span class="current">
+                Page {{ reconciliations.number }} of {{ reconciliations.paginator.num_pages }}
+            </span>
+
+            {% if reconciliations.has_next %}
+                <a href="?page={{ reconciliations.next_page_number }}{% if current_bank %}&bank_account={{ current_bank }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">Next ›</a>
+                <a href="?page={{ reconciliations.paginator.num_pages }}{% if current_bank %}&bank_account={{ current_bank }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">Last »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleFilters() {
+        const content = document.getElementById('filtersContent');
+        const toggle = document.getElementById('filterToggle');
+        
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'grid';
+            toggle.classList.add('rotated');
+        } else {
+            content.style.display = 'none';
+            toggle.classList.remove('rotated');
+        }
+    }
+
+    // Auto-expand filters if any filter is active
+    document.addEventListener('DOMContentLoaded', function() {
+        const hasActiveFilters = "{{ current_bank }}" !== "" || 
+                                "{{ current_status }}" !== "" ||
+                                "{{ date_from }}" !== "" ||
+                                "{{ date_to }}" !== "";
+        
+        if (hasActiveFilters) {
+            document.getElementById('filtersContent').style.display = 'grid';
+            document.getElementById('filterToggle').classList.add('rotated');
+        }
+    });
+</script>
+{% endblock %}

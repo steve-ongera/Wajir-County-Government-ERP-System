@@ -1,0 +1,512 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Create Payment Method - Wajir County ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border-color: #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        display: block;
+        font-size: 14px;
+    }
+
+    .form-control {
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        outline: none;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #3498db;
+    }
+
+    .checkbox-group label {
+        margin-bottom: 0;
+        font-weight: 500;
+        color: #1E293B;
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #64748B;
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+
+    .form-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3498db;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border: 1px solid;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        border-color: #A7F3D0;
+        color: #065F46;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        border-color: #FCA5A5;
+        color: #991B1B;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        border-color: #FCD34D;
+        color: #92400E;
+    }
+
+    .alert-icon {
+        font-size: 20px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        padding-top: 16px;
+        border-top: 1px solid #F1F5F9;
+        margin-top: 24px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_method_list' %}">Payment Methods</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Create Payment Method</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-plus-circle"></i>
+                    Create New Payment Method
+                </h1>
+                <p class="page-subtitle">
+                    Add a new payment method to the system
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'payment_method_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}-fill alert-icon"></i>
+                    <div>{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Payment Method Form -->
+        <form method="post" id="paymentMethodForm">
+            {% csrf_token %}
+            
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-info-circle"></i>
+                    Basic Information
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="name" class="required-field">Payment Method Name</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ form_data.name|default:'' }}"
+                                   placeholder="e.g., M-Pesa, Credit Card, Bank Transfer" 
+                                   required>
+                            <div class="help-text">Enter a descriptive name for the payment method</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="code" class="required-field">Code</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="code" 
+                                   name="code" 
+                                   value="{{ form_data.code|default:'' }}"
+                                   placeholder="e.g., MPESA, CARD, BANK" 
+                                   required>
+                            <div class="help-text">Unique code for system reference (uppercase recommended)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="provider" class="required-field">Provider</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="provider" 
+                                   name="provider" 
+                                   value="{{ form_data.provider|default:'' }}"
+                                   placeholder="e.g., Safaricom, Visa, Equity Bank" 
+                                   required>
+                            <div class="help-text">The company or service providing this payment method</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="api_endpoint">API Endpoint</label>
+                            <input type="url" 
+                                   class="form-control" 
+                                   id="api_endpoint" 
+                                   name="api_endpoint" 
+                                   value="{{ form_data.api_endpoint|default:'' }}"
+                                   placeholder="https://api.example.com/payments">
+                            <div class="help-text">URL for payment processing API (if applicable)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-gear"></i>
+                    Configuration
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" 
+                                       id="is_online" 
+                                       name="is_online" 
+                                       {% if form_data.is_online %}checked{% endif %}>
+                                <label for="is_online">Online Payment Method</label>
+                            </div>
+                            <div class="help-text">Check if this is an online/digital payment method</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active" 
+                                       {% if form_data.is_active|default:True %}checked{% endif %}>
+                                <label for="is_active">Active</label>
+                            </div>
+                            <div class="help-text">Uncheck to disable this payment method</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Default Settings Info -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-lightbulb"></i>
+                    Default Settings
+                </h2>
+                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; padding: 16px;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #1E40AF;">Active Status:</strong>
+                                <span style="color: #475569;">Enabled by default. Payment method will be available for use immediately.</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #1E40AF;">Online Type:</strong>
+                                <span style="color: #475569;">Enable for digital payments, disable for manual/offline methods.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                        <i class="bi bi-info-circle me-1"></i>
+                        These settings can be modified later from the payment method details page.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i>Create Payment Method
+                </button>
+                <a href="{% url 'payment_method_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-lg"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('paymentMethodForm');
+        const codeInput = document.getElementById('code');
+        
+        // Auto-format code to uppercase
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+        });
+        
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            const name = document.getElementById('name').value.trim();
+            const code = document.getElementById('code').value.trim();
+            const provider = document.getElementById('provider').value.trim();
+            
+            if (!name || !code || !provider) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+                return false;
+            }
+            
+            // Validate code format
+            const codeRegex = /^[A-Z0-9_]+$/;
+            if (!codeRegex.test(code)) {
+                e.preventDefault();
+                alert('Code can only contain uppercase letters, numbers, and underscores.');
+                return false;
+            }
+
+            // Validate API endpoint format if provided
+            const apiEndpoint = document.getElementById('api_endpoint').value.trim();
+            if (apiEndpoint) {
+                try {
+                    new URL(apiEndpoint);
+                } catch (_) {
+                    e.preventDefault();
+                    alert('Please enter a valid URL for the API endpoint.');
+                    return false;
+                }
+            }
+        });
+        
+        // Show loading state on form submission
+        form.addEventListener('submit', function() {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner"></i> Creating...';
+            submitBtn.disabled = true;
+        });
+
+        // Add real-time validation feedback
+        const inputs = form.querySelectorAll('input[required]');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (!this.value.trim()) {
+                    this.style.borderColor = '#e74c3c';
+                } else {
+                    this.style.borderColor = '#E2E8F0';
+                }
+            });
+        });
+
+        // Add spinner animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .spinner {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %}

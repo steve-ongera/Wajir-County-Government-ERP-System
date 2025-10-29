@@ -1,0 +1,410 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Cancel Payment - {{ payment.receipt_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        text-align: center;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #e74c3c;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .alert {
+        padding: 20px 24px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        border: 2px solid;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        border-color: #FCA5A5;
+        color: #991B1B;
+    }
+
+    .alert-icon {
+        font-size: 32px;
+        flex-shrink: 0;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .payment-details {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .detail-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .detail-value.amount {
+        font-size: 20px;
+        color: #e74c3c;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+    }
+
+    .form-label.required::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+        font-family: inherit;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+        display: block;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .btn {
+        padding: 12px 32px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid;
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+        border-color: #e74c3c;
+    }
+
+    .btn-danger:hover {
+        background: #c0392b;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border-color: #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .warning-list {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0 0;
+    }
+
+    .warning-list li {
+        padding: 8px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .warning-list li::before {
+        content: "•";
+        color: #e74c3c;
+        font-weight: bold;
+        font-size: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_list' %}">Payments</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_detail' payment.id %}">{{ payment.receipt_number }}</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Cancel</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Cancel Payment
+            </h1>
+            <p class="page-subtitle">
+                This action will cancel the selected payment
+            </p>
+        </div>
+
+        <!-- Warning Alert -->
+        <div class="alert alert-danger">
+            <i class="bi bi-shield-exclamation alert-icon"></i>
+            <div class="alert-content">
+                <div class="alert-title">Warning: This action cannot be undone</div>
+                <p style="margin: 0;">
+                    You are about to cancel this payment. Please note:
+                </p>
+                <ul class="warning-list">
+                    <li>Only pending payments can be cancelled</li>
+                    <li>This will permanently mark the payment as cancelled</li>
+                    <li>The cancellation will be recorded in the audit trail</li>
+                    <li>You must provide a valid reason for cancellation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Payment Details -->
+        <div class="payment-details">
+            <h6 style="font-size: 14px; font-weight: 600; color: #1E293B; margin-bottom: 16px;">
+                <i class="bi bi-receipt"></i> Payment Details
+            </h6>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Receipt Number</span>
+                    <span class="detail-value" style="font-family: monospace;">{{ payment.receipt_number }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Transaction Reference</span>
+                    <span class="detail-value" style="font-family: monospace;">{{ payment.transaction_reference }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Payer Name</span>
+                    <span class="detail-value">{{ payment.payer_name }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Phone Number</span>
+                    <span class="detail-value">{{ payment.payer_phone }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Payment Date</span>
+                    <span class="detail-value">{{ payment.payment_date|date:"d M Y H:i" }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Payment Method</span>
+                    <span class="detail-value">{{ payment.payment_method.name }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Revenue Stream</span>
+                    <span class="detail-value">{{ payment.revenue_stream.name }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Amount</span>
+                    <span class="detail-value amount">KES {{ payment.amount|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cancellation Form -->
+        <form method="post" id="cancelForm">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label required" for="cancellation_reason">
+                    <i class="bi bi-chat-left-text"></i> Cancellation Reason
+                </label>
+                <textarea 
+                    class="form-control" 
+                    id="cancellation_reason" 
+                    name="cancellation_reason" 
+                    rows="5"
+                    placeholder="Please provide a detailed reason for cancelling this payment..."
+                    required
+                ></textarea>
+                <small class="form-text">
+                    This reason will be permanently recorded and visible in the payment history
+                </small>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'payment_detail' payment.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Go Back
+                </a>
+                <button type="submit" class="btn btn-danger" id="confirmBtn">
+                    <i class="bi bi-x-circle"></i>
+                    Confirm Cancellation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation and confirmation
+    document.getElementById('cancelForm').addEventListener('submit', function(e) {
+        const reason = document.getElementById('cancellation_reason').value.trim();
+        
+        if (!reason) {
+            e.preventDefault();
+            alert('Please provide a reason for cancellation');
+            document.getElementById('cancellation_reason').focus();
+            return;
+        }
+        
+        if (reason.length < 10) {
+            e.preventDefault();
+            alert('Please provide a more detailed reason (at least 10 characters)');
+            document.getElementById('cancellation_reason').focus();
+            return;
+        }
+        
+        // Final confirmation
+        if (!confirm('Are you absolutely sure you want to cancel this payment? This action cannot be undone.')) {
+            e.preventDefault();
+            return;
+        }
+    });
+</script>
+{% endblock %}

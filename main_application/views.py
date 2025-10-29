@@ -3923,3 +3923,1012 @@ def export_overdue_bills_excel(request):
     
     wb.save(response)
     return response
+
+
+# payments/views.py
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, Count, Avg
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+from decimal import Decimal
+
+from .models import (
+    Payment, PaymentMethod, PaymentReversal, BankReconciliation,
+    RevenueStream, SubCounty, Ward, Bill, Citizen, User
+)
+
+
+# ============================================================================
+# PAYMENT LIST VIEW
+# ============================================================================
+
+@login_required
+def payment_list(request):
+    """Display list of all payments with search, filter, and export"""
+    
+    # Get all payments
+    payments = Payment.objects.select_related(
+        'citizen', 'payment_method', 'revenue_stream', 
+        'sub_county', 'ward', 'collected_by', 'bill'
+    ).order_by('-payment_date')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        payments = payments.filter(
+            Q(receipt_number__icontains=search_query) |
+            Q(transaction_reference__icontains=search_query) |
+            Q(payer_name__icontains=search_query) |
+            Q(payer_phone__icontains=search_query) |
+            Q(citizen__first_name__icontains=search_query) |
+            Q(citizen__last_name__icontains=search_query) |
+            Q(citizen__business_name__icontains=search_query)
+        )
+    
+    # Filters
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        payments = payments.filter(status=status_filter)
+    
+    method_filter = request.GET.get('payment_method', '')
+    if method_filter:
+        payments = payments.filter(payment_method_id=method_filter)
+    
+    revenue_stream_filter = request.GET.get('revenue_stream', '')
+    if revenue_stream_filter:
+        payments = payments.filter(revenue_stream_id=revenue_stream_filter)
+    
+    sub_county_filter = request.GET.get('sub_county', '')
+    if sub_county_filter:
+        payments = payments.filter(sub_county_id=sub_county_filter)
+    
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        payments = payments.filter(payment_date__gte=date_from)
+    
+    date_to = request.GET.get('date_to', '')
+    if date_to:
+        payments = payments.filter(payment_date__lte=date_to)
+    
+    amount_min = request.GET.get('amount_min', '')
+    if amount_min:
+        try:
+            payments = payments.filter(amount__gte=Decimal(amount_min))
+        except:
+            pass
+    
+    amount_max = request.GET.get('amount_max', '')
+    if amount_max:
+        try:
+            payments = payments.filter(amount__lte=Decimal(amount_max))
+        except:
+            pass
+    
+    # Calculate statistics
+    stats = payments.aggregate(
+        total_count=Count('id'),
+        total_amount=Sum('amount'),
+        avg_amount=Avg('amount'),
+        completed_count=Count('id', filter=Q(status='completed')),
+        pending_count=Count('id', filter=Q(status='pending')),
+        failed_count=Count('id', filter=Q(status='failed')),
+        completed_amount=Sum('amount', filter=Q(status='completed'))
+    )
+    
+    # Status breakdown
+    status_stats = {
+        'completed': payments.filter(status='completed').count(),
+        'pending': payments.filter(status='pending').count(),
+        'processing': payments.filter(status='processing').count(),
+        'failed': payments.filter(status='failed').count(),
+        'reversed': payments.filter(status='reversed').count(),
+        'cancelled': payments.filter(status='cancelled').count(),
+    }
+    
+    # Export to Excel
+    if request.GET.get('export') == 'excel':
+        return export_payments_excel(payments, request.GET)
+    
+    # Pagination
+    paginator = Paginator(payments, 50)
+    page_number = request.GET.get('page', 1)
+    payments_page = paginator.get_page(page_number)
+    
+    # Get filter options
+    payment_methods = PaymentMethod.objects.filter(is_active=True)
+    revenue_streams = RevenueStream.objects.filter(is_active=True).select_related('department')
+    sub_counties = SubCounty.objects.filter(is_active=True)
+    
+    context = {
+        'payments': payments_page,
+        'stats': stats,
+        'status_stats': status_stats,
+        'search_query': search_query,
+        'payment_methods': payment_methods,
+        'revenue_streams': revenue_streams,
+        'sub_counties': sub_counties,
+        'current_status': status_filter,
+        'current_method': method_filter,
+        'current_stream': revenue_stream_filter,
+        'current_sub_county': sub_county_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'amount_min': amount_min,
+        'amount_max': amount_max,
+        'total_records': paginator.count,
+    }
+    
+    return render(request, 'payments/payment_list.html', context)
+
+
+# ============================================================================
+# PAYMENT DETAIL VIEW
+# ============================================================================
+
+@login_required
+def payment_detail(request, payment_id):
+    """Display detailed information about a payment"""
+    
+    payment = get_object_or_404(
+        Payment.objects.select_related(
+            'citizen', 'payment_method', 'revenue_stream', 
+            'sub_county', 'ward', 'collected_by', 'bill'
+        ),
+        id=payment_id
+    )
+    
+    # Get payment history/audit trail
+    from .models import AuditLog
+    audit_logs = AuditLog.objects.filter(
+        model_name='Payment',
+        object_id=str(payment.id)
+    ).select_related('user').order_by('-timestamp')[:20]
+    
+    # Get reversal if exists
+    reversal = PaymentReversal.objects.filter(
+        payment=payment
+    ).select_related('reversed_by', 'approved_by').first()
+    
+    # Get related payments (same citizen)
+    related_payments = Payment.objects.filter(
+        citizen=payment.citizen
+    ).exclude(id=payment.id).order_by('-payment_date')[:10]
+    
+    context = {
+        'payment': payment,
+        'audit_logs': audit_logs,
+        'reversal': reversal,
+        'related_payments': related_payments,
+    }
+    
+    return render(request, 'payments/payment_detail.html', context)
+
+
+# ============================================================================
+# PAYMENT UPDATE/EDIT VIEW
+# ============================================================================
+
+@login_required
+def payment_update(request, payment_id):
+    """Update payment information"""
+    
+    payment = get_object_or_404(Payment, id=payment_id)
+    
+    # Only allow editing of pending/processing payments
+    if payment.status not in ['pending', 'processing']:
+        messages.error(request, 'Cannot edit completed or cancelled payments.')
+        return redirect('payment_detail', payment_id=payment.id)
+    
+    if request.method == 'POST':
+        # Update payment details
+        payment.payer_name = request.POST.get('payer_name', payment.payer_name)
+        payment.payer_phone = request.POST.get('payer_phone', payment.payer_phone)
+        payment.payer_reference = request.POST.get('payer_reference', payment.payer_reference)
+        payment.notes = request.POST.get('notes', payment.notes)
+        
+        # Update status if changed
+        new_status = request.POST.get('status')
+        if new_status and new_status != payment.status:
+            old_status = payment.status
+            payment.status = new_status
+            
+            # Create audit log
+            from .models import AuditLog
+            AuditLog.objects.create(
+                user=request.user,
+                action='update',
+                model_name='Payment',
+                object_id=str(payment.id),
+                object_repr=payment.receipt_number,
+                changes={
+                    'status': {'old': old_status, 'new': new_status}
+                },
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+        
+        payment.save()
+        
+        messages.success(request, 'Payment updated successfully.')
+        return redirect('payment_detail', payment_id=payment.id)
+    
+    payment_methods = PaymentMethod.objects.filter(is_active=True)
+    
+    context = {
+        'payment': payment,
+        'payment_methods': payment_methods,
+    }
+    
+    return render(request, 'payments/payment_update.html', context)
+
+
+# ============================================================================
+# PAYMENT DELETE/CANCEL VIEW
+# ============================================================================
+
+@login_required
+def payment_delete(request, payment_id):
+    """Cancel a payment (soft delete)"""
+    
+    payment = get_object_or_404(Payment, id=payment_id)
+    
+    # Only allow cancellation of pending payments
+    if payment.status != 'pending':
+        messages.error(request, 'Only pending payments can be cancelled.')
+        return redirect('payment_detail', payment_id=payment.id)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('cancellation_reason', '')
+        
+        # Update payment status
+        payment.status = 'cancelled'
+        payment.notes = f"Cancelled: {reason}\n{payment.notes}"
+        payment.save()
+        
+        # Create audit log
+        from .models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action='delete',
+            model_name='Payment',
+            object_id=str(payment.id),
+            object_repr=payment.receipt_number,
+            changes={'reason': reason},
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        messages.success(request, f'Payment {payment.receipt_number} has been cancelled.')
+        return redirect('payment_list')
+    
+    context = {
+        'payment': payment,
+    }
+    
+    return render(request, 'payments/payment_delete.html', context)
+
+
+# ============================================================================
+# PAYMENT METHODS MANAGEMENT
+# ============================================================================
+
+@login_required
+def payment_method_list(request):
+    """List all payment methods"""
+    
+    payment_methods = PaymentMethod.objects.all().order_by('-is_active', 'name')
+    
+    # Search
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        payment_methods = payment_methods.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(provider__icontains=search_query)
+        )
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        is_active = status_filter == 'active'
+        payment_methods = payment_methods.filter(is_active=is_active)
+    
+    # Get statistics for each method
+    for method in payment_methods:
+        method.total_transactions = Payment.objects.filter(
+            payment_method=method,
+            status='completed'
+        ).count()
+        
+        method.total_amount = Payment.objects.filter(
+            payment_method=method,
+            status='completed'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    context = {
+        'payment_methods': payment_methods,
+        'search_query': search_query,
+        'current_status': status_filter,
+    }
+    
+    return render(request, 'payments/payment_method_list.html', context)
+
+
+# ============================================================================
+# PAYMENT RECONCILIATION
+# ============================================================================
+
+@login_required
+def reconciliation_list(request):
+    """List bank reconciliation records"""
+    
+    reconciliations = BankReconciliation.objects.select_related(
+        'reconciled_by'
+    ).order_by('-reconciliation_date')
+    
+    # Filter by date range
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        reconciliations = reconciliations.filter(reconciliation_date__gte=date_from)
+    
+    date_to = request.GET.get('date_to', '')
+    if date_to:
+        reconciliations = reconciliations.filter(reconciliation_date__lte=date_to)
+    
+    # Filter by bank account
+    bank_account = request.GET.get('bank_account', '')
+    if bank_account:
+        reconciliations = reconciliations.filter(bank_account=bank_account)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        is_reconciled = status_filter == 'reconciled'
+        reconciliations = reconciliations.filter(is_reconciled=is_reconciled)
+    
+    # Statistics
+    stats = reconciliations.aggregate(
+        total_count=Count('id'),
+        reconciled_count=Count('id', filter=Q(is_reconciled=True)),
+        pending_count=Count('id', filter=Q(is_reconciled=False)),
+        total_variance=Sum('variance')
+    )
+    
+    # Get unique bank accounts
+    bank_accounts = BankReconciliation.objects.values_list(
+        'bank_account', flat=True
+    ).distinct()
+    
+    # Pagination
+    paginator = Paginator(reconciliations, 20)
+    page_number = request.GET.get('page', 1)
+    reconciliations_page = paginator.get_page(page_number)
+    
+    context = {
+        'reconciliations': reconciliations_page,
+        'stats': stats,
+        'bank_accounts': bank_accounts,
+        'date_from': date_from,
+        'date_to': date_to,
+        'current_bank': bank_account,
+        'current_status': status_filter,
+    }
+    
+    return render(request, 'payments/reconciliation_list.html', context)
+
+
+# ============================================================================
+# PAYMENT REVERSALS
+# ============================================================================
+
+@login_required
+def reversal_list(request):
+    """List all payment reversals"""
+    
+    reversals = PaymentReversal.objects.select_related(
+        'payment', 'payment__citizen', 'reversed_by', 'approved_by'
+    ).order_by('-created_at')
+    
+    # Search
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        reversals = reversals.filter(
+            Q(payment__receipt_number__icontains=search_query) |
+            Q(reversal_reason__icontains=search_query)
+        )
+    
+    # Filter by date range
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        reversals = reversals.filter(created_at__gte=date_from)
+    
+    date_to = request.GET.get('date_to', '')
+    if date_to:
+        reversals = reversals.filter(created_at__lte=date_to)
+    
+    # Statistics
+    stats = reversals.aggregate(
+        total_count=Count('id'),
+        total_amount=Sum('payment__amount')
+    )
+    
+    # Pagination
+    paginator = Paginator(reversals, 30)
+    page_number = request.GET.get('page', 1)
+    reversals_page = paginator.get_page(page_number)
+    
+    context = {
+        'reversals': reversals_page,
+        'stats': stats,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'payments/reversal_list.html', context)
+
+
+@login_required
+def payment_reverse(request, payment_id):
+    """Reverse a payment"""
+    
+    payment = get_object_or_404(Payment, id=payment_id)
+    
+    # Check if payment can be reversed
+    if payment.status != 'completed':
+        messages.error(request, 'Only completed payments can be reversed.')
+        return redirect('payment_detail', payment_id=payment.id)
+    
+    # Check if already reversed
+    if PaymentReversal.objects.filter(payment=payment).exists():
+        messages.error(request, 'This payment has already been reversed.')
+        return redirect('payment_detail', payment_id=payment.id)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('reversal_reason', '')
+        
+        if not reason:
+            messages.error(request, 'Please provide a reason for reversal.')
+            return render(request, 'payments/payment_reverse.html', {'payment': payment})
+        
+        # Create reversal record
+        reversal = PaymentReversal.objects.create(
+            payment=payment,
+            reversal_reason=reason,
+            reversed_by=request.user,
+            reversal_amount=payment.amount
+        )
+        
+        # Update payment status
+        payment.status = 'reversed'
+        payment.save()
+        
+        # If payment was linked to a bill, update bill
+        if payment.bill:
+            bill = payment.bill
+            bill.amount_paid -= payment.amount
+            bill.balance += payment.amount
+            
+            if bill.balance > 0:
+                if bill.status == 'paid':
+                    bill.status = 'partially_paid'
+            bill.save()
+        
+        # Create audit log
+        from .models import AuditLog
+        AuditLog.objects.create(
+            user=request.user,
+            action='reverse',
+            model_name='Payment',
+            object_id=str(payment.id),
+            object_repr=payment.receipt_number,
+            changes={'reason': reason, 'amount': str(payment.amount)},
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        messages.success(request, f'Payment {payment.receipt_number} has been reversed successfully.')
+        return redirect('payment_detail', payment_id=payment.id)
+    
+    context = {
+        'payment': payment,
+    }
+    
+    return render(request, 'payments/payment_reverse.html', context)
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, permission_required
+from django.views.decorators.http import require_http_methods
+from .models import PaymentMethod
+
+@login_required
+#@permission_required('your_app.add_paymentmethod', raise_exception=True)
+def payment_method_create(request):
+    """
+    View for creating new payment methods
+    """
+    if request.method == 'POST':
+        try:
+            # Extract form data
+            name = request.POST.get('name')
+            code = request.POST.get('code')
+            provider = request.POST.get('provider')
+            is_online = request.POST.get('is_online') == 'on'
+            is_active = request.POST.get('is_active') == 'on'
+            api_endpoint = request.POST.get('api_endpoint', '')
+            
+            # Basic validation
+            if not name or not code or not provider:
+                messages.error(request, "Name, Code, and Provider are required fields.")
+                return render(request, 'payments/payment_method_create.html', {
+                    'form_data': request.POST
+                })
+            
+            # Check for duplicate code
+            if PaymentMethod.objects.filter(code=code).exists():
+                messages.error(request, f"A payment method with code '{code}' already exists.")
+                return render(request, 'payments/payment_method_create.html', {
+                    'form_data': request.POST
+                })
+            
+            # Check for duplicate name
+            if PaymentMethod.objects.filter(name=name).exists():
+                messages.error(request, f"A payment method with name '{name}' already exists.")
+                return render(request, 'payments/payment_method_create.html', {
+                    'form_data': request.POST
+                })
+            
+            # Create payment method
+            payment_method = PaymentMethod.objects.create(
+                name=name,
+                code=code,
+                provider=provider,
+                is_online=is_online,
+                is_active=is_active,
+                api_endpoint=api_endpoint,
+                configuration={}  # Empty configuration by default
+            )
+            
+            messages.success(request, f"Payment method '{payment_method.name}' created successfully!")
+            return redirect('payment_method_list')  # Redirect to payment method list view
+            
+        except Exception as e:
+            messages.error(request, f"Error creating payment method: {str(e)}")
+            return render(request, 'payments/payment_method_create.html', {
+                'form_data': request.POST
+            })
+    
+    # GET request - show empty form
+    return render(request, 'payments/payment_method_create.html')
+
+
+@login_required
+@permission_required('your_app.view_paymentmethod', raise_exception=True)
+def payment_method_detail(request, pk):
+    """
+    View for displaying payment method details
+    """
+    try:
+        payment_method = get_object_or_404(PaymentMethod, pk=pk)
+        
+        # Get payment statistics for this method
+        payment_stats = Payment.objects.filter(payment_method=payment_method).aggregate(
+            total_payments=models.Count('id'),
+            total_amount=models.Sum('amount'),
+            successful_payments=models.Count('id', filter=models.Q(status='completed')),
+            failed_payments=models.Count('id', filter=models.Q(status='failed'))
+        )
+        
+        # Recent payments using this method
+        recent_payments = Payment.objects.filter(
+            payment_method=payment_method
+        ).select_related('citizen', 'bill').order_by('-payment_date')[:10]
+        
+        context = {
+            'method': payment_method,
+            'payment_stats': payment_stats,
+            'recent_payments': recent_payments,
+        }
+        
+        return render(request, 'payments/payment_method_detail.html', context)
+        
+    except Exception as e:
+        messages.error(request, f"Error loading payment method details: {str(e)}")
+        return redirect('payment_method_list')
+
+@login_required
+@permission_required('your_app.change_paymentmethod', raise_exception=True)
+def payment_method_update(request, pk):
+    """
+    View for updating payment methods
+    """
+    payment_method = get_object_or_404(PaymentMethod, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            # Extract form data
+            name = request.POST.get('name')
+            code = request.POST.get('code')
+            provider = request.POST.get('provider')
+            is_online = request.POST.get('is_online') == 'on'
+            is_active = request.POST.get('is_active') == 'on'
+            api_endpoint = request.POST.get('api_endpoint', '')
+            
+            # Basic validation
+            if not name or not code or not provider:
+                messages.error(request, "Name, Code, and Provider are required fields.")
+                return render(request, 'payments/payment_method_update.html', {
+                    'method': payment_method
+                })
+            
+            # Check for duplicate code (excluding current instance)
+            if PaymentMethod.objects.filter(code=code).exclude(pk=pk).exists():
+                messages.error(request, f"A payment method with code '{code}' already exists.")
+                return render(request, 'payments/payment_method_update.html', {
+                    'method': payment_method
+                })
+            
+            # Check for duplicate name (excluding current instance)
+            if PaymentMethod.objects.filter(name=name).exclude(pk=pk).exists():
+                messages.error(request, f"A payment method with name '{name}' already exists.")
+                return render(request, 'payments/payment_method_update.html', {
+                    'method': payment_method
+                })
+            
+            # Update payment method
+            payment_method.name = name
+            payment_method.code = code
+            payment_method.provider = provider
+            payment_method.is_online = is_online
+            payment_method.is_active = is_active
+            payment_method.api_endpoint = api_endpoint
+            payment_method.save()
+            
+            messages.success(request, f"Payment method '{payment_method.name}' updated successfully!")
+            return redirect('payment_method_detail', pk=payment_method.pk)
+            
+        except Exception as e:
+            messages.error(request, f"Error updating payment method: {str(e)}")
+            return render(request, 'payments/payment_method_update.html', {
+                'method': payment_method
+            })
+    
+    # GET request - show form with current data
+    return render(request, 'payments/payment_method_update.html', {
+        'method': payment_method
+    })
+
+@login_required
+@permission_required('your_app.delete_paymentmethod', raise_exception=True)
+@require_http_methods(["POST"])
+def payment_method_delete(request, pk):
+    """
+    View for deleting payment methods
+    """
+    payment_method = get_object_or_404(PaymentMethod, pk=pk)
+    
+    try:
+        # Check if payment method is being used
+        payment_count = Payment.objects.filter(payment_method=payment_method).count()
+        
+        if payment_count > 0:
+            messages.error(
+                request, 
+                f"Cannot delete '{payment_method.name}'. It is being used by {payment_count} payment(s). "
+                "Consider deactivating it instead."
+            )
+            return redirect('payment_method_detail', pk=pk)
+        
+        method_name = payment_method.name
+        payment_method.delete()
+        
+        messages.success(request, f"Payment method '{method_name}' deleted successfully!")
+        return redirect('payment_method_list')
+        
+    except Exception as e:
+        messages.error(request, f"Error deleting payment method: {str(e)}")
+        return redirect('payment_method_detail', pk=pk)
+
+@login_required
+@permission_required('your_app.change_paymentmethod', raise_exception=True)
+@require_http_methods(["POST"])
+def payment_method_toggle_active(request, pk):
+    """
+    View for toggling payment method active status
+    """
+    payment_method = get_object_or_404(PaymentMethod, pk=pk)
+    
+    try:
+        payment_method.is_active = not payment_method.is_active
+        payment_method.save()
+        
+        status = "activated" if payment_method.is_active else "deactivated"
+        messages.success(request, f"Payment method '{payment_method.name}' {status} successfully!")
+        
+    except Exception as e:
+        messages.error(request, f"Error updating payment method status: {str(e)}")
+    
+    return redirect('payment_method_detail', pk=pk)
+
+# ============================================================================
+# EXPORT FUNCTIONS
+# ============================================================================
+
+def export_payments_excel(payments, filters):
+    """Export payments to Excel"""
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Payments Report"
+    
+    # Define styles
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Report header
+    ws.merge_cells('A1:N1')
+    title_cell = ws['A1']
+    title_cell.value = "WAJIR COUNTY GOVERNMENT - PAYMENTS REPORT"
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Report info
+    ws.merge_cells('A2:N2')
+    info_cell = ws['A2']
+    info_cell.value = f"Generated on: {timezone.now().strftime('%d/%m/%Y %H:%M')}"
+    info_cell.alignment = Alignment(horizontal="center")
+    
+    # Filter info
+    filter_info = []
+    if filters.get('date_from'):
+        filter_info.append(f"From: {filters['date_from']}")
+    if filters.get('date_to'):
+        filter_info.append(f"To: {filters['date_to']}")
+    if filters.get('status'):
+        filter_info.append(f"Status: {filters['status']}")
+    
+    if filter_info:
+        ws.merge_cells('A3:N3')
+        filter_cell = ws['A3']
+        filter_cell.value = f"Filters: {' | '.join(filter_info)}"
+        filter_cell.alignment = Alignment(horizontal="center")
+        header_row = 5
+    else:
+        header_row = 4
+    
+    # Column headers
+    headers = [
+        'Receipt No',
+        'Transaction Ref',
+        'Payment Date',
+        'Payer Name',
+        'Phone',
+        'Payment Method',
+        'Revenue Stream',
+        'Amount (KES)',
+        'Status',
+        'Sub County',
+        'Ward',
+        'Collected By',
+        'Bill Number',
+        'Notes'
+    ]
+    
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=header_row, column=col)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Data rows
+    row_num = header_row + 1
+    total_amount = 0
+    
+    for payment in payments:
+        ws.cell(row=row_num, column=1, value=payment.receipt_number).border = border
+        ws.cell(row=row_num, column=2, value=payment.transaction_reference).border = border
+        ws.cell(row=row_num, column=3, value=payment.payment_date.strftime('%d/%m/%Y %H:%M')).border = border
+        ws.cell(row=row_num, column=4, value=payment.payer_name).border = border
+        ws.cell(row=row_num, column=5, value=payment.payer_phone).border = border
+        ws.cell(row=row_num, column=6, value=payment.payment_method.name).border = border
+        ws.cell(row=row_num, column=7, value=payment.revenue_stream.name).border = border
+        
+        amount_cell = ws.cell(row=row_num, column=8, value=float(payment.amount))
+        amount_cell.number_format = '#,##0.00'
+        amount_cell.border = border
+        
+        ws.cell(row=row_num, column=9, value=payment.get_status_display()).border = border
+        ws.cell(row=row_num, column=10, value=payment.sub_county.name if payment.sub_county else '').border = border
+        ws.cell(row=row_num, column=11, value=payment.ward.name if payment.ward else '').border = border
+        ws.cell(row=row_num, column=12, value=payment.collected_by.get_full_name() if payment.collected_by else '').border = border
+        ws.cell(row=row_num, column=13, value=payment.bill.bill_number if payment.bill else '').border = border
+        ws.cell(row=row_num, column=14, value=payment.notes).border = border
+        
+        total_amount += payment.amount
+        row_num += 1
+    
+    # Total row
+    ws.cell(row=row_num, column=7, value="TOTAL:").font = Font(bold=True)
+    total_cell = ws.cell(row=row_num, column=8, value=float(total_amount))
+    total_cell.font = Font(bold=True)
+    total_cell.number_format = '#,##0.00'
+    
+    # Adjust column widths
+    column_widths = [15, 20, 18, 25, 15, 18, 30, 15, 12, 15, 15, 20, 15, 30]
+    for i, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=payments_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, permission_required
+from django.views.decorators.http import require_http_methods
+from django.db import models
+from django.utils import timezone
+from datetime import timedelta
+from .models import Payment, PaymentMethod, RevenueStream, Reconciliation
+
+@login_required
+#@permission_required('your_app.add_reconciliation', raise_exception=True)
+def reconciliation_create(request):
+    """
+    View for creating new payment reconciliations
+    """
+    # Calculate default dates
+    today = timezone.now().date()
+    default_end_date = today
+    default_start_date = today - timedelta(days=7)
+    default_reconciliation_date = today
+    
+    # Get available payment methods and revenue streams
+    payment_methods = PaymentMethod.objects.filter(is_active=True)
+    revenue_streams = RevenueStream.objects.filter(is_active=True)
+    
+    if request.method == 'POST':
+        try:
+            # Extract form data
+            reconciliation_date = request.POST.get('reconciliation_date')
+            payment_method_id = request.POST.get('payment_method')
+            revenue_stream_id = request.POST.get('revenue_stream')
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            notes = request.POST.get('notes', '')
+            
+            # Basic validation
+            if not reconciliation_date or not payment_method_id or not start_date or not end_date:
+                messages.error(request, "Please fill in all required fields.")
+                return render(request, 'payments/reconciliation_create.html', {
+                    'form_data': request.POST,
+                    'payment_methods': payment_methods,
+                    'revenue_streams': revenue_streams,
+                    'default_start_date': default_start_date,
+                    'default_end_date': default_end_date,
+                    'default_reconciliation_date': default_reconciliation_date,
+                })
+            
+            # Convert dates
+            reconciliation_date = timezone.datetime.strptime(reconciliation_date, '%Y-%m-%d').date()
+            start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+            
+            if start_date > end_date:
+                messages.error(request, "Start date cannot be after end date.")
+                return render(request, 'payments/reconciliation_create.html', {
+                    'form_data': request.POST,
+                    'payment_methods': payment_methods,
+                    'revenue_streams': revenue_streams,
+                    'default_start_date': default_start_date,
+                    'default_end_date': default_end_date,
+                    'default_reconciliation_date': default_reconciliation_date,
+                })
+            
+            if reconciliation_date < start_date or reconciliation_date > end_date:
+                messages.error(request, "Reconciliation date must be within the reconciliation period.")
+                return render(request, 'payments/reconciliation_create.html', {
+                    'form_data': request.POST,
+                    'payment_methods': payment_methods,
+                    'revenue_streams': revenue_streams,
+                    'default_start_date': default_start_date,
+                    'default_end_date': default_end_date,
+                    'default_reconciliation_date': default_reconciliation_date,
+                })
+            
+            # Get payment method and revenue stream
+            payment_method = get_object_or_404(PaymentMethod, id=payment_method_id, is_active=True)
+            revenue_stream = None
+            if revenue_stream_id:
+                revenue_stream = get_object_or_404(RevenueStream, id=revenue_stream_id, is_active=True)
+            
+            # Get payments for reconciliation period
+            payments = Payment.objects.filter(
+                payment_method=payment_method,
+                payment_date__date__range=[start_date, end_date],
+                status='completed'
+            )
+            
+            if revenue_stream:
+                payments = payments.filter(revenue_stream=revenue_stream)
+            
+            # Calculate totals
+            total_payments = payments.count()
+            total_amount = payments.aggregate(total=models.Sum('amount'))['total'] or 0
+            
+            if total_payments == 0:
+                messages.warning(request, f"No completed payments found for the selected period and criteria. Do you want to continue?")
+                # You might want to add a confirmation step here
+            
+            # Generate reconciliation number
+            last_reconciliation = Reconciliation.objects.order_by('-id').first()
+            next_id = last_reconciliation.id + 1 if last_reconciliation else 1
+            reconciliation_number = f"REC-{timezone.now().strftime('%Y%m%d')}-{next_id:04d}"
+            
+            # Create reconciliation
+            reconciliation = Reconciliation.objects.create(
+                reconciliation_number=reconciliation_number,
+                reconciliation_date=reconciliation_date,
+                payment_method=payment_method,
+                revenue_stream=revenue_stream,
+                start_date=start_date,
+                end_date=end_date,
+                total_payments=total_payments,
+                total_amount=total_amount,
+                reconciled_amount=0,  # Will be updated during reconciliation process
+                discrepancy_amount=0,
+                status='draft',
+                notes=notes,
+                created_by=request.user
+            )
+            
+            # Associate payments with this reconciliation
+            payments.update(reconciliation=reconciliation)
+            
+            messages.success(request, f"Reconciliation {reconciliation_number} created successfully!")
+            return redirect('reconciliation_detail', pk=reconciliation.id)
+            
+        except Exception as e:
+            messages.error(request, f"Error creating reconciliation: {str(e)}")
+            return render(request, 'payments/reconciliation_create.html', {
+                'form_data': request.POST,
+                'payment_methods': payment_methods,
+                'revenue_streams': revenue_streams,
+                'default_start_date': default_start_date,
+                'default_end_date': default_end_date,
+                'default_reconciliation_date': default_reconciliation_date,
+            })
+    
+    # GET request - show empty form
+    context = {
+        'payment_methods': payment_methods,
+        'revenue_streams': revenue_streams,
+        'default_start_date': default_start_date,
+        'default_end_date': default_end_date,
+        'default_reconciliation_date': default_reconciliation_date,
+    }
+    
+    return render(request, 'payments/reconciliation_create.html', context)

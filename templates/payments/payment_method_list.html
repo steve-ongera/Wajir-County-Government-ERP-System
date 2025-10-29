@@ -1,0 +1,567 @@
+{% extends "admin_base.html" %}
+{% load humanize %}
+{% block title %}Payment Methods{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .search-section {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 14px 12px 42px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        background: white;
+    }
+
+    .search-btn {
+        padding: 12px 24px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .clear-search-btn {
+        padding: 12px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-pills {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+
+    .filter-pill {
+        padding: 8px 16px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .filter-pill.active {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+    }
+
+    .filter-pill:hover {
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .filter-pill.active:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .method-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .method-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .method-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .method-card.inactive::before {
+        background: linear-gradient(180deg, #95a5a6, #7f8c8d);
+    }
+
+    .method-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .method-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+
+    .method-code {
+        font-size: 13px;
+        color: #64748B;
+        font-family: monospace;
+        background: #F8FAFC;
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    .method-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .method-status.active {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .method-status.inactive {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .method-provider {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding: 8px;
+        background: #F8FAFC;
+        border-radius: 6px;
+    }
+
+    .method-provider-label {
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 600;
+    }
+
+    .method-provider-name {
+        font-size: 13px;
+        color: #1E293B;
+        font-weight: 600;
+    }
+
+    .method-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: #DBEAFE;
+        color: #1E40AF;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+    }
+
+    .method-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: #64748B;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1E293B;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .method-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .btn-action {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #E2E8F0;
+        background: white;
+        color: #64748B;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Payments</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Payment Methods</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-wallet2"></i>
+                    Payment Methods
+                </h1>
+                <p class="page-subtitle">
+                    Manage and configure payment methods
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'payment_method_create' %}" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Add Payment Method
+                </a>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form method="get" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search search-icon"></i>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        class="search-input" 
+                        placeholder="Search by name, code, or provider..."
+                        value="{{ search_query }}"
+                    >
+                </div>
+                
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                
+                <button type="submit" class="search-btn">
+                    <i class="bi bi-search"></i>
+                    Search
+                </button>
+                
+                {% if search_query %}
+                <a href="{% url 'payment_method_list' %}" class="clear-search-btn">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Status Filter Pills -->
+        <div class="filter-pills">
+            <a href="{% url 'payment_method_list' %}{% if search_query %}?search={{ search_query }}{% endif %}" 
+               class="filter-pill {% if not current_status %}active{% endif %}">
+                <i class="bi bi-list"></i> All Methods
+            </a>
+            <a href="?status=active{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="filter-pill {% if current_status == 'active' %}active{% endif %}">
+                <i class="bi bi-check-circle"></i> Active
+            </a>
+            <a href="?status=inactive{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="filter-pill {% if current_status == 'inactive' %}active{% endif %}">
+                <i class="bi bi-x-circle"></i> Inactive
+            </a>
+        </div>
+
+        <!-- Payment Methods Grid -->
+        {% if payment_methods %}
+        <div class="methods-grid">
+            {% for method in payment_methods %}
+            <div class="method-card {% if not method.is_active %}inactive{% endif %}">
+                <div class="method-header">
+                    <div>
+                        <div class="method-name">{{ method.name }}</div>
+                        <span class="method-code">{{ method.code }}</span>
+                    </div>
+                    <span class="method-status {% if method.is_active %}active{% else %}inactive{% endif %}">
+                        {% if method.is_active %}
+                            <i class="bi bi-check-circle-fill"></i> Active
+                        {% else %}
+                            <i class="bi bi-x-circle-fill"></i> Inactive
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="method-provider">
+                    <span class="method-provider-label">Provider:</span>
+                    <span class="method-provider-name">{{ method.provider }}</span>
+                </div>
+
+                <span class="method-type">
+                    {% if method.is_online %}
+                        <i class="bi bi-globe"></i> Online
+                    {% else %}
+                        <i class="bi bi-shop"></i> Offline
+                    {% endif %}
+                </span>
+
+                <div class="method-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Transactions</span>
+                        <span class="stat-value">{{ method.total_transactions|intcomma }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Amount</span>
+                        <span class="stat-value success">KES {{ method.total_amount|floatformat:0|intcomma }}</span>
+                    </div>
+                </div>
+
+                <div class="method-actions">
+                    <a href="{% url 'payment_method_detail' method.id %}" class="btn-action">
+                        <i class="bi bi-eye"></i> View
+                    </a>
+                    <a href="{% url 'payment_method_update' method.id %}" class="btn-action">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <h3 class="empty-title">No Payment Methods Found</h3>
+            <p class="empty-text">
+                {% if search_query %}
+                    No payment methods match your search for "{{ search_query }}".
+                {% else %}
+                    No payment methods have been configured yet.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

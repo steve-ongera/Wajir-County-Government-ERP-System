@@ -701,10 +701,10 @@
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
             <div class="submenu" id="submenu-payments">
-                <a href="#" class="submenu-item">All Payments</a>
-                <a href="#" class="submenu-item">Payment Methods</a>
-                <a href="#" class="submenu-item">Reconciliation</a>
-                <a href="#" class="submenu-item">Reversals</a>
+                <a href="{% url 'payment_list'%}" class="submenu-item">All Payments</a>
+                <a href="{% url 'payment_method_list'%}" class="submenu-item">Payment Methods</a>
+                <a href="{% url 'reconciliation_list'%}" class="submenu-item">Reconciliation</a>
+                <a href="{% url 'reversal_list'%}" class="submenu-item">Reversals</a>
             </div>
         </div>
 

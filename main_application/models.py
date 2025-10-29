@@ -583,7 +583,11 @@ class Payment(models.Model):
 
 class PaymentReversal(models.Model):
     """Payment reversal audit trail"""
-    payment = models.ForeignKey(Payment, on_delete=models.SET_NULL, null=True, blank=True)
+    payment = models.ForeignKey(Payment, on_delete=models.SET_NULL, null=True, blank=True ,  related_name='reversals')
+
+    reversed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reversals_done')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reversals_approved')
+    reason = models.TextField(blank=True, null=True)
     
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -594,6 +598,55 @@ class PaymentReversal(models.Model):
         return f"{self.fine_number} - {self.offender}"
 
 
+class Reconciliation(models.Model):
+    """Payment reconciliation records"""
+    RECONCILIATION_STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('discrepancy', 'Discrepancy Found'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    reconciliation_number = models.CharField(max_length=50, unique=True)
+    reconciliation_date = models.DateField()
+    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.CASCADE)
+    revenue_stream = models.ForeignKey(RevenueStream, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    total_payments = models.IntegerField(default=0)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    reconciled_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    discrepancy_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    
+    status = models.CharField(max_length=20, choices=RECONCILIATION_STATUS_CHOICES, default='draft')
+    
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'reconciliations'
+        ordering = ['-reconciliation_date', '-created_at']
+    
+    def __str__(self):
+        return f"{self.reconciliation_number} - {self.payment_method.name}"
+    
+    def get_discrepancy_percentage(self):
+        if self.total_amount > 0:
+            return (abs(self.discrepancy_amount) / self.total_amount) * 100
+        return 0
+    
+    def is_within_tolerance(self, tolerance_percentage=1):
+        return self.get_discrepancy_percentage() <= tolerance_percentage
+
+# Add foreign key to Payment model
+# Add this to your Payment model:
+# reconciliation = models.ForeignKey(Reconciliation, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
 # ============================================================================
 # HOSPITAL MANAGEMENT INFORMATION SYSTEM
 # ============================================================================

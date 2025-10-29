@@ -1,0 +1,450 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Update Payment - {{ payment.receipt_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+    }
+
+    .form-label.required::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-control:disabled {
+        background: #F8FAFC;
+        color: #94A3B8;
+        cursor: not-allowed;
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+        display: block;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border: 1px solid;
+    }
+
+    .alert-info {
+        background: #DBEAFE;
+        border-color: #93C5FD;
+        color: #1E40AF;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        border-color: #FCD34D;
+        color: #92400E;
+    }
+
+    .alert-icon {
+        font-size: 20px;
+    }
+
+    .readonly-info {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+
+    .readonly-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .readonly-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .readonly-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .readonly-value {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border-color: #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-completed {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-processing {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_list' %}">Payments</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_detail' payment.id %}">{{ payment.receipt_number }}</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Update</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-pencil-square"></i>
+                    Update Payment
+                </h1>
+                <p class="page-subtitle">
+                    Modify payment details for {{ payment.receipt_number }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Info Alert -->
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle-fill alert-icon"></i>
+            <div>
+                <strong>Note:</strong> Only payments in Pending or Processing status can be edited. 
+                Core payment details like amount and payment method cannot be changed.
+            </div>
+        </div>
+
+        <!-- Read-only Payment Information -->
+        <div class="readonly-info">
+            <h6 style="font-size: 14px; font-weight: 600; color: #1E293B; margin-bottom: 16px;">
+                <i class="bi bi-lock"></i> Read-Only Information
+            </h6>
+            <div class="readonly-grid">
+                <div class="readonly-item">
+                    <span class="readonly-label">Receipt Number</span>
+                    <span class="readonly-value" style="font-family: monospace;">{{ payment.receipt_number }}</span>
+                </div>
+                <div class="readonly-item">
+                    <span class="readonly-label">Amount</span>
+                    <span class="readonly-value" style="color: #27ae60;">KES {{ payment.amount|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="readonly-item">
+                    <span class="readonly-label">Payment Method</span>
+                    <span class="readonly-value">{{ payment.payment_method.name }}</span>
+                </div>
+                <div class="readonly-item">
+                    <span class="readonly-label">Payment Date</span>
+                    <span class="readonly-value">{{ payment.payment_date|date:"d M Y H:i" }}</span>
+                </div>
+                <div class="readonly-item">
+                    <span class="readonly-label">Revenue Stream</span>
+                    <span class="readonly-value">{{ payment.revenue_stream.name }}</span>
+                </div>
+                <div class="readonly-item">
+                    <span class="readonly-label">Current Status</span>
+                    <span class="readonly-value">
+                        <span class="status-badge status-{{ payment.status }}">
+                            {{ payment.get_status_display }}
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Form -->
+        <form method="post" id="updateForm">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label required" for="payer_name">
+                    <i class="bi bi-person"></i> Payer Name
+                </label>
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    id="payer_name" 
+                    name="payer_name" 
+                    value="{{ payment.payer_name }}"
+                    required
+                >
+                <small class="form-text">Full name of the person making the payment</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required" for="payer_phone">
+                    <i class="bi bi-telephone"></i> Phone Number
+                </label>
+                <input 
+                    type="tel" 
+                    class="form-control" 
+                    id="payer_phone" 
+                    name="payer_phone" 
+                    value="{{ payment.payer_phone }}"
+                    required
+                >
+                <small class="form-text">Contact phone number of the payer</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="payer_reference">
+                    <i class="bi bi-hash"></i> Payer Reference
+                </label>
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    id="payer_reference" 
+                    name="payer_reference" 
+                    value="{{ payment.payer_reference }}"
+                >
+                <small class="form-text">Optional reference number provided by the payer</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="status">
+                    <i class="bi bi-toggle-on"></i> Payment Status
+                </label>
+                <select class="form-control" id="status" name="status">
+                    <option value="pending" {% if payment.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="processing" {% if payment.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="completed" {% if payment.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="failed" {% if payment.status == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                <small class="form-text">Update the payment processing status</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="notes">
+                    <i class="bi bi-sticky"></i> Notes
+                </label>
+                <textarea 
+                    class="form-control" 
+                    id="notes" 
+                    name="notes" 
+                    rows="4"
+                    placeholder="Add any additional notes or comments about this payment..."
+                >{{ payment.notes }}</textarea>
+                <small class="form-text">Internal notes visible to staff only</small>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'payment_detail' payment.id %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation
+    document.getElementById('updateForm').addEventListener('submit', function(e) {
+        const payerName = document.getElementById('payer_name').value.trim();
+        const payerPhone = document.getElementById('payer_phone').value.trim();
+        
+        if (!payerName) {
+            e.preventDefault();
+            alert('Please enter the payer name');
+            document.getElementById('payer_name').focus();
+            return;
+        }
+        
+        if (!payerPhone) {
+            e.preventDefault();
+            alert('Please enter the payer phone number');
+            document.getElementById('payer_phone').focus();
+            return;
+        }
+    });
+</script>
+{% endblock %}

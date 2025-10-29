@@ -1,0 +1,525 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Update {{ method.name }} - Wajir County ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border-color: #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        display: block;
+        font-size: 14px;
+    }
+
+    .form-control {
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        outline: none;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #3498db;
+    }
+
+    .checkbox-group label {
+        margin-bottom: 0;
+        font-weight: 500;
+        color: #1E293B;
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #64748B;
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+
+    .form-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3498db;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border: 1px solid;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        border-color: #A7F3D0;
+        color: #065F46;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        border-color: #FCA5A5;
+        color: #991B1B;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        border-color: #FCD34D;
+        color: #92400E;
+    }
+
+    .alert-icon {
+        font-size: 20px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        padding-top: 16px;
+        border-top: 1px solid #F1F5F9;
+        margin-top: 24px;
+    }
+
+    .info-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .info-table tr {
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .info-table td {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .info-table td:first-child {
+        font-weight: 600;
+        color: #64748B;
+        width: 200px;
+    }
+
+    .info-table td:last-child {
+        color: #1E293B;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_method_list' %}">Payment Methods</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'payment_method_detail' method.id %}">{{ method.name }}</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Update</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-pencil-square"></i>
+                    Update Payment Method
+                </h1>
+                <p class="page-subtitle">
+                    Modify the details for {{ method.name }}
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'payment_method_detail' method.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Details
+                </a>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}-fill alert-icon"></i>
+                    <div>{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Payment Method Form -->
+        <form method="post" id="paymentMethodForm">
+            {% csrf_token %}
+            
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-info-circle"></i>
+                    Basic Information
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="name" class="required-field">Payment Method Name</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ method.name }}"
+                                   placeholder="e.g., M-Pesa, Credit Card, Bank Transfer" 
+                                   required>
+                            <div class="help-text">Enter a descriptive name for the payment method</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="code" class="required-field">Code</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="code" 
+                                   name="code" 
+                                   value="{{ method.code }}"
+                                   placeholder="e.g., MPESA, CARD, BANK" 
+                                   required>
+                            <div class="help-text">Unique code for system reference (uppercase recommended)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="provider" class="required-field">Provider</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="provider" 
+                                   name="provider" 
+                                   value="{{ method.provider }}"
+                                   placeholder="e.g., Safaricom, Visa, Equity Bank" 
+                                   required>
+                            <div class="help-text">The company or service providing this payment method</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="api_endpoint">API Endpoint</label>
+                            <input type="url" 
+                                   class="form-control" 
+                                   id="api_endpoint" 
+                                   name="api_endpoint" 
+                                   value="{{ method.api_endpoint|default:'' }}"
+                                   placeholder="https://api.example.com/payments">
+                            <div class="help-text">URL for payment processing API (if applicable)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-gear"></i>
+                    Configuration
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" 
+                                       id="is_online" 
+                                       name="is_online" 
+                                       {% if method.is_online %}checked{% endif %}>
+                                <label for="is_online">Online Payment Method</label>
+                            </div>
+                            <div class="help-text">Check if this is an online/digital payment method</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active" 
+                                       {% if method.is_active %}checked{% endif %}>
+                                <label for="is_active">Active</label>
+                            </div>
+                            <div class="help-text">Uncheck to disable this payment method</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Configuration (Read-only) -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-clock-history"></i>
+                    Current Configuration
+                </h2>
+                <table class="info-table">
+                    <tr>
+                        <td>Created At</td>
+                        <td>{{ method.created_at|date:"d M Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Last Updated</td>
+                        <td>{{ method.updated_at|date:"d M Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Current Status</td>
+                        <td>
+                            {% if method.is_active %}
+                                <span style="color: #27ae60; font-weight: 600;">Active</span>
+                            {% else %}
+                                <span style="color: #e74c3c; font-weight: 600;">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Payment Type</td>
+                        <td>
+                            {% if method.is_online %}
+                                <span style="color: #3498db; font-weight: 600;">Online</span>
+                            {% else %}
+                                <span style="color: #f39c12; font-weight: 600;">Offline</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i>Update Payment Method
+                </button>
+                <a href="{% url 'payment_method_detail' method.id %}" class="btn btn-secondary">
+                    <i class="bi bi-x-lg"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('paymentMethodForm');
+        const codeInput = document.getElementById('code');
+        
+        // Auto-format code to uppercase
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+        });
+        
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            const name = document.getElementById('name').value.trim();
+            const code = document.getElementById('code').value.trim();
+            const provider = document.getElementById('provider').value.trim();
+            
+            if (!name || !code || !provider) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+                return false;
+            }
+            
+            // Validate code format
+            const codeRegex = /^[A-Z0-9_]+$/;
+            if (!codeRegex.test(code)) {
+                e.preventDefault();
+                alert('Code can only contain uppercase letters, numbers, and underscores.');
+                return false;
+            }
+        });
+        
+        // Show loading state on form submission
+        form.addEventListener('submit', function() {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner"></i> Updating...';
+            submitBtn.disabled = true;
+        });
+
+        // Add spinner animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .spinner {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %}

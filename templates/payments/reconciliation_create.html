@@ -1,0 +1,589 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Create Reconciliation - Wajir County ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border-color: #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        display: block;
+        font-size: 14px;
+    }
+
+    .form-control {
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        outline: none;
+    }
+
+    .form-select {
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 14px;
+        background-color: white;
+    }
+
+    .form-select:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        outline: none;
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #64748B;
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+
+    .form-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3498db;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border: 1px solid;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        border-color: #A7F3D0;
+        color: #065F46;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        border-color: #FCA5A5;
+        color: #991B1B;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        border-color: #FCD34D;
+        color: #92400E;
+    }
+
+    .alert-info {
+        background: #DBEAFE;
+        border-color: #93C5FD;
+        color: #1E40AF;
+    }
+
+    .alert-icon {
+        font-size: 20px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        padding-top: 16px;
+        border-top: 1px solid #F1F5F9;
+        margin-top: 24px;
+    }
+
+    .preview-card {
+        background: #EFF6FF;
+        border: 1px solid #BFDBFE;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 16px;
+    }
+
+    .preview-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .preview-label {
+        font-weight: 600;
+        color: #1E40AF;
+        min-width: 120px;
+    }
+
+    .preview-value {
+        color: #475569;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'reconciliation_list' %}">Reconciliations</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Create Reconciliation</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-calculator"></i>
+                    Create New Reconciliation
+                </h1>
+                <p class="page-subtitle">
+                    Reconcile payments for a specific period and payment method
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'reconciliation_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to List
+                </a>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}-fill alert-icon"></i>
+                    <div>{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Reconciliation Form -->
+        <form method="post" id="reconciliationForm">
+            {% csrf_token %}
+            
+            <!-- Reconciliation Period Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-calendar-range"></i>
+                    Reconciliation Period
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="reconciliation_date" class="required-field">Reconciliation Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="reconciliation_date" 
+                                   name="reconciliation_date" 
+                                   value="{% if form_data.reconciliation_date %}{{ form_data.reconciliation_date }}{% else %}{{ default_reconciliation_date|date:'Y-m-d' }}{% endif %}"
+                                   required>
+                            <div class="help-text">The date when this reconciliation is being performed</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="payment_method" class="required-field">Payment Method</label>
+                            <select class="form-select" id="payment_method" name="payment_method" required>
+                                <option value="">Select Payment Method</option>
+                                {% for method in payment_methods %}
+                                <option value="{{ method.id }}" 
+                                    {% if form_data.payment_method == method.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ method.name }} ({{ method.provider }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">Select the payment method to reconcile</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="start_date" class="required-field">Start Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="start_date" 
+                                   name="start_date" 
+                                   value="{% if form_data.start_date %}{{ form_data.start_date }}{% else %}{{ default_start_date|date:'Y-m-d' }}{% endif %}"
+                                   required>
+                            <div class="help-text">Start date of the reconciliation period</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="end_date" class="required-field">End Date</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="end_date" 
+                                   name="end_date" 
+                                   value="{% if form_data.end_date %}{{ form_data.end_date }}{% else %}{{ default_end_date|date:'Y-m-d' }}{% endif %}"
+                                   required>
+                            <div class="help-text">End date of the reconciliation period</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Filters Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-funnel"></i>
+                    Additional Filters
+                </h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="revenue_stream">Revenue Stream</label>
+                            <select class="form-select" id="revenue_stream" name="revenue_stream">
+                                <option value="">All Revenue Streams</option>
+                                {% for stream in revenue_streams %}
+                                <option value="{{ stream.id }}"
+                                    {% if form_data.revenue_stream == stream.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ stream.name }} ({{ stream.code }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="help-text">Optional: Filter by specific revenue stream</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="bi bi-sticky"></i>
+                    Notes & Comments
+                </h2>
+                
+                <div class="form-group">
+                    <label for="notes">Reconciliation Notes</label>
+                    <textarea class="form-control" 
+                              id="notes" 
+                              name="notes" 
+                              rows="4"
+                              placeholder="Add any notes or comments about this reconciliation...">{% if form_data.notes %}{{ form_data.notes }}{% endif %}</textarea>
+                    <div class="help-text">Optional: Add notes about this reconciliation process</div>
+                </div>
+            </div>
+
+            <!-- Preview Section (Dynamic) -->
+            <div class="form-section" id="previewSection" style="display: none;">
+                <h2 class="section-title">
+                    <i class="bi bi-eye"></i>
+                    Reconciliation Preview
+                </h2>
+                
+                <div class="preview-card">
+                    <div class="preview-item">
+                        <span class="preview-label">Payment Method:</span>
+                        <span class="preview-value" id="previewPaymentMethod">-</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Period:</span>
+                        <span class="preview-value" id="previewPeriod">-</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Revenue Stream:</span>
+                        <span class="preview-value" id="previewRevenueStream">All</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Estimated Payments:</span>
+                        <span class="preview-value" id="previewPaymentsCount">-</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Estimated Amount:</span>
+                        <span class="preview-value" id="previewTotalAmount">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i>Create Reconciliation
+                </button>
+                <a href="{% url 'reconciliation_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-lg"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('reconciliationForm');
+        const previewSection = document.getElementById('previewSection');
+        
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            const reconciliationDate = document.getElementById('reconciliation_date').value;
+            const paymentMethod = document.getElementById('payment_method').value;
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            
+            if (!reconciliationDate || !paymentMethod || !startDate || !endDate) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+                return false;
+            }
+            
+            if (startDate > endDate) {
+                e.preventDefault();
+                alert('Start date cannot be after end date.');
+                return false;
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            if (reconciliationDate > today) {
+                if (!confirm('Reconciliation date is in the future. Do you want to continue?')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+        
+        // Show loading state on form submission
+        form.addEventListener('submit', function() {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner"></i> Creating...';
+            submitBtn.disabled = true;
+        });
+        
+        // Update preview when dates or payment method changes
+        function updatePreview() {
+            const paymentMethodSelect = document.getElementById('payment_method');
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const revenueStreamSelect = document.getElementById('revenue_stream');
+            
+            const selectedPaymentMethod = paymentMethodSelect.options[paymentMethodSelect.selectedIndex];
+            const selectedRevenueStream = revenueStreamSelect.options[revenueStreamSelect.selectedIndex];
+            
+            if (paymentMethodSelect.value && startDate && endDate) {
+                // Show preview section
+                previewSection.style.display = 'block';
+                
+                // Update preview values
+                document.getElementById('previewPaymentMethod').textContent = 
+                    selectedPaymentMethod.textContent;
+                document.getElementById('previewPeriod').textContent = 
+                    `${startDate} to ${endDate}`;
+                document.getElementById('previewRevenueStream').textContent = 
+                    selectedRevenueStream.value ? selectedRevenueStream.textContent : 'All Revenue Streams';
+                
+                // Simulate payment count and amount (in real app, this would be an AJAX call)
+                const daysDiff = Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+                const estimatedPayments = Math.max(1, Math.floor(daysDiff * 2.5)); // Rough estimate
+                const estimatedAmount = estimatedPayments * 1500; // Rough average amount
+                
+                document.getElementById('previewPaymentsCount').textContent = 
+                    `~${estimatedPayments} payments`;
+                document.getElementById('previewTotalAmount').textContent = 
+                    `KES ${estimatedAmount.toLocaleString()}`;
+            } else {
+                previewSection.style.display = 'none';
+            }
+        }
+        
+        // Add event listeners for preview updates
+        document.getElementById('payment_method').addEventListener('change', updatePreview);
+        document.getElementById('start_date').addEventListener('change', updatePreview);
+        document.getElementById('end_date').addEventListener('change', updatePreview);
+        document.getElementById('revenue_stream').addEventListener('change', updatePreview);
+        
+        // Set default dates if not already set by the server
+        const today = new Date().toISOString().split('T')[0];
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const oneWeekAgoStr = oneWeekAgo.toISOString().split('T')[0];
+        
+        if (!document.getElementById('reconciliation_date').value) {
+            document.getElementById('reconciliation_date').value = today;
+        }
+        if (!document.getElementById('start_date').value) {
+            document.getElementById('start_date').value = oneWeekAgoStr;
+        }
+        if (!document.getElementById('end_date').value) {
+            document.getElementById('end_date').value = today;
+        }
+        
+        // Initial preview update
+        updatePreview();
+
+        // Add spinner animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .spinner {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %}

@@ -59,4 +59,20 @@ urlpatterns = [
     path('bills/export/', views.export_bills_excel, name='export_bills_excel'),
     path('bills/overdue/export/', views.export_overdue_bills_excel, name='export_overdue_bills_excel'),
 
+    # Payment Management
+    path('payments/', views.payment_list, name='payment_list'),
+    path('payments/<int:payment_id>/', views.payment_detail, name='payment_detail'),
+    path('payments/<int:payment_id>/update/', views.payment_update, name='payment_update'),
+    path('payments/<int:payment_id>/delete/', views.payment_delete, name='payment_delete'),
+    path('payments/<int:payment_id>/reverse/', views.payment_reverse, name='payment_reverse'),
+    path('payment-methods/', views.payment_method_list, name='payment_method_list'),
+    path('payment-methods/<int:pk>/', views.payment_method_detail, name='payment_method_detail'),
+    path('payment-methods/<int:pk>/update/', views.payment_method_update, name='payment_method_update'),
+    path('payment-methods/<int:pk>/delete/', views.payment_method_delete, name='payment_method_delete'),
+    path('payment-methods/<int:pk>/toggle-active/', views.payment_method_toggle_active, name='payment_method_toggle_active'),
+    path('payment-methods/create/', views.payment_method_create, name='payment_method_create'),
+    path('reconciliation/', views.reconciliation_list, name='reconciliation_list'),
+    path('reconciliations/create/', views.reconciliation_create, name='reconciliation_create'),
+    path('reversals/', views.reversal_list, name='reversal_list'),
+
 ]
