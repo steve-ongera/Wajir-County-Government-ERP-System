@@ -1,0 +1,736 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}{{ stream.name }} - Revenue Stream Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .info-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        font-size: 15px;
+        font-weight: 500;
+        color: #1E293B;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-active {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-inactive {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .badge-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F1F5F9;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .data-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .data-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .data-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+    }
+
+    .amount-display {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'stream_list' %}">Revenue Streams</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">{{ stream.code }}</li>
+        </ol>
+    </nav>
+
+    <!-- Stream Header -->
+    <div class="section-container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-cash-stack"></i>
+                    {{ stream.name }}
+                </h1>
+                <p class="page-subtitle">
+                    Revenue Stream Code: <strong>{{ stream.code }}</strong>
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'stream_list' %}" class="export-btn">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to List
+                </a>
+                <a href="#" class="btn-primary">
+                    <i class="bi bi-pencil"></i>
+                    Edit Stream
+                </a>
+            </div>
+        </div>
+
+        <!-- Stream Information -->
+        <h6 class="section-title">
+            <i class="bi bi-info-circle"></i>
+            Stream Information
+        </h6>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Code</span>
+                <span class="info-value">{{ stream.code }}</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Name</span>
+                <span class="info-value">{{ stream.name }}</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Department</span>
+                <span class="info-value">{{ stream.department.name }}</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Parent Stream</span>
+                <span class="info-value">
+                    {% if stream.parent_stream %}
+                        {{ stream.parent_stream.name }}
+                    {% else %}
+                        <span style="color: #94A3B8;">None (Main Stream)</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Type</span>
+                <span class="info-value">
+                    {% if stream.is_recurring %}
+                        <span class="badge badge-success">
+                            <i class="bi bi-arrow-repeat"></i> Recurring
+                        </span>
+                    {% else %}
+                        <span class="badge badge-info">
+                            <i class="bi bi-dash-circle"></i> One-Time
+                        </span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Billing Frequency</span>
+                <span class="info-value">{{ stream.billing_frequency|default:"N/A" }}</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Status</span>
+                <span class="info-value">
+                    {% if stream.is_active %}
+                        <span class="status-badge status-active">
+                            <i class="bi bi-check-circle-fill"></i>Active
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-inactive">
+                            <i class="bi bi-x-circle-fill"></i>Inactive
+                        </span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Created Date</span>
+                <span class="info-value">{{ stream.created_at|date:"d M, Y H:i" }}</span>
+            </div>
+        </div>
+
+        <div class="info-grid" style="grid-template-columns: 1fr;">
+            <div class="info-item">
+                <span class="info-label">Description</span>
+                <span class="info-value">{{ stream.description }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Statistics -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-graph-up"></i>
+            Collection Statistics (Last 12 Months)
+        </h6>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-currency-exchange"></i>
+                    Total Collected
+                </div>
+                <div class="stat-value success">
+                    KES {{ collections.total_collected|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-receipt"></i>
+                    Transactions
+                </div>
+                <div class="stat-value">{{ collections.transaction_count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-calculator"></i>
+                    Average Transaction
+                </div>
+                <div class="stat-value">
+                    KES {{ collections.avg_transaction|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bills Statistics -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-file-text"></i>
+            Billing Summary
+        </h6>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-files"></i>
+                    Total Bills
+                </div>
+                <div class="stat-value">{{ bills_stats.total_bills|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-cash-coin"></i>
+                    Total Billed
+                </div>
+                <div class="stat-value">
+                    KES {{ bills_stats.total_billed|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-check-circle"></i>
+                    Total Paid
+                </div>
+                <div class="stat-value success">
+                    KES {{ bills_stats.total_paid|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Outstanding
+                </div>
+                <div class="stat-value warning">
+                    KES {{ bills_stats.outstanding|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charge Rates -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-tag"></i>
+            Charge Rates
+        </h6>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Rate Name</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Min Amount</th>
+                        <th>Max Amount</th>
+                        <th>Effective From</th>
+                        <th>Effective To</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rate in charge_rates %}
+                    <tr>
+                        <td><strong>{{ rate.name }}</strong></td>
+                        <td>{{ rate.rate_type }}</td>
+                        <td class="amount-display">KES {{ rate.amount|floatformat:2|intcomma }}</td>
+                        <td class="amount-display">
+                            {% if rate.min_amount %}
+                                KES {{ rate.min_amount|floatformat:2|intcomma }}
+                            {% else %}
+                                <span style="color: #94A3B8;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td class="amount-display">
+                            {% if rate.max_amount %}
+                                KES {{ rate.max_amount|floatformat:2|intcomma }}
+                            {% else %}
+                                <span style="color: #94A3B8;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ rate.effective_from|date:"d M, Y" }}</td>
+                        <td>
+                            {% if rate.effective_to %}
+                                {{ rate.effective_to|date:"d M, Y" }}
+                            {% else %}
+                                <span style="color: #94A3B8;">No Expiry</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if rate.is_active %}
+                                <span class="status-badge status-active">
+                                    <i class="bi bi-check-circle-fill"></i>Active
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-inactive">
+                                    <i class="bi bi-x-circle-fill"></i>Inactive
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-tag"></i>
+                                </div>
+                                <h3 class="empty-title">No Charge Rates Configured</h3>
+                                <p class="empty-text">Add charge rates for this revenue stream.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Penalty Rules -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-exclamation-triangle"></i>
+            Penalty Rules
+        </h6>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Grace Period</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Max Amount</th>
+                        <th>Effective From</th>
+                        <th>Effective To</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in penalty_rules %}
+                    <tr>
+                        <td><strong>{{ rule.name }}</strong></td>
+                        <td>{{ rule.grace_period_days }} days</td>
+                        <td>{{ rule.penalty_type }}</td>
+                        <td class="amount-display">KES {{ rule.penalty_amount|floatformat:2|intcomma }}</td>
+                        <td class="amount-display">
+                            {% if rule.max_penalty_amount %}
+                                KES {{ rule.max_penalty_amount|floatformat:2|intcomma }}
+                            {% else %}
+                                <span style="color: #94A3B8;">No Limit</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ rule.effective_from|date:"d M, Y" }}</td>
+                        <td>
+                            {% if rule.effective_to %}
+                                {{ rule.effective_to|date:"d M, Y" }}
+                            {% else %}
+                                <span style="color: #94A3B8;">No Expiry</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if rule.is_active %}
+                                <span class="status-badge status-active">
+                                    <i class="bi bi-check-circle-fill"></i>Active
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-inactive">
+                                    <i class="bi bi-x-circle-fill"></i>Inactive
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                </div>
+                                <h3 class="empty-title">No Penalty Rules Configured</h3>
+                                <p class="empty-text">Add penalty rules for late payments.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Revenue Budgets -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-bullseye"></i>
+            Revenue Budgets
+        </h6>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Financial Year</th>
+                        <th>Period</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Target Amount</th>
+                        <th>Sub-County</th>
+                        <th>Ward</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for budget in budgets %}
+                    <tr>
+                        <td><strong>{{ budget.financial_year }}</strong></td>
+                        <td>{{ budget.period_type|title }}</td>
+                        <td>{{ budget.period_start|date:"d M, Y" }}</td>
+                        <td>{{ budget.period_end|date:"d M, Y" }}</td>
+                        <td class="amount-display">KES {{ budget.target_amount|floatformat:2|intcomma }}</td>
+                        <td>
+                            {% if budget.sub_county %}
+                                {{ budget.sub_county.name }}
+                            {% else %}
+                                <span style="color: #94A3B8;">County-wide</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if budget.ward %}
+                                {{ budget.ward.name }}
+                            {% else %}
+                                <span style="color: #94A3B8;">All Wards</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-bullseye"></i>
+                                </div>
+                                <h3 class="empty-title">No Budgets Set</h3>
+                                <p class="empty-text">Set revenue targets for this stream.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

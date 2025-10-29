@@ -1,0 +1,770 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Revenue Collection Report - Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .date-filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .date-filter-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .date-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .date-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .date-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 6px;
+    }
+
+    .date-input, .filter-select {
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .date-input:focus, .filter-select:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .clear-btn {
+        padding: 10px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+    }
+
+    .stat-card.primary::before {
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-card.success::before {
+        background: linear-gradient(180deg, #27ae60, #229954);
+    }
+
+    .stat-card.info::before {
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F1F5F9;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .chart-container {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .data-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .data-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .data-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .amount-display {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        color: #94A3B8;
+    }
+
+    .summary-row {
+        background: #F8FAFC !important;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Revenue Management</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Collection Report</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Revenue Collection Report
+                </h1>
+                <p class="page-subtitle">
+                    Comprehensive revenue collection analysis and statistics
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'collection_report_export' %}?{{ request.GET.urlencode }}" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Export to Excel
+                </a>
+                <button onclick="window.print()" class="export-btn">
+                    <i class="bi bi-printer"></i>
+                    Print Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Date & Filter Section -->
+        <div class="date-filter-section">
+            <h6 class="date-filter-title">
+                <i class="bi bi-calendar-range"></i>
+                Report Period & Filters
+            </h6>
+
+            <form method="get">
+                <div class="date-filter-grid">
+                    <div class="date-group">
+                        <label class="date-label" for="date_from">
+                            <i class="bi bi-calendar-check"></i> From Date
+                        </label>
+                        <input type="date" class="date-input" name="date_from" id="date_from" value="{{ date_from }}">
+                    </div>
+
+                    <div class="date-group">
+                        <label class="date-label" for="date_to">
+                            <i class="bi bi-calendar-check"></i> To Date
+                        </label>
+                        <input type="date" class="date-input" name="date_to" id="date_to" value="{{ date_to }}">
+                    </div>
+
+                    <div class="date-group">
+                        <label class="date-label" for="revenue_stream">
+                            <i class="bi bi-cash-stack"></i> Revenue Stream
+                        </label>
+                        <select class="filter-select" name="revenue_stream" id="revenue_stream">
+                            <option value="">All Revenue Streams</option>
+                            {% for stream in revenue_streams %}
+                            <option value="{{ stream.id }}" {% if current_stream == stream.id|stringformat:"s" %}selected{% endif %}>
+                                {{ stream.code }} - {{ stream.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="date-group">
+                        <label class="date-label" for="sub_county">
+                            <i class="bi bi-geo-alt"></i> Sub-County
+                        </label>
+                        <select class="filter-select" name="sub_county" id="sub_county">
+                            <option value="">All Sub-Counties</option>
+                            {% for sc in sub_counties %}
+                            <option value="{{ sc.id }}" {% if current_sub_county == sc.id|stringformat:"s" %}selected{% endif %}>
+                                {{ sc.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="date-group">
+                        <label class="date-label" for="ward">
+                            <i class="bi bi-pin-map"></i> Ward
+                        </label>
+                        <select class="filter-select" name="ward" id="ward">
+                                <option value="">All Wards</option>
+                            {% for ward in wards %}
+                            <option value="{{ ward.id }}" {% if current_ward == ward.id|stringformat:"s" %}selected{% endif %}>
+                                {{ ward.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="date-group">
+                        <label class="date-label" for="payment_method">
+                            <i class="bi bi-credit-card"></i> Payment Method
+                        </label>
+                        <select class="filter-select" name="payment_method" id="payment_method">
+                            <option value="">All Payment Methods</option>
+                            {% for method in payment_methods %}
+                            <option value="{{ method.id }}" {% if current_payment_method == method.id|stringformat:"s" %}selected{% endif %}>
+                                {{ method.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="filter-btn">
+                        <i class="bi bi-search"></i> Generate Report
+                    </button>
+                    <a href="{% url 'collection_report' %}" class="clear-btn">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Overall Statistics -->
+        <h6 class="section-title">
+            <i class="bi bi-speedometer"></i>
+            Overall Statistics
+            <small style="font-weight: normal; font-size: 13px; color: #94A3B8; margin-left: 12px;">
+                ({{ date_from }} to {{ date_to }})
+            </small>
+        </h6>
+
+        <div class="stats-grid">
+            <div class="stat-card success">
+                <div class="stat-label">
+                    <i class="bi bi-currency-exchange"></i>
+                    Total Collections
+                </div>
+                <div class="stat-value">
+                    KES {{ overall_stats.total_amount|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+
+            <div class="stat-card primary">
+                <div class="stat-label">
+                    <i class="bi bi-receipt"></i>
+                    Total Transactions
+                </div>
+                <div class="stat-value">
+                    {{ overall_stats.transaction_count|default:0|intcomma }}
+                </div>
+            </div>
+
+            <div class="stat-card info">
+                <div class="stat-label">
+                    <i class="bi bi-calculator"></i>
+                    Average Transaction
+                </div>
+                <div class="stat-value">
+                    KES {{ overall_stats.average_transaction|default:0|floatformat:2|intcomma }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-container">
+            <h6 class="section-title">
+                <i class="bi bi-graph-up"></i>
+                Daily Collections Trend
+            </h6>
+            <canvas id="collectionsChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- By Revenue Stream -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-cash-stack"></i>
+            Collections by Revenue Stream
+        </h6>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Revenue Stream</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right;">Transactions</th>
+                        <th style="text-align: right;">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in by_stream %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.revenue_stream__code }}</strong>
+                            <br><small style="color: #94A3B8;">{{ item.revenue_stream__name }}</small>
+                        </td>
+                        <td class="amount-display" style="text-align: right;">
+                            KES {{ item.total|floatformat:2|intcomma }}
+                        </td>
+                        <td style="text-align: right;">{{ item.count|intcomma }}</td>
+                        <td style="text-align: right;">
+                            {% widthratio item.total overall_stats.total_amount 100 %}%
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-inbox"></i>
+                                </div>
+                                <h3 class="empty-title">No Collections Data</h3>
+                                <p class="empty-text">No revenue collections for the selected period.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if by_stream %}
+                    <tr class="summary-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="amount-display" style="text-align: right;">
+                            <strong>KES {{ overall_stats.total_amount|default:0|floatformat:2|intcomma }}</strong>
+                        </td>
+                        <td style="text-align: right;">
+                            <strong>{{ overall_stats.transaction_count|default:0|intcomma }}</strong>
+                        </td>
+                        <td style="text-align: right;"><strong>100%</strong></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- By Sub-County -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-geo-alt"></i>
+            Collections by Sub-County
+        </h6>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Sub-County</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right;">Transactions</th>
+                        <th style="text-align: right;">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in by_sub_county %}
+                    <tr>
+                        <td><strong>{{ item.sub_county__name|default:"Unknown" }}</strong></td>
+                        <td class="amount-display" style="text-align: right;">
+                            KES {{ item.total|floatformat:2|intcomma }}
+                        </td>
+                        <td style="text-align: right;">{{ item.count|intcomma }}</td>
+                        <td style="text-align: right;">
+                            {% widthratio item.total overall_stats.total_amount 100 %}%
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-inbox"></i>
+                                </div>
+                                <h3 class="empty-title">No Location Data</h3>
+                                <p class="empty-text">No collections by sub-county for the selected period.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if by_sub_county %}
+                    <tr class="summary-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="amount-display" style="text-align: right;">
+                            <strong>KES {{ overall_stats.total_amount|default:0|floatformat:2|intcomma }}</strong>
+                        </td>
+                        <td style="text-align: right;">
+                            <strong>{{ overall_stats.transaction_count|default:0|intcomma }}</strong>
+                        </td>
+                        <td style="text-align: right;"><strong>100%</strong></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- By Payment Method -->
+    <div class="section-container">
+        <h6 class="section-title">
+            <i class="bi bi-credit-card"></i>
+            Collections by Payment Method
+        </h6>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Payment Method</th>
+                        <th style="text-align: right;">Total Amount</th>
+                        <th style="text-align: right;">Transactions</th>
+                        <th style="text-align: right;">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in by_payment_method %}
+                    <tr>
+                        <td><strong>{{ item.payment_method__name }}</strong></td>
+                        <td class="amount-display" style="text-align: right;">
+                            KES {{ item.total|floatformat:2|intcomma }}
+                        </td>
+                        <td style="text-align: right;">{{ item.count|intcomma }}</td>
+                        <td style="text-align: right;">
+                            {% widthratio item.total overall_stats.total_amount 100 %}%
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-inbox"></i>
+                                </div>
+                                <h3 class="empty-title">No Payment Data</h3>
+                                <p class="empty-text">No collections by payment method for the selected period.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if by_payment_method %}
+                    <tr class="summary-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="amount-display" style="text-align: right;">
+                            <strong>KES {{ overall_stats.total_amount|default:0|floatformat:2|intcomma }}</strong>
+                        </td>
+                        <td style="text-align: right;">
+                            <strong>{{ overall_stats.transaction_count|default:0|intcomma }}</strong>
+                        </td>
+                        <td style="text-align: right;"><strong>100%</strong></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Daily Collections Chart
+    const ctx = document.getElementById('collectionsChart').getContext('2d');
+    
+    const dailyData = [
+        {% for item in daily_collections %}
+            {
+                date: '{{ item.day|date:"Y-m-d" }}',
+                amount: {{ item.total|default:0 }},
+                count: {{ item.count|default:0 }}
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dailyData.map(d => d.date),
+            datasets: [{
+                label: 'Daily Collections (KES)',
+                data: dailyData.map(d => d.amount),
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = dailyData[context.dataIndex];
+                            return [
+                                'Amount: KES ' + item.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+                                'Transactions: ' + item.count.toLocaleString()
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
