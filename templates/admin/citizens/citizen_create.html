@@ -1,0 +1,655 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Register New Citizen{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    /* Entity Type Selector */
+    .entity-type-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .entity-type-card {
+        padding: 24px;
+        border: 2px solid #E2E8F0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        background: white;
+    }
+
+    .entity-type-card:hover {
+        border-color: #3498db;
+        background: rgba(52, 152, 219, 0.05);
+        transform: translateY(-2px);
+    }
+
+    .entity-type-card.active {
+        border-color: #3498db;
+        background: rgba(52, 152, 219, 0.1);
+    }
+
+    .entity-icon {
+        font-size: 48px;
+        color: #94A3B8;
+        margin-bottom: 12px;
+    }
+
+    .entity-type-card.active .entity-icon {
+        color: #3498db;
+    }
+
+    .entity-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+
+    .entity-description {
+        font-size: 13px;
+        color: #64748B;
+    }
+
+    /* Form Styles */
+    .form-section {
+        margin-bottom: 32px;
+        padding: 24px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+    }
+
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .form-label .required {
+        color: #ef4444;
+    }
+
+    .form-control {
+        padding: 12px 16px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-control:disabled {
+        background: #F1F5F9;
+        cursor: not-allowed;
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 24px;
+        border-top: 1px solid #E2E8F0;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 6px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        border: 1px solid #FCA5A5;
+        color: #991B1B;
+    }
+
+    .alert-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'citizen_list' %}">Citizens</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Register New Citizen</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="bi bi-person-plus"></i>
+                Register New Citizen
+            </h1>
+            <p class="page-subtitle">
+                Register a new citizen, business, or organization in the system
+            </p>
+        </div>
+
+        <!-- Error Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="bi bi-{% if message.tags == 'error' %}exclamation-circle{% else %}check-circle{% endif %} alert-icon"></i>
+                    <div>{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" id="citizenForm">
+            {% csrf_token %}
+
+            <!-- Entity Type Selection -->
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-tag"></i>
+                    Select Entity Type
+                </h5>
+                
+                <div class="entity-type-selector">
+                    <div class="entity-type-card active" onclick="selectEntityType('individual')" data-type="individual">
+                        <div class="entity-icon">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <div class="entity-title">Individual</div>
+                        <div class="entity-description">Private citizen or person</div>
+                    </div>
+                    
+                    <div class="entity-type-card" onclick="selectEntityType('business')" data-type="business">
+                        <div class="entity-icon">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="entity-title">Business</div>
+                        <div class="entity-description">Registered business entity</div>
+                    </div>
+                    
+                    <div class="entity-type-card" onclick="selectEntityType('organization')" data-type="organization">
+                        <div class="entity-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="entity-title">Organization</div>
+                        <div class="entity-description">NGO, Association, Group</div>
+                    </div>
+                </div>
+                
+                <input type="hidden" name="entity_type" id="entity_type" value="individual">
+            </div>
+
+            <!-- Individual Fields -->
+            <div class="form-section" id="individual_fields">
+                <h5 class="form-section-title">
+                    <i class="bi bi-person-badge"></i>
+                    Personal Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            First Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="first_name" class="form-control" 
+                               value="{{ post_data.first_name|default:'' }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" name="middle_name" class="form-control"
+                               value="{{ post_data.middle_name|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            Last Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="last_name" class="form-control"
+                               value="{{ post_data.last_name|default:'' }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Date of Birth</label>
+                        <input type="date" name="date_of_birth" class="form-control"
+                               value="{{ post_data.date_of_birth|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="">Select Gender</option>
+                            <option value="Male" {% if post_data.gender == 'Male' %}selected{% endif %}>Male</option>
+                            <option value="Female" {% if post_data.gender == 'Female' %}selected{% endif %}>Female</option>
+                            <option value="Other" {% if post_data.gender == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            ID Number <span class="required">*</span>
+                        </label>
+                        <input type="text" name="unique_identifier" class="form-control" 
+                               placeholder="e.g., 12345678"
+                               value="{{ post_data.unique_identifier|default:'' }}" required>
+                        <small class="form-text">National ID or Passport number</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Business/Organization Fields -->
+            <div class="form-section hidden" id="business_fields">
+                <h5 class="form-section-title">
+                    <i class="bi bi-building"></i>
+                    Business/Organization Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">
+                            Business/Organization Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="business_name" class="form-control"
+                               value="{{ post_data.business_name|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            Registration Number <span class="required">*</span>
+                        </label>
+                        <input type="text" name="registration_number" class="form-control"
+                               placeholder="e.g., BN12345"
+                               value="{{ post_data.registration_number|default:'' }}">
+                        <small class="form-text">Business/Organization registration number</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Unique Identifier</label>
+                        <input type="text" name="unique_identifier_business" class="form-control"
+                               placeholder="Same as registration number"
+                               value="{{ post_data.unique_identifier|default:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-telephone"></i>
+                    Contact Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Primary Phone <span class="required">*</span>
+                        </label>
+                        <input type="tel" name="phone_primary" class="form-control" 
+                               placeholder="07XX XXX XXX"
+                               value="{{ post_data.phone_primary|default:'' }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Secondary Phone</label>
+                        <input type="tel" name="phone_secondary" class="form-control"
+                               placeholder="07XX XXX XXX"
+                               value="{{ post_data.phone_secondary|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control"
+                               placeholder="example@email.com"
+                               value="{{ post_data.email|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Postal Address</label>
+                        <input type="text" name="postal_address" class="form-control"
+                               placeholder="P.O. Box XXX"
+                               value="{{ post_data.postal_address|default:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Information -->
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-geo-alt"></i>
+                    Location Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Sub-County <span class="required">*</span>
+                        </label>
+                        <select name="sub_county" id="sub_county" class="form-control" required onchange="filterWards()">
+                            <option value="">Select Sub-County</option>
+                            {% for sc in sub_counties %}
+                                <option value="{{ sc.id }}" {% if post_data.sub_county == sc.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ sc.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            Ward <span class="required">*</span>
+                        </label>
+                        <select name="ward" id="ward" class="form-control" required>
+                            <option value="">Select Ward</option>
+                            {% for ward in wards %}
+                                <option value="{{ ward.id }}" data-subcounty="{{ ward.sub_county.id }}" 
+                                        {% if post_data.ward == ward.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ ward.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label">Physical Address</label>
+                        <textarea name="physical_address" class="form-control" rows="3" 
+                                  placeholder="Enter complete physical address">{{ post_data.physical_address|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'citizen_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Register Citizen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Entity type selection
+    function selectEntityType(type) {
+        // Update visual selection
+        document.querySelectorAll('.entity-type-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.querySelector(`[data-type="${type}"]`).classList.add('active');
+        
+        // Update hidden input
+        document.getElementById('entity_type').value = type;
+        
+        // Show/hide appropriate fields
+        const individualFields = document.getElementById('individual_fields');
+        const businessFields = document.getElementById('business_fields');
+        
+        if (type === 'individual') {
+            individualFields.classList.remove('hidden');
+            businessFields.classList.add('hidden');
+            
+            // Make individual fields required
+            individualFields.querySelectorAll('[required]').forEach(input => {
+                input.disabled = false;
+            });
+            businessFields.querySelectorAll('[required]').forEach(input => {
+                input.disabled = true;
+            });
+        } else {
+            individualFields.classList.add('hidden');
+            businessFields.classList.remove('hidden');
+            
+            // Make business fields required
+            individualFields.querySelectorAll('[required]').forEach(input => {
+                input.disabled = true;
+            });
+            businessFields.querySelectorAll('[required]').forEach(input => {
+                input.disabled = false;
+            });
+        }
+    }
+
+    // Filter wards based on selected sub-county
+    function filterWards() {
+        const subCountySelect = document.getElementById('sub_county');
+        const wardSelect = document.getElementById('ward');
+        const selectedSubCounty = subCountySelect.value;
+        
+        // Show/hide ward options based on sub-county
+        Array.from(wardSelect.options).forEach(option => {
+            if (option.value === '') {
+                option.style.display = 'block';
+                return;
+            }
+            
+            const wardSubCounty = option.getAttribute('data-subcounty');
+            if (wardSubCounty === selectedSubCounty) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Reset ward selection if current selection doesn't match sub-county
+        const currentWard = wardSelect.options[wardSelect.selectedIndex];
+        if (currentWard && currentWard.getAttribute('data-subcounty') !== selectedSubCounty) {
+            wardSelect.value = '';
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-sync unique identifier for business/organization
+        const businessNameInput = document.querySelector('[name="business_name"]');
+        const regNumberInput = document.querySelector('[name="registration_number"]');
+        const uniqueIdBusinessInput = document.querySelector('[name="unique_identifier_business"]');
+        
+        if (regNumberInput && uniqueIdBusinessInput) {
+            regNumberInput.addEventListener('input', function() {
+                uniqueIdBusinessInput.value = this.value;
+            });
+        }
+
+        // Filter wards on load if sub-county is pre-selected
+        const subCountyValue = document.getElementById('sub_county').value;
+        if (subCountyValue) {
+            filterWards();
+        }
+
+        // Form validation
+        document.getElementById('citizenForm').addEventListener('submit', function(e) {
+            const entityType = document.getElementById('entity_type').value;
+            
+            // Set the correct unique_identifier field based on entity type
+            if (entityType !== 'individual') {
+                const regNumber = document.querySelector('[name="registration_number"]').value;
+                document.querySelector('[name="unique_identifier"]').value = regNumber;
+            }
+        });
+    });
+</script>
+{% endblock %}

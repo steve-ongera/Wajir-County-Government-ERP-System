@@ -1283,28 +1283,7 @@
     </div>
 </div>
 
-{% comment %} <!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to deactivate <strong id="citizenName"></strong>?</p>
-                <p class="text-muted">This action will mark the citizen as inactive. The record will be preserved but will no longer be active in the system.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Deactivate</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div> {% endcomment %}
+
 {% endblock %}
 
 {% block extra_js %}

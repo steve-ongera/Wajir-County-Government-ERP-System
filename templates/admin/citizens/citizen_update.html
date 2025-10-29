@@ -1,0 +1,563 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Update {{ citizen }} - Citizens{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .info-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        background: #DBEAFE;
+        color: #1E40AF;
+        margin-top: 8px;
+    }
+
+    /* Form Styles */
+    .form-section {
+        margin-bottom: 32px;
+        padding: 24px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+    }
+
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .form-label .required {
+        color: #ef4444;
+    }
+
+    .form-control {
+        padding: 12px 16px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-control:disabled {
+        background: #F1F5F9;
+        cursor: not-allowed;
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+    }
+
+    .read-only-field {
+        padding: 12px 16px;
+        background: #F1F5F9;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #64748B;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 24px;
+        border-top: 1px solid #E2E8F0;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .alert {
+        padding: 16px 20px;
+        border-radius: 6px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        border: 1px solid #FCA5A5;
+        color: #991B1B;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        border: 1px solid #86EFAC;
+        color: #065F46;
+    }
+
+    .alert-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'citizen_list' %}">Citizens</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'citizen_detail' citizen.unique_identifier %}">
+                    {{ citizen.unique_identifier }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Update</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-pencil-square"></i>
+                    Update Citizen Information
+                </h1>
+                <p class="page-subtitle">
+                    Modify details for 
+                    {% if citizen.entity_type == 'individual' %}
+                        {{ citizen.first_name }} {{ citizen.last_name }}
+                    {% else %}
+                        {{ citizen.business_name }}
+                    {% endif %}
+                </p>
+                <span class="info-badge">
+                    <i class="bi bi-tag"></i>
+                    {{ citizen.get_entity_type_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Error/Success Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="bi bi-{% if message.tags == 'error' %}exclamation-circle{% elif message.tags == 'success' %}check-circle{% endif %} alert-icon"></i>
+                    <div>{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" id="updateForm">
+            {% csrf_token %}
+
+            <!-- Personal/Business Information -->
+            {% if citizen.entity_type == 'individual' %}
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-person-badge"></i>
+                    Personal Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            First Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="first_name" class="form-control" 
+                               value="{{ citizen.first_name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" name="middle_name" class="form-control"
+                               value="{{ citizen.middle_name|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            Last Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="last_name" class="form-control"
+                               value="{{ citizen.last_name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Date of Birth</label>
+                        <input type="date" name="date_of_birth" class="form-control"
+                               value="{{ citizen.date_of_birth|date:'Y-m-d' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="">Select Gender</option>
+                            <option value="Male" {% if citizen.gender == 'Male' %}selected{% endif %}>Male</option>
+                            <option value="Female" {% if citizen.gender == 'Female' %}selected{% endif %}>Female</option>
+                            <option value="Other" {% if citizen.gender == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">ID Number</label>
+                        <div class="read-only-field">
+                            <i class="bi bi-lock"></i> {{ citizen.unique_identifier }}
+                        </div>
+                        <small class="form-text">ID number cannot be changed</small>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-building"></i>
+                    Business/Organization Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="form-label">
+                            Business/Organization Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="business_name" class="form-control"
+                               value="{{ citizen.business_name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Registration Number</label>
+                        <div class="read-only-field">
+                            <i class="bi bi-lock"></i> {{ citizen.registration_number }}
+                        </div>
+                        <small class="form-text">Registration number cannot be changed</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Unique Identifier</label>
+                        <div class="read-only-field">
+                            <i class="bi bi-lock"></i> {{ citizen.unique_identifier }}
+                        </div>
+                        <small class="form-text">Unique identifier cannot be changed</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Contact Information -->
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-telephone"></i>
+                    Contact Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Primary Phone <span class="required">*</span>
+                        </label>
+                        <input type="tel" name="phone_primary" class="form-control" 
+                               value="{{ citizen.phone_primary }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Secondary Phone</label>
+                        <input type="tel" name="phone_secondary" class="form-control"
+                               value="{{ citizen.phone_secondary|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ citizen.email|default:'' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Postal Address</label>
+                        <input type="text" name="postal_address" class="form-control"
+                               value="{{ citizen.postal_address|default:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Information -->
+            <div class="form-section">
+                <h5 class="form-section-title">
+                    <i class="bi bi-geo-alt"></i>
+                    Location Information
+                </h5>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Sub-County <span class="required">*</span>
+                        </label>
+                        <select name="sub_county" id="sub_county" class="form-control" required onchange="filterWards()">
+                            <option value="">Select Sub-County</option>
+                            {% for sc in sub_counties %}
+                                <option value="{{ sc.id }}" {% if citizen.sub_county.id == sc.id %}selected{% endif %}>
+                                    {{ sc.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            Ward <span class="required">*</span>
+                        </label>
+                        <select name="ward" id="ward" class="form-control" required>
+                            <option value="">Select Ward</option>
+                            {% for ward in wards %}
+                                <option value="{{ ward.id }}" data-subcounty="{{ ward.sub_county.id }}"
+                                        {% if citizen.ward.id == ward.id %}selected{% endif %}>
+                                    {{ ward.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label class="form-label">Physical Address</label>
+                        <textarea name="physical_address" class="form-control" rows="3">{{ citizen.physical_address|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'citizen_detail' citizen.unique_identifier %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Update Citizen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Filter wards based on selected sub-county
+    function filterWards() {
+        const subCountySelect = document.getElementById('sub_county');
+        const wardSelect = document.getElementById('ward');
+        const selectedSubCounty = subCountySelect.value;
+        
+        // Show/hide ward options based on sub-county
+        Array.from(wardSelect.options).forEach(option => {
+            if (option.value === '') {
+                option.style.display = 'block';
+                return;
+            }
+            
+            const wardSubCounty = option.getAttribute('data-subcounty');
+            if (wardSubCounty === selectedSubCounty) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Reset ward selection if current selection doesn't match sub-county
+        const currentWard = wardSelect.options[wardSelect.selectedIndex];
+        if (currentWard && currentWard.getAttribute('data-subcounty') !== selectedSubCounty) {
+            wardSelect.value = '';
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filter wards based on pre-selected sub-county
+        filterWards();
+
+        // Confirm before leaving if form is modified
+        let formModified = false;
+        const form = document.getElementById('updateForm');
+        const inputs = form.querySelectorAll('input, select, textarea');
+        
+        inputs.forEach(input => {
+            input.addEventListener('change', function() {
+                formModified = true;
+            });
+        });
+
+        window.addEventListener('beforeunload', function(e) {
+            if (formModified) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        form.addEventListener('submit', function() {
+            formModified = false;
+        });
+    });
+</script>
+{% endblock %}
