@@ -479,29 +479,375 @@ def dashboard(request):
 
 @login_required(login_url='login')
 def admin_dashboard(request):
-    """System Administrator Dashboard"""
-    # System-wide statistics
+    """Admin dashboard with comprehensive statistics and analytics"""
+    from django.db.models import Sum, Count, Q, Avg
+    from datetime import datetime, timedelta
+    import json
+    
+    # Get current date and time ranges
+    today = timezone.now().date()
+    thirty_days_ago = today - timedelta(days=30)
+    six_months_ago = today - timedelta(days=180)
+    current_year = today.year
+    
+    # ============================================================================
+    # REVENUE STATISTICS
+    # ============================================================================
+    
+    # Total revenue collected
+    total_revenue = Payment.objects.filter(
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Revenue this month
+    revenue_this_month = Payment.objects.filter(
+        status='completed',
+        payment_date__year=today.year,
+        payment_date__month=today.month
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Revenue today
+    revenue_today = Payment.objects.filter(
+        status='completed',
+        payment_date__date=today
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Total bills
+    total_bills = Bill.objects.count()
+    pending_bills = Bill.objects.filter(status__in=['issued', 'overdue']).count()
+    paid_bills = Bill.objects.filter(status='paid').count()
+    
+    # Outstanding amount
+    outstanding_amount = Bill.objects.filter(
+        status__in=['issued', 'overdue', 'partially_paid']
+    ).aggregate(total=Sum('balance'))['total'] or 0
+    
+    # ============================================================================
+    # CITIZEN & SERVICE STATISTICS
+    # ============================================================================
+    
+    total_citizens = Citizen.objects.filter(is_active=True).count()
+    total_licenses = License.objects.count()
+    active_licenses = License.objects.filter(status='active').count()
+    expired_licenses = License.objects.filter(status='expired').count()
+    
+    total_properties = Property.objects.filter(status='active').count()
+    total_vehicles = Vehicle.objects.filter(is_active=True).count()
+    
+    # ============================================================================
+    # HEALTH STATISTICS
+    # ============================================================================
+    
+    total_patients = Patient.objects.filter(is_active=True).count()
+    visits_today = Visit.objects.filter(visit_date__date=today).count()
+    visits_this_month = Visit.objects.filter(
+        visit_date__year=today.year,
+        visit_date__month=today.month
+    ).count()
+    
+    pending_lab_tests = LabTest.objects.filter(status='pending').count()
+    active_admissions = Admission.objects.filter(status='admitted').count()
+    
+    # ============================================================================
+    # FLEET & ASSETS STATISTICS
+    # ============================================================================
+    
+    total_vehicles_fleet = FleetVehicle.objects.filter(status='active').count()
+    vehicles_maintenance = FleetVehicle.objects.filter(status='maintenance').count()
+    
+    fuel_cost_month = FuelTransaction.objects.filter(
+        transaction_date__year=today.year,
+        transaction_date__month=today.month
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    total_assets = Asset.objects.filter(status='active').count()
+    
+    # ============================================================================
+    # HR STATISTICS
+    # ============================================================================
+    
+    total_employees = User.objects.filter(is_active_staff=True, is_active=True).count()
+    present_today = Attendance.objects.filter(
+        attendance_date=today,
+        attendance_type='check_in'
+    ).values('employee').distinct().count()
+    
+    pending_leaves = LeaveApplication.objects.filter(status='pending').count()
+    
+    # ============================================================================
+    # CHART DATA - Revenue Trends
+    # ============================================================================
+    
+    # Monthly revenue for last 6 months
+    monthly_revenue_data = []
+    monthly_labels = []
+    
+    for i in range(5, -1, -1):
+        date = today - timedelta(days=i*30)
+        month_start = date.replace(day=1)
+        if i == 0:
+            month_end = today
+        else:
+            next_month = month_start.replace(day=28) + timedelta(days=4)
+            month_end = next_month - timedelta(days=next_month.day)
+        
+        revenue = Payment.objects.filter(
+            status='completed',
+            payment_date__range=[month_start, month_end]
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        monthly_revenue_data.append(float(revenue))
+        monthly_labels.append(month_start.strftime('%b %Y'))
+    
+    revenue_chart_data = json.dumps({
+        'labels': monthly_labels,
+        'data': monthly_revenue_data
+    })
+    
+    # ============================================================================
+    # CHART DATA - Revenue by Stream (Donut Chart)
+    # ============================================================================
+    
+    revenue_by_stream = Payment.objects.filter(
+        status='completed'
+    ).values('revenue_stream__name').annotate(
+        total=Sum('amount')
+    ).order_by('-total')[:6]
+    
+    stream_labels = [item['revenue_stream__name'] for item in revenue_by_stream]
+    stream_data = [float(item['total']) for item in revenue_by_stream]
+    stream_colors = ['#139145', '#C18B5A', '#CD4F27', '#3B82F6', '#8B5CF6', '#06B6D4']
+    
+    revenue_stream_chart = json.dumps({
+        'labels': stream_labels,
+        'data': stream_data,
+        'colors': stream_colors
+    })
+    
+    # ============================================================================
+    # CHART DATA - Bills Status (Pie Chart)
+    # ============================================================================
+    
+    bill_status_data = Bill.objects.values('status').annotate(
+        count=Count('id')
+    )
+    
+    bill_labels = [item['status'].replace('_', ' ').title() for item in bill_status_data]
+    bill_counts = [item['count'] for item in bill_status_data]
+    bill_colors = ['#139145', '#C18B5A', '#CD4F27', '#EF4444', '#F59E0B']
+    
+    bill_status_chart = json.dumps({
+        'labels': bill_labels,
+        'data': bill_counts,
+        'colors': bill_colors
+    })
+    
+    # ============================================================================
+    # CHART DATA - Daily Revenue (Last 30 Days - Area Chart)
+    # ============================================================================
+    
+    daily_revenue_data = []
+    daily_labels = []
+    
+    for i in range(29, -1, -1):
+        date = today - timedelta(days=i)
+        revenue = Payment.objects.filter(
+            status='completed',
+            payment_date__date=date
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        daily_revenue_data.append(float(revenue))
+        daily_labels.append(date.strftime('%b %d'))
+    
+    daily_revenue_chart = json.dumps({
+        'labels': daily_labels,
+        'data': daily_revenue_data
+    })
+    
+    # ============================================================================
+    # CHART DATA - Revenue by Sub-County (Bar Chart)
+    # ============================================================================
+    
+    subcounty_revenue = Payment.objects.filter(
+        status='completed'
+    ).values('sub_county__name').annotate(
+        total=Sum('amount')
+    ).order_by('-total')[:10]
+    
+    subcounty_labels = [item['sub_county__name'] or 'Unknown' for item in subcounty_revenue]
+    subcounty_data = [float(item['total']) for item in subcounty_revenue]
+    
+    subcounty_chart = json.dumps({
+        'labels': subcounty_labels,
+        'data': subcounty_data
+    })
+    
+    # ============================================================================
+    # CHART DATA - Patients by Month (Line Chart)
+    # ============================================================================
+    
+    patient_monthly_data = []
+    patient_labels = []
+    
+    for i in range(5, -1, -1):
+        date = today - timedelta(days=i*30)
+        month_start = date.replace(day=1)
+        if i == 0:
+            month_end = today
+        else:
+            next_month = month_start.replace(day=28) + timedelta(days=4)
+            month_end = next_month - timedelta(days=next_month.day)
+        
+        visits = Visit.objects.filter(
+            visit_date__range=[month_start, month_end]
+        ).count()
+        
+        patient_monthly_data.append(visits)
+        patient_labels.append(month_start.strftime('%b'))
+    
+    patient_chart = json.dumps({
+        'labels': patient_labels,
+        'data': patient_monthly_data
+    })
+    
+    # ============================================================================
+    # CHART DATA - License Status (Donut Chart)
+    # ============================================================================
+    
+    license_status = License.objects.values('status').annotate(
+        count=Count('id')
+    )
+    
+    license_labels = [item['status'].replace('_', ' ').title() for item in license_status]
+    license_counts = [item['count'] for item in license_status]
+    license_colors = ['#139145', '#C18B5A', '#CD4F27', '#EF4444', '#F59E0B', '#3B82F6']
+    
+    license_chart = json.dumps({
+        'labels': license_labels,
+        'data': license_counts,
+        'colors': license_colors
+    })
+    
+    # ============================================================================
+    # CHART DATA - Fleet Fuel Consumption (Bar Chart)
+    # ============================================================================
+    
+    fuel_by_vehicle = FuelTransaction.objects.filter(
+        transaction_date__gte=thirty_days_ago
+    ).values('vehicle__registration_number').annotate(
+        total_liters=Sum('quantity_liters'),
+        total_cost=Sum('total_amount')
+    ).order_by('-total_cost')[:10]
+    
+    fuel_labels = [item['vehicle__registration_number'] for item in fuel_by_vehicle]
+    fuel_data = [float(item['total_cost']) for item in fuel_by_vehicle]
+    
+    fuel_chart = json.dumps({
+        'labels': fuel_labels,
+        'data': fuel_data
+    })
+    
+    # ============================================================================
+    # CHART DATA - Payment Methods Distribution (Pie Chart)
+    # ============================================================================
+    
+    payment_methods = Payment.objects.filter(
+        status='completed'
+    ).values('payment_method__name').annotate(
+        count=Count('id'),
+        total=Sum('amount')
+    ).order_by('-total')
+    
+    method_labels = [item['payment_method__name'] for item in payment_methods]
+    method_data = [float(item['total']) for item in payment_methods]
+    method_colors = ['#139145', '#C18B5A', '#CD4F27', '#3B82F6', '#8B5CF6']
+    
+    payment_method_chart = json.dumps({
+        'labels': method_labels,
+        'data': method_data,
+        'colors': method_colors
+    })
+    
+    # ============================================================================
+    # Recent Activities
+    # ============================================================================
+    
+    recent_payments = Payment.objects.filter(
+        status='completed'
+    ).select_related('citizen', 'revenue_stream', 'payment_method').order_by('-payment_date')[:10]
+    
+    recent_bills = Bill.objects.select_related(
+        'citizen', 'revenue_stream'
+    ).order_by('-created_at')[:10]
+    
+    # ============================================================================
+    # Alerts & Notifications
+    # ============================================================================
+    
+    overdue_bills_count = Bill.objects.filter(
+        status='overdue',
+        due_date__lt=today
+    ).count()
+    
+    expiring_licenses = License.objects.filter(
+        status='active',
+        expiry_date__range=[today, today + timedelta(days=30)]
+    ).count()
+    
     context = {
-        'total_users': User.objects.filter(is_active=True).count(),
-        'total_citizens': Citizen.objects.filter(is_active=True).count(),
-        'total_departments': Department.objects.filter(is_active=True).count(),
-        'total_revenue_streams': RevenueStream.objects.filter(is_active=True).count(),
+        # Revenue Stats
+        'total_revenue': total_revenue,
+        'revenue_this_month': revenue_this_month,
+        'revenue_today': revenue_today,
+        'total_bills': total_bills,
+        'pending_bills': pending_bills,
+        'paid_bills': paid_bills,
+        'outstanding_amount': outstanding_amount,
         
-        # Recent activities
-        'recent_users': User.objects.filter(is_active=True).order_by('-date_joined')[:5],
-        'recent_audit_logs': AuditLog.objects.order_by('-timestamp')[:10],
+        # Citizen Stats
+        'total_citizens': total_citizens,
+        'total_licenses': total_licenses,
+        'active_licenses': active_licenses,
+        'expired_licenses': expired_licenses,
+        'total_properties': total_properties,
+        'total_vehicles': total_vehicles,
         
-        # System health
-        'active_sessions': User.objects.filter(last_login__gte=timezone.now() - timedelta(hours=24)).count(),
-        'pending_notifications': Notification.objects.filter(status='pending').count(),
+        # Health Stats
+        'total_patients': total_patients,
+        'visits_today': visits_today,
+        'visits_this_month': visits_this_month,
+        'pending_lab_tests': pending_lab_tests,
+        'active_admissions': active_admissions,
         
-        # Module statistics
-        'total_bills': Bill.objects.count(),
-        'total_payments': Payment.objects.count(),
-        'total_assets': Asset.objects.count(),
-        'total_vehicles': FleetVehicle.objects.count(),
-        'total_patients': Patient.objects.count(),
-        'total_properties': Property.objects.count(),
+        # Fleet & Assets
+        'total_vehicles_fleet': total_vehicles_fleet,
+        'vehicles_maintenance': vehicles_maintenance,
+        'fuel_cost_month': fuel_cost_month,
+        'total_assets': total_assets,
+        
+        # HR Stats
+        'total_employees': total_employees,
+        'present_today': present_today,
+        'pending_leaves': pending_leaves,
+        
+        # Chart Data
+        'revenue_chart_data': revenue_chart_data,
+        'revenue_stream_chart': revenue_stream_chart,
+        'bill_status_chart': bill_status_chart,
+        'daily_revenue_chart': daily_revenue_chart,
+        'subcounty_chart': subcounty_chart,
+        'patient_chart': patient_chart,
+        'license_chart': license_chart,
+        'fuel_chart': fuel_chart,
+        'payment_method_chart': payment_method_chart,
+        
+        # Recent Data
+        'recent_payments': recent_payments,
+        'recent_bills': recent_bills,
+        
+        # Alerts
+        'overdue_bills_count': overdue_bills_count,
+        'expiring_licenses': expiring_licenses,
     }
     
     return render(request, 'dashboards/admin_dashboard.html', context)
