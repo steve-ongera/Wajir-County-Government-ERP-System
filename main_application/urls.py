@@ -58,4 +58,5 @@ urlpatterns = [
     path('bills/reports/', views.bill_reports, name='bill_reports'),
     path('bills/export/', views.export_bills_excel, name='export_bills_excel'),
     path('bills/overdue/export/', views.export_overdue_bills_excel, name='export_overdue_bills_excel'),
+
 ]
