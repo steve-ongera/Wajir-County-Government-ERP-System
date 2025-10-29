@@ -668,18 +668,20 @@
 
         <div class="menu-section">
             <div class="menu-title">Revenue Management</div>
-            
-            <div class="menu-item has-submenu" data-submenu="revenue">
-                <i class="fas fa-money-bill-wave"></i>
-                <span>Revenue</span>
-                <i class="fas fa-chevron-right arrow"></i>
-            </div>
-            <div class="submenu" id="submenu-revenue">
-                <a href="#" class="submenu-item">Revenue Streams</a>
-                <a href="#" class="submenu-item">Charge Rates</a>
-                <a href="#" class="submenu-item">Revenue Budgets</a>
-                <a href="#" class="submenu-item">Collection Reports</a>
-            </div>
+
+                <div class="menu-item has-submenu" data-submenu="revenue">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Revenue</span>
+                    <i class="fas fa-chevron-right arrow"></i>
+                </div>
+
+                <div class="submenu" id="submenu-revenue">
+                    <a href="{% url 'stream_list' %}" class="submenu-item">Revenue Streams</a>
+                    <a href="{% url 'charge_rate_list' %}" class="submenu-item">Charge Rates</a>
+                    <a href="{% url 'budget_list' %}" class="submenu-item">Revenue Budgets</a>
+                    <a href="{% url 'collection_report' %}" class="submenu-item">Collection Reports</a>
+                </div>
+
 
             <div class="menu-item has-submenu" data-submenu="billing">
                 <i class="fas fa-file-invoice-dollar"></i>

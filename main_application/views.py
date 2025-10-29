@@ -2507,3 +2507,766 @@ def get_wards_api(request):
         return JsonResponse(list(wards), safe=False)
     
     return JsonResponse([], safe=False)
+
+"""
+Revenue Management Views
+"""
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, Count, Avg
+from django.http import HttpResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+from decimal import Decimal
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+
+from .models import (
+    RevenueStream, ChargeRate, RevenueBudget, Department,
+    SubCounty, Ward, Payment, Bill, User
+)
+
+
+# ============================================================================
+# REVENUE STREAMS
+# ============================================================================
+
+@login_required
+def revenue_stream_list(request):
+    """Revenue streams list with filtering and search"""
+    streams = RevenueStream.objects.all().select_related('department', 'parent_stream')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        streams = streams.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(department__name__icontains=search_query)
+        )
+    
+    # Filters
+    department_id = request.GET.get('department')
+    if department_id:
+        streams = streams.filter(department_id=department_id)
+    
+    is_recurring = request.GET.get('is_recurring')
+    if is_recurring:
+        streams = streams.filter(is_recurring=is_recurring == 'true')
+    
+    status = request.GET.get('status')
+    if status:
+        streams = streams.filter(is_active=status == 'active')
+    
+    # Statistics
+    stats = {
+        'total': RevenueStream.objects.count(),
+        'active': RevenueStream.objects.filter(is_active=True).count(),
+        'recurring': RevenueStream.objects.filter(is_recurring=True).count(),
+        'non_recurring': RevenueStream.objects.filter(is_recurring=False).count(),
+    }
+    
+    # Get departments for filter
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'streams': streams,
+        'stats': stats,
+        'departments': departments,
+        'search_query': search_query,
+        'current_department': department_id,
+        'current_recurring': is_recurring,
+        'current_status': status,
+    }
+    
+    return render(request, 'revenue/stream_list.html', context)
+
+
+@login_required
+def revenue_stream_detail(request, stream_id):
+    """Revenue stream detail view"""
+    stream = get_object_or_404(RevenueStream, id=stream_id)
+    
+    # Get related data
+    charge_rates = stream.charge_rates.all().order_by('-effective_from')
+    penalty_rules = stream.penalty_rules.all().order_by('-effective_from')
+    budgets = stream.budgets.all().order_by('-period_start')
+    
+    # Collection statistics (last 12 months)
+    twelve_months_ago = timezone.now().date() - timedelta(days=365)
+    collections = Payment.objects.filter(
+        revenue_stream=stream,
+        payment_date__gte=twelve_months_ago,
+        status='completed'
+    ).aggregate(
+        total_collected=Sum('amount'),
+        transaction_count=Count('id'),
+        avg_transaction=Avg('amount')
+    )
+    
+    # Bills statistics
+    bills_stats = Bill.objects.filter(revenue_stream=stream).aggregate(
+        total_bills=Count('id'),
+        total_billed=Sum('bill_amount'),
+        total_paid=Sum('amount_paid'),
+        outstanding=Sum('balance')
+    )
+    
+    context = {
+        'stream': stream,
+        'charge_rates': charge_rates,
+        'penalty_rules': penalty_rules,
+        'budgets': budgets,
+        'collections': collections,
+        'bills_stats': bills_stats,
+    }
+    
+    return render(request, 'revenue/stream_detail.html', context)
+
+
+@login_required
+def revenue_stream_export(request):
+    """Export revenue streams to Excel"""
+    streams = RevenueStream.objects.all().select_related('department', 'parent_stream')
+    
+    # Apply same filters as list view
+    search_query = request.GET.get('search', '')
+    if search_query:
+        streams = streams.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    department_id = request.GET.get('department')
+    if department_id:
+        streams = streams.filter(department_id=department_id)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Revenue Streams"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Code', 'Name', 'Department', 'Description', 'Is Recurring', 
+               'Billing Frequency', 'Status', 'Created At']
+    ws.append(headers)
+    
+    # Style headers
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data rows
+    for stream in streams:
+        ws.append([
+            stream.code,
+            stream.name,
+            stream.department.name,
+            stream.description,
+            'Yes' if stream.is_recurring else 'No',
+            stream.billing_frequency or 'N/A',
+            'Active' if stream.is_active else 'Inactive',
+            stream.created_at.strftime('%Y-%m-%d %H:%M')
+        ])
+    
+    # Style data rows
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(vertical='center', wrap_text=True)
+    
+    # Adjust column widths
+    for idx, col in enumerate(ws.columns, 1):
+        ws.column_dimensions[get_column_letter(idx)].width = 20
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=revenue_streams_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# CHARGE RATES
+# ============================================================================
+
+@login_required
+def charge_rate_list(request):
+    """Charge rates list with filtering"""
+    rates = ChargeRate.objects.all().select_related('revenue_stream')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        rates = rates.filter(
+            Q(name__icontains=search_query) |
+            Q(revenue_stream__name__icontains=search_query) |
+            Q(revenue_stream__code__icontains=search_query)
+        )
+    
+    # Filters
+    stream_id = request.GET.get('revenue_stream')
+    if stream_id:
+        rates = rates.filter(revenue_stream_id=stream_id)
+    
+    rate_type = request.GET.get('rate_type')
+    if rate_type:
+        rates = rates.filter(rate_type=rate_type)
+    
+    status = request.GET.get('status')
+    if status == 'active':
+        today = timezone.now().date()
+        rates = rates.filter(
+            is_active=True,
+            effective_from__lte=today
+        ).filter(
+            Q(effective_to__isnull=True) | Q(effective_to__gte=today)
+        )
+    elif status == 'expired':
+        today = timezone.now().date()
+        rates = rates.filter(effective_to__lt=today)
+    elif status == 'future':
+        today = timezone.now().date()
+        rates = rates.filter(effective_from__gt=today)
+    
+    # Statistics
+    today = timezone.now().date()
+    stats = {
+        'total': ChargeRate.objects.count(),
+        'active': ChargeRate.objects.filter(
+            is_active=True,
+            effective_from__lte=today
+        ).filter(
+            Q(effective_to__isnull=True) | Q(effective_to__gte=today)
+        ).count(),
+        'expired': ChargeRate.objects.filter(effective_to__lt=today).count(),
+        'future': ChargeRate.objects.filter(effective_from__gt=today).count(),
+    }
+    
+    # Get revenue streams for filter
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    
+    # Get unique rate types
+    rate_types = ChargeRate.objects.values_list('rate_type', flat=True).distinct()
+    
+    context = {
+        'rates': rates,
+        'stats': stats,
+        'revenue_streams': revenue_streams,
+        'rate_types': rate_types,
+        'search_query': search_query,
+        'current_stream': stream_id,
+        'current_rate_type': rate_type,
+        'current_status': status,
+    }
+    
+    return render(request, 'revenue/charge_rate_list.html', context)
+
+
+@login_required
+def charge_rate_export(request):
+    """Export charge rates to Excel"""
+    rates = ChargeRate.objects.all().select_related('revenue_stream')
+    
+    # Apply filters
+    stream_id = request.GET.get('revenue_stream')
+    if stream_id:
+        rates = rates.filter(revenue_stream_id=stream_id)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Charge Rates"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Revenue Stream', 'Rate Name', 'Rate Type', 'Amount', 
+               'Min Amount', 'Max Amount', 'Effective From', 'Effective To', 'Status']
+    ws.append(headers)
+    
+    # Style headers
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data rows
+    today = timezone.now().date()
+    for rate in rates:
+        is_active = (
+            rate.is_active and 
+            rate.effective_from <= today and 
+            (rate.effective_to is None or rate.effective_to >= today)
+        )
+        
+        ws.append([
+            f"{rate.revenue_stream.code} - {rate.revenue_stream.name}",
+            rate.name,
+            rate.rate_type,
+            float(rate.amount),
+            float(rate.min_amount) if rate.min_amount else 'N/A',
+            float(rate.max_amount) if rate.max_amount else 'N/A',
+            rate.effective_from.strftime('%Y-%m-%d'),
+            rate.effective_to.strftime('%Y-%m-%d') if rate.effective_to else 'N/A',
+            'Active' if is_active else 'Inactive'
+        ])
+    
+    # Style data rows
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(vertical='center')
+    
+    # Adjust column widths
+    for idx, col in enumerate(ws.columns, 1):
+        ws.column_dimensions[get_column_letter(idx)].width = 18
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=charge_rates_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# REVENUE BUDGETS
+# ============================================================================
+
+@login_required
+def revenue_budget_list(request):
+    """Revenue budgets list with filtering"""
+    budgets = RevenueBudget.objects.all().select_related(
+        'revenue_stream', 'sub_county', 'ward', 'created_by'
+    )
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        budgets = budgets.filter(
+            Q(revenue_stream__name__icontains=search_query) |
+            Q(revenue_stream__code__icontains=search_query) |
+            Q(financial_year__icontains=search_query)
+        )
+    
+    # Filters
+    stream_id = request.GET.get('revenue_stream')
+    if stream_id:
+        budgets = budgets.filter(revenue_stream_id=stream_id)
+    
+    financial_year = request.GET.get('financial_year')
+    if financial_year:
+        budgets = budgets.filter(financial_year=financial_year)
+    
+    period_type = request.GET.get('period_type')
+    if period_type:
+        budgets = budgets.filter(period_type=period_type)
+    
+    sub_county_id = request.GET.get('sub_county')
+    if sub_county_id:
+        budgets = budgets.filter(sub_county_id=sub_county_id)
+    
+    # Calculate actual collections for each budget
+    budgets_with_actual = []
+    for budget in budgets:
+        actual = Payment.objects.filter(
+            revenue_stream=budget.revenue_stream,
+            payment_date__gte=budget.period_start,
+            payment_date__lte=budget.period_end,
+            status='completed'
+        )
+        
+        if budget.sub_county:
+            actual = actual.filter(sub_county=budget.sub_county)
+        if budget.ward:
+            actual = actual.filter(ward=budget.ward)
+        
+        actual_amount = actual.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        
+        budget.actual_amount = actual_amount
+        budget.variance = actual_amount - budget.target_amount
+        budget.achievement_percentage = (
+            (actual_amount / budget.target_amount * 100) 
+            if budget.target_amount > 0 else 0
+        )
+        budgets_with_actual.append(budget)
+    
+    # Statistics
+    total_target = budgets.aggregate(Sum('target_amount'))['target_amount__sum'] or Decimal('0')
+    total_actual = sum(b.actual_amount for b in budgets_with_actual)
+    
+    stats = {
+        'total_budgets': budgets.count(),
+        'total_target': total_target,
+        'total_actual': total_actual,
+        'total_variance': total_actual - total_target,
+        'achievement_rate': (total_actual / total_target * 100) if total_target > 0 else 0,
+    }
+    
+    # Get filter options
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    financial_years = RevenueBudget.objects.values_list(
+        'financial_year', flat=True
+    ).distinct().order_by('-financial_year')
+    period_types = RevenueBudget.objects.values_list(
+        'period_type', flat=True
+    ).distinct()
+    sub_counties = SubCounty.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'budgets': budgets_with_actual,
+        'stats': stats,
+        'revenue_streams': revenue_streams,
+        'financial_years': financial_years,
+        'period_types': period_types,
+        'sub_counties': sub_counties,
+        'search_query': search_query,
+        'current_stream': stream_id,
+        'current_year': financial_year,
+        'current_period': period_type,
+        'current_sub_county': sub_county_id,
+    }
+    
+    return render(request, 'revenue/budget_list.html', context)
+
+
+@login_required
+def revenue_budget_export(request):
+    """Export revenue budgets to Excel"""
+    budgets = RevenueBudget.objects.all().select_related(
+        'revenue_stream', 'sub_county', 'ward'
+    )
+    
+    # Apply filters
+    stream_id = request.GET.get('revenue_stream')
+    if stream_id:
+        budgets = budgets.filter(revenue_stream_id=stream_id)
+    
+    financial_year = request.GET.get('financial_year')
+    if financial_year:
+        budgets = budgets.filter(financial_year=financial_year)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Revenue Budgets"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Revenue Stream', 'Financial Year', 'Period Type', 'Period Start', 
+               'Period End', 'Target Amount', 'Actual Amount', 'Variance', 
+               'Achievement %', 'Sub-County', 'Ward']
+    ws.append(headers)
+    
+    # Style headers
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data rows
+    for budget in budgets:
+        # Calculate actual
+        actual = Payment.objects.filter(
+            revenue_stream=budget.revenue_stream,
+            payment_date__gte=budget.period_start,
+            payment_date__lte=budget.period_end,
+            status='completed'
+        )
+        
+        if budget.sub_county:
+            actual = actual.filter(sub_county=budget.sub_county)
+        if budget.ward:
+            actual = actual.filter(ward=budget.ward)
+        
+        actual_amount = actual.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        variance = actual_amount - budget.target_amount
+        achievement = (actual_amount / budget.target_amount * 100) if budget.target_amount > 0 else 0
+        
+        ws.append([
+            f"{budget.revenue_stream.code} - {budget.revenue_stream.name}",
+            budget.financial_year,
+            budget.period_type,
+            budget.period_start.strftime('%Y-%m-%d'),
+            budget.period_end.strftime('%Y-%m-%d'),
+            float(budget.target_amount),
+            float(actual_amount),
+            float(variance),
+            f"{achievement:.2f}%",
+            budget.sub_county.name if budget.sub_county else 'County-wide',
+            budget.ward.name if budget.ward else 'N/A'
+        ])
+    
+    # Style data rows
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(vertical='center')
+    
+    # Adjust column widths
+    for idx, col in enumerate(ws.columns, 1):
+        ws.column_dimensions[get_column_letter(idx)].width = 18
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=revenue_budgets_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# COLLECTION REPORTS
+# ============================================================================
+
+@login_required
+def collection_report(request):
+    """Comprehensive revenue collection reports"""
+    # Date filters
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    # Default to current month if no dates provided
+    if not date_from or not date_to:
+        today = timezone.now().date()
+        date_from = today.replace(day=1).strftime('%Y-%m-%d')
+        date_to = today.strftime('%Y-%m-%d')
+    
+    # Parse dates
+    start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+    end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    
+    # Base queryset
+    payments = Payment.objects.filter(
+        payment_date__gte=start_date,
+        payment_date__lte=end_date,
+        status='completed'
+    ).select_related('revenue_stream', 'sub_county', 'ward', 'payment_method')
+    
+    # Filters
+    stream_id = request.GET.get('revenue_stream')
+    if stream_id:
+        payments = payments.filter(revenue_stream_id=stream_id)
+    
+    sub_county_id = request.GET.get('sub_county')
+    if sub_county_id:
+        payments = payments.filter(sub_county_id=sub_county_id)
+    
+    ward_id = request.GET.get('ward')
+    if ward_id:
+        payments = payments.filter(ward_id=ward_id)
+    
+    payment_method_id = request.GET.get('payment_method')
+    if payment_method_id:
+        payments = payments.filter(payment_method_id=payment_method_id)
+    
+    # Overall statistics
+    overall_stats = payments.aggregate(
+        total_amount=Sum('amount'),
+        transaction_count=Count('id'),
+        average_transaction=Avg('amount')
+    )
+    
+    # By revenue stream
+    by_stream = payments.values(
+        'revenue_stream__code',
+        'revenue_stream__name'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    # By sub-county
+    by_sub_county = payments.values(
+        'sub_county__name'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    # By payment method
+    by_payment_method = payments.values(
+        'payment_method__name'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    # Daily collections (for chart)
+    daily_collections = payments.extra(
+        select={'day': 'DATE(payment_date)'}
+    ).values('day').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('day')
+    
+    # Get filter options
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    sub_counties = SubCounty.objects.filter(is_active=True).order_by('name')
+    wards = Ward.objects.filter(is_active=True).order_by('name')
+    from .models import PaymentMethod
+    payment_methods = PaymentMethod.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'overall_stats': overall_stats,
+        'by_stream': by_stream,
+        'by_sub_county': by_sub_county,
+        'by_payment_method': by_payment_method,
+        'daily_collections': daily_collections,
+        'revenue_streams': revenue_streams,
+        'sub_counties': sub_counties,
+        'wards': wards,
+        'payment_methods': payment_methods,
+        'date_from': date_from,
+        'date_to': date_to,
+        'current_stream': stream_id,
+        'current_sub_county': sub_county_id,
+        'current_ward': ward_id,
+        'current_payment_method': payment_method_id,
+    }
+    
+    return render(request, 'revenue/collection_report.html', context)
+
+
+@login_required
+def collection_report_export(request):
+    """Export collection report to Excel"""
+    # Get date filters
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    if not date_from or not date_to:
+        today = timezone.now().date()
+        date_from = today.replace(day=1).strftime('%Y-%m-%d')
+        date_to = today.strftime('%Y-%m-%d')
+    
+    start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+    end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+    
+    # Get payments
+    payments = Payment.objects.filter(
+        payment_date__gte=start_date,
+        payment_date__lte=end_date,
+        status='completed'
+    ).select_related('revenue_stream', 'sub_county', 'payment_method', 'citizen')
+    
+    # Apply filters
+    stream_id = request.GET.get('revenue_stream')
+    if stream_id:
+        payments = payments.filter(revenue_stream_id=stream_id)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    
+    # Summary sheet
+    ws_summary = wb.active
+    ws_summary.title = "Summary"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    title_font = Font(bold=True, size=14)
+    
+    # Title
+    ws_summary['A1'] = 'REVENUE COLLECTION REPORT'
+    ws_summary['A1'].font = title_font
+    ws_summary['A2'] = f'Period: {date_from} to {date_to}'
+    
+    # Overall stats
+    ws_summary['A4'] = 'Overall Statistics'
+    ws_summary['A4'].font = Font(bold=True, size=12)
+    
+    overall = payments.aggregate(
+        total=Sum('amount'),
+        count=Count('id'),
+        avg=Avg('amount')
+    )
+    
+    ws_summary['A5'] = 'Total Collections:'
+    ws_summary['B5'] = float(overall['total'] or 0)
+    ws_summary['A6'] = 'Total Transactions:'
+    ws_summary['B6'] = overall['count'] or 0
+    ws_summary['A7'] = 'Average Transaction:'
+    ws_summary['B7'] = float(overall['avg'] or 0)
+    
+    # Detailed transactions sheet
+    ws_detail = wb.create_sheet("Transactions")
+    
+    headers = ['Receipt No.', 'Date', 'Citizen', 'Revenue Stream', 'Amount', 
+               'Payment Method', 'Sub-County', 'Status']
+    ws_detail.append(headers)
+    
+    # Style headers
+    for cell in ws_detail[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Data rows
+    for payment in payments:
+        ws_detail.append([
+            payment.receipt_number,
+            payment.payment_date.strftime('%Y-%m-%d %H:%M'),
+            str(payment.citizen),
+            f"{payment.revenue_stream.code} - {payment.revenue_stream.name}",
+            float(payment.amount),
+            payment.payment_method.name,
+            payment.sub_county.name if payment.sub_county else 'N/A',
+            payment.status
+        ])
+    
+    # Adjust column widths
+    for ws in [ws_summary, ws_detail]:
+        for idx, col in enumerate(ws.columns, 1):
+            ws.column_dimensions[get_column_letter(idx)].width = 20
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=collection_report_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    wb.save(response)
+    
+    return response

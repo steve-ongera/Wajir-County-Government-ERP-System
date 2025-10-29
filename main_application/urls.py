@@ -37,4 +37,16 @@ urlpatterns = [
     path('analytics/', views.analytics_dashboard, name='analytics_dashboard'),
     path('analytics/export/', views.export_analytics_data, name='export_analytics'),
     path('api/wards/', views.get_wards_api, name='api_wards'),
+
+    # REVENUE STREAMS
+
+    path('streams/', views.revenue_stream_list, name='stream_list'),
+    path('streams/<int:stream_id>/', views.revenue_stream_detail, name='revenue_stream_detail'),
+    path('streams/export/', views.revenue_stream_export, name='revenue_stream_export'),
+    path('charge-rates/', views.charge_rate_list, name='charge_rate_list'),
+    path('charge-rates/export/', views.charge_rate_export, name='charge_rate_export'),
+    path('budgets/', views.revenue_budget_list, name='budget_list'),
+    path('budgets/export/', views.revenue_budget_export, name='budget_export'),
+    path('collections/report/', views.collection_report, name='collection_report'),
+    path('collections/report/export/', views.collection_report_export, name='collection_report_export'),
 ]
