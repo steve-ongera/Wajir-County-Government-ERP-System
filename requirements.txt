@@ -25,4 +25,5 @@ africastalking==1.2.6
 
 # OR for Twilio SMS
 twilio==8.10.0
+XlsxWriter
 

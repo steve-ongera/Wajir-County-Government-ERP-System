@@ -31,7 +31,10 @@ urlpatterns = [
     path('citizens/<str:unique_identifier>/update/', views.citizen_update, name='citizen_update'),
     path('citizens/<str:unique_identifier>/delete/', views.citizen_delete, name='citizen_delete'),
     path('citizens/export/excel/', views.citizen_export_excel, name='citizen_export_excel'),
-    
-    # AJAX endpoints
     path('api/wards-by-subcounty/', views.get_wards_by_subcounty, name='get_wards_by_subcounty'),
+
+    # Analytics Dashboard
+    path('analytics/', views.analytics_dashboard, name='analytics_dashboard'),
+    path('analytics/export/', views.export_analytics_data, name='export_analytics'),
+    path('api/wards/', views.get_wards_api, name='api_wards'),
 ]

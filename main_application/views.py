@@ -1793,3 +1793,717 @@ def get_wards_by_subcounty(request):
     ).values('id', 'name').order_by('name')
     
     return JsonResponse({'wards': list(wards)})
+
+
+"""
+Wajir County Analytics Dashboard View
+Dynamic analytics with filtering, graphs, and export capabilities
+"""
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum, Count, Avg, Q, F
+from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, TruncYear
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from datetime import timedelta, datetime
+from decimal import Decimal
+import json
+import csv
+from io import BytesIO
+import xlsxwriter
+
+# Import your models
+from .models import (
+    Payment, Bill, Citizen, RevenueStream, License, 
+    Patient, Visit, FleetVehicle, FuelTransaction,
+    SubCounty, Ward, Property, Business, Fine,
+    Attendance, LeaveApplication, Asset, Store,
+    HealthFacility, Department
+)
+
+
+@login_required
+def analytics_dashboard(request):
+    """
+    Main analytics dashboard view with dynamic filtering
+    """
+    # Get filter parameters
+    date_range = request.GET.get('date_range', '30')  # days, or custom
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    sub_county_id = request.GET.get('sub_county')
+    ward_id = request.GET.get('ward')
+    revenue_stream_id = request.GET.get('revenue_stream')
+    department_id = request.GET.get('department')
+    
+    # Calculate date range
+    today = timezone.now().date()
+    
+    if start_date and end_date:
+        # Custom date range
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+    else:
+        # Predefined ranges
+        if date_range == '7':
+            start = today - timedelta(days=7)
+        elif date_range == '30':
+            start = today - timedelta(days=30)
+        elif date_range == '90':
+            start = today - timedelta(days=90)
+        elif date_range == '180':
+            start = today - timedelta(days=180)
+        elif date_range == '365':
+            start = today - timedelta(days=365)
+        elif date_range == 'ytd':
+            start = datetime(today.year, 1, 1).date()
+        elif date_range == 'month':
+            start = datetime(today.year, today.month, 1).date()
+        else:
+            start = today - timedelta(days=30)
+        end = today
+    
+    # Build base querysets with filters
+    payments_qs = Payment.objects.filter(
+        payment_date__date__gte=start,
+        payment_date__date__lte=end,
+        status='completed'
+    )
+    
+    bills_qs = Bill.objects.filter(
+        bill_date__gte=start,
+        bill_date__lte=end
+    )
+    
+    # Apply location filters
+    if sub_county_id:
+        payments_qs = payments_qs.filter(sub_county_id=sub_county_id)
+        bills_qs = bills_qs.filter(sub_county_id=sub_county_id)
+    
+    if ward_id:
+        payments_qs = payments_qs.filter(ward_id=ward_id)
+        bills_qs = bills_qs.filter(ward_id=ward_id)
+    
+    if revenue_stream_id:
+        payments_qs = payments_qs.filter(revenue_stream_id=revenue_stream_id)
+        bills_qs = bills_qs.filter(revenue_stream_id=revenue_stream_id)
+    
+    # =====================================================================
+    # REVENUE ANALYTICS
+    # =====================================================================
+    
+    # Total revenue collected
+    total_revenue = payments_qs.aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0.00')
+    
+    # Total billed amount
+    total_billed = bills_qs.aggregate(
+        total=Sum('total_amount')
+    )['total'] or Decimal('0.00')
+    
+    # Outstanding amount
+    outstanding = bills_qs.filter(
+        status__in=['issued', 'partially_paid', 'overdue']
+    ).aggregate(
+        total=Sum('balance')
+    )['total'] or Decimal('0.00')
+    
+    # Collection rate
+    collection_rate = (total_revenue / total_billed * 100) if total_billed > 0 else 0
+    
+    # Revenue growth (compare with previous period)
+    period_days = (end - start).days
+    prev_start = start - timedelta(days=period_days)
+    prev_end = start - timedelta(days=1)
+    
+    prev_revenue = Payment.objects.filter(
+        payment_date__date__gte=prev_start,
+        payment_date__date__lte=prev_end,
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    revenue_growth = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
+    
+    # =====================================================================
+    # REVENUE TREND CHARTS
+    # =====================================================================
+    
+    # Determine grouping based on date range
+    days_diff = (end - start).days
+    
+    if days_diff <= 31:
+        # Daily grouping
+        trunc_func = TruncDay
+        date_format = '%b %d'
+    elif days_diff <= 90:
+        # Weekly grouping
+        trunc_func = TruncWeek
+        date_format = 'Week %W'
+    elif days_diff <= 365:
+        # Monthly grouping
+        trunc_func = TruncMonth
+        date_format = '%b %Y'
+    else:
+        # Yearly grouping
+        trunc_func = TruncYear
+        date_format = '%Y'
+    
+    # Revenue trend over time
+    revenue_trend = payments_qs.annotate(
+        period=trunc_func('payment_date')
+    ).values('period').annotate(
+        revenue=Sum('amount'),
+        count=Count('id')
+    ).order_by('period')
+    
+    revenue_trend_data = {
+        'labels': [item['period'].strftime(date_format) for item in revenue_trend],
+        'data': [float(item['revenue']) for item in revenue_trend],
+        'counts': [item['count'] for item in revenue_trend]
+    }
+    
+    # Revenue by stream
+    revenue_by_stream = payments_qs.values(
+        'revenue_stream__name'
+    ).annotate(
+        revenue=Sum('amount')
+    ).order_by('-revenue')[:10]
+    
+    revenue_stream_data = {
+        'labels': [item['revenue_stream__name'] for item in revenue_by_stream],
+        'data': [float(item['revenue']) for item in revenue_by_stream],
+        'colors': ['#139145', '#C18B5A', '#CD4F27', '#3B82F6', '#8B5CF6', 
+                   '#06B6D4', '#F59E0B', '#EF4444', '#10B981', '#6366F1']
+    }
+    
+    # Revenue by sub-county
+    revenue_by_subcounty = payments_qs.values(
+        'sub_county__name'
+    ).annotate(
+        revenue=Sum('amount')
+    ).order_by('-revenue')[:10]
+    
+    subcounty_revenue_data = {
+        'labels': [item['sub_county__name'] or 'Unknown' for item in revenue_by_subcounty],
+        'data': [float(item['revenue']) for item in revenue_by_subcounty]
+    }
+    
+    # Revenue by payment method
+    revenue_by_method = payments_qs.values(
+        'payment_method__name'
+    ).annotate(
+        revenue=Sum('amount'),
+        count=Count('id')
+    ).order_by('-revenue')
+    
+    payment_method_data = {
+        'labels': [item['payment_method__name'] for item in revenue_by_method],
+        'data': [float(item['revenue']) for item in revenue_by_method],
+        'counts': [item['count'] for item in revenue_by_method],
+        'colors': ['#139145', '#C18B5A', '#CD4F27', '#3B82F6', '#8B5CF6']
+    }
+    
+    # =====================================================================
+    # BILLS ANALYTICS
+    # =====================================================================
+    
+    bills_by_status = bills_qs.values('status').annotate(
+        count=Count('id'),
+        amount=Sum('total_amount')
+    ).order_by('-count')
+    
+    bills_status_data = {
+        'labels': [item['status'].replace('_', ' ').title() for item in bills_by_status],
+        'data': [item['count'] for item in bills_by_status],
+        'amounts': [float(item['amount']) for item in bills_by_status],
+        'colors': ['#139145', '#C18B5A', '#CD4F27', '#3B82F6', '#8B5CF6', '#06B6D4']
+    }
+    
+    # Bill statistics
+    total_bills = bills_qs.count()
+    paid_bills = bills_qs.filter(status='paid').count()
+    overdue_bills = bills_qs.filter(status='overdue').count()
+    pending_bills = bills_qs.filter(status__in=['issued', 'partially_paid']).count()
+    
+    # =====================================================================
+    # CITIZEN ANALYTICS
+    # =====================================================================
+    
+    total_citizens = Citizen.objects.filter(is_active=True).count()
+    new_citizens = Citizen.objects.filter(
+        created_at__date__gte=start,
+        created_at__date__lte=end
+    ).count()
+    
+    citizens_by_type = Citizen.objects.values('entity_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    citizen_type_data = {
+        'labels': [item['entity_type'].title() for item in citizens_by_type],
+        'data': [item['count'] for item in citizens_by_type],
+        'colors': ['#139145', '#C18B5A', '#CD4F27', '#3B82F6']
+    }
+    
+    # =====================================================================
+    # HEALTH SERVICES ANALYTICS
+    # =====================================================================
+    
+    total_patients = Patient.objects.filter(is_active=True).count()
+    
+    visits_in_period = Visit.objects.filter(
+        visit_date__date__gte=start,
+        visit_date__date__lte=end
+    )
+    
+    total_visits = visits_in_period.count()
+    
+    # Visits trend
+    visits_trend = visits_in_period.annotate(
+        period=trunc_func('visit_date')
+    ).values('period').annotate(
+        count=Count('id')
+    ).order_by('period')
+    
+    visits_trend_data = {
+        'labels': [item['period'].strftime(date_format) for item in visits_trend],
+        'data': [item['count'] for item in visits_trend]
+    }
+    
+    # Visits by facility
+    visits_by_facility = visits_in_period.values(
+        'facility__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    facility_visits_data = {
+        'labels': [item['facility__name'] for item in visits_by_facility],
+        'data': [item['count'] for item in visits_by_facility]
+    }
+    
+    # Visits by type
+    visits_by_type = visits_in_period.values('visit_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    visit_type_data = {
+        'labels': [item['visit_type'].title() for item in visits_by_type],
+        'data': [item['count'] for item in visits_by_type],
+        'colors': ['#139145', '#C18B5A', '#CD4F27']
+    }
+    
+    # =====================================================================
+    # LICENSE & BUSINESS ANALYTICS
+    # =====================================================================
+    
+    total_licenses = License.objects.filter(status='active').count()
+    expiring_licenses = License.objects.filter(
+        expiry_date__gte=today,
+        expiry_date__lte=today + timedelta(days=30),
+        status='active'
+    ).count()
+    
+    licenses_issued = License.objects.filter(
+        issue_date__gte=start,
+        issue_date__lte=end
+    ).count()
+    
+    licenses_by_status = License.objects.values('status').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    license_status_data = {
+        'labels': [item['status'].replace('_', ' ').title() for item in licenses_by_status],
+        'data': [item['count'] for item in licenses_by_status],
+        'colors': ['#139145', '#C18B5A', '#CD4F27', '#3B82F6', '#8B5CF6']
+    }
+    
+    # Businesses by category
+    businesses_by_category = Business.objects.filter(
+        is_active=True
+    ).values(
+        'business_category__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    business_category_data = {
+        'labels': [item['business_category__name'] for item in businesses_by_category],
+        'data': [item['count'] for item in businesses_by_category]
+    }
+    
+    # =====================================================================
+    # FLEET & FUEL ANALYTICS
+    # =====================================================================
+    
+    active_vehicles = FleetVehicle.objects.filter(status='active').count()
+    
+    fuel_transactions = FuelTransaction.objects.filter(
+        transaction_date__date__gte=start,
+        transaction_date__date__lte=end
+    )
+    
+    total_fuel_cost = fuel_transactions.aggregate(
+        total=Sum('total_amount')
+    )['total'] or Decimal('0.00')
+    
+    total_fuel_liters = fuel_transactions.aggregate(
+        total=Sum('quantity_liters')
+    )['total'] or Decimal('0.00')
+    
+    # Fuel consumption by vehicle
+    fuel_by_vehicle = fuel_transactions.values(
+        'vehicle__registration_number'
+    ).annotate(
+        cost=Sum('total_amount'),
+        liters=Sum('quantity_liters')
+    ).order_by('-cost')[:10]
+    
+    fuel_vehicle_data = {
+        'labels': [item['vehicle__registration_number'] for item in fuel_by_vehicle],
+        'data': [float(item['cost']) for item in fuel_by_vehicle],
+        'liters': [float(item['liters']) for item in fuel_by_vehicle]
+    }
+    
+    # Fuel trend
+    fuel_trend = fuel_transactions.annotate(
+        period=trunc_func('transaction_date')
+    ).values('period').annotate(
+        cost=Sum('total_amount'),
+        liters=Sum('quantity_liters')
+    ).order_by('period')
+    
+    fuel_trend_data = {
+        'labels': [item['period'].strftime(date_format) for item in fuel_trend],
+        'data': [float(item['cost']) for item in fuel_trend],
+        'liters': [float(item['liters']) for item in fuel_trend]
+    }
+    
+    # =====================================================================
+    # HR ANALYTICS
+    # =====================================================================
+    
+    total_employees = User.objects.filter(is_active=True, is_staff=True).count()
+    
+    # Attendance for the period
+    attendance_records = Attendance.objects.filter(
+        attendance_date__gte=start,
+        attendance_date__lte=end
+    )
+    
+    total_attendance = attendance_records.values('employee').distinct().count()
+    
+    # Leave applications
+    leave_applications = LeaveApplication.objects.filter(
+        start_date__gte=start,
+        start_date__lte=end
+    )
+    
+    leaves_by_status = leave_applications.values('status').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    leave_status_data = {
+        'labels': [item['status'].title() for item in leaves_by_status],
+        'data': [item['count'] for item in leaves_by_status],
+        'colors': ['#139145', '#C18B5A', '#CD4F27', '#3B82F6']
+    }
+    
+    # =====================================================================
+    # PROPERTY & FINES ANALYTICS
+    # =====================================================================
+    
+    total_properties = Property.objects.filter(status='active').count()
+    
+    fines_in_period = Fine.objects.filter(
+        issued_date__gte=start,
+        issued_date__lte=end
+    )
+    
+    total_fines_amount = fines_in_period.aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    fines_collected = fines_in_period.filter(
+        status='paid'
+    ).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    # Fines by category
+    fines_by_category = fines_in_period.values(
+        'category__name'
+    ).annotate(
+        count=Count('id'),
+        amount=Sum('fine_amount')
+    ).order_by('-amount')[:10]
+    
+    fines_category_data = {
+        'labels': [item['category__name'] for item in fines_by_category],
+        'data': [float(item['amount']) for item in fines_by_category],
+        'counts': [item['count'] for item in fines_by_category]
+    }
+    
+    # =====================================================================
+    # PERFORMANCE METRICS
+    # =====================================================================
+    
+    # Revenue per citizen
+    revenue_per_citizen = total_revenue / total_citizens if total_citizens > 0 else 0
+    
+    # Average bill amount
+    avg_bill_amount = bills_qs.aggregate(avg=Avg('total_amount'))['avg'] or Decimal('0.00')
+    
+    # Average payment amount
+    avg_payment_amount = payments_qs.aggregate(avg=Avg('amount'))['avg'] or Decimal('0.00')
+    
+    # Top revenue streams
+    top_revenue_streams = payments_qs.values(
+        'revenue_stream__name',
+        'revenue_stream__code'
+    ).annotate(
+        revenue=Sum('amount'),
+        count=Count('id')
+    ).order_by('-revenue')[:5]
+    
+    # =====================================================================
+    # FILTER OPTIONS FOR DROPDOWNS
+    # =====================================================================
+    
+    sub_counties = SubCounty.objects.filter(is_active=True).order_by('name')
+    wards = Ward.objects.filter(is_active=True).order_by('name')
+    if sub_county_id:
+        wards = wards.filter(sub_county_id=sub_county_id)
+    
+    revenue_streams = RevenueStream.objects.filter(is_active=True).order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    # =====================================================================
+    # CONTEXT DATA
+    # =====================================================================
+    
+    context = {
+        # Filter parameters
+        'date_range': date_range,
+        'start_date': start.isoformat(),
+        'end_date': end.isoformat(),
+        'selected_sub_county': sub_county_id,
+        'selected_ward': ward_id,
+        'selected_revenue_stream': revenue_stream_id,
+        'selected_department': department_id,
+        
+        # Filter options
+        'sub_counties': sub_counties,
+        'wards': wards,
+        'revenue_streams': revenue_streams,
+        'departments': departments,
+        
+        # Summary metrics
+        'total_revenue': total_revenue,
+        'total_billed': total_billed,
+        'outstanding': outstanding,
+        'collection_rate': round(collection_rate, 2),
+        'revenue_growth': round(revenue_growth, 2),
+        'total_bills': total_bills,
+        'paid_bills': paid_bills,
+        'overdue_bills': overdue_bills,
+        'pending_bills': pending_bills,
+        'total_citizens': total_citizens,
+        'new_citizens': new_citizens,
+        'total_licenses': total_licenses,
+        'expiring_licenses': expiring_licenses,
+        'licenses_issued': licenses_issued,
+        'total_patients': total_patients,
+        'total_visits': total_visits,
+        'active_vehicles': active_vehicles,
+        'total_fuel_cost': total_fuel_cost,
+        'total_fuel_liters': total_fuel_liters,
+        'total_employees': total_employees,
+        'total_attendance': total_attendance,
+        'total_properties': total_properties,
+        'total_fines_amount': total_fines_amount,
+        'fines_collected': fines_collected,
+        'revenue_per_citizen': round(revenue_per_citizen, 2),
+        'avg_bill_amount': avg_bill_amount,
+        'avg_payment_amount': avg_payment_amount,
+        
+        # Top performers
+        'top_revenue_streams': top_revenue_streams,
+        
+        # Chart data (JSON serialized)
+        'revenue_trend_data': json.dumps(revenue_trend_data),
+        'revenue_stream_data': json.dumps(revenue_stream_data),
+        'subcounty_revenue_data': json.dumps(subcounty_revenue_data),
+        'payment_method_data': json.dumps(payment_method_data),
+        'bills_status_data': json.dumps(bills_status_data),
+        'citizen_type_data': json.dumps(citizen_type_data),
+        'visits_trend_data': json.dumps(visits_trend_data),
+        'facility_visits_data': json.dumps(facility_visits_data),
+        'visit_type_data': json.dumps(visit_type_data),
+        'license_status_data': json.dumps(license_status_data),
+        'business_category_data': json.dumps(business_category_data),
+        'fuel_vehicle_data': json.dumps(fuel_vehicle_data),
+        'fuel_trend_data': json.dumps(fuel_trend_data),
+        'leave_status_data': json.dumps(leave_status_data),
+        'fines_category_data': json.dumps(fines_category_data),
+    }
+    
+    return render(request, 'admin/analytics/analytics_dashboard.html', context)
+
+
+@login_required
+def export_analytics_data(request):
+    """
+    Export analytics data to CSV or Excel
+    """
+    export_format = request.GET.get('format', 'csv')
+    report_type = request.GET.get('type', 'revenue')
+    
+    # Get same filters as dashboard
+    date_range = request.GET.get('date_range', '30')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    # Calculate dates (same logic as above)
+    today = timezone.now().date()
+    if start_date and end_date:
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+    else:
+        if date_range == '7':
+            start = today - timedelta(days=7)
+        elif date_range == '30':
+            start = today - timedelta(days=30)
+        elif date_range == '90':
+            start = today - timedelta(days=90)
+        else:
+            start = today - timedelta(days=30)
+        end = today
+    
+    if export_format == 'csv':
+        return export_to_csv(report_type, start, end)
+    else:
+        return export_to_excel(report_type, start, end)
+
+
+def export_to_csv(report_type, start_date, end_date):
+    """Export data to CSV"""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="wajir_{report_type}_{start_date}_{end_date}.csv"'
+    
+    writer = csv.writer(response)
+    
+    if report_type == 'revenue':
+        # Revenue report
+        writer.writerow(['Receipt Number', 'Date', 'Payer', 'Revenue Stream', 'Amount', 'Method', 'Status'])
+        
+        payments = Payment.objects.filter(
+            payment_date__date__gte=start_date,
+            payment_date__date__lte=end_date
+        ).select_related('revenue_stream', 'payment_method')
+        
+        for payment in payments:
+            writer.writerow([
+                payment.receipt_number,
+                payment.payment_date.strftime('%Y-%m-%d %H:%M'),
+                payment.payer_name,
+                payment.revenue_stream.name,
+                payment.amount,
+                payment.payment_method.name,
+                payment.get_status_display()
+            ])
+    
+    elif report_type == 'bills':
+        # Bills report
+        writer.writerow(['Bill Number', 'Date', 'Citizen', 'Revenue Stream', 'Amount', 'Paid', 'Balance', 'Status'])
+        
+        bills = Bill.objects.filter(
+            bill_date__gte=start_date,
+            bill_date__lte=end_date
+        ).select_related('citizen', 'revenue_stream')
+        
+        for bill in bills:
+            citizen_name = f"{bill.citizen.first_name} {bill.citizen.last_name}" if bill.citizen.entity_type == 'individual' else bill.citizen.business_name
+            writer.writerow([
+                bill.bill_number,
+                bill.bill_date.strftime('%Y-%m-%d'),
+                citizen_name,
+                bill.revenue_stream.name,
+                bill.total_amount,
+                bill.amount_paid,
+                bill.balance,
+                bill.get_status_display()
+            ])
+    
+    return response
+
+
+def export_to_excel(report_type, start_date, end_date):
+    """Export data to Excel"""
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet(report_type.title())
+    
+    # Formats
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#139145',
+        'font_color': 'white',
+        'border': 1
+    })
+    
+    money_format = workbook.add_format({'num_format': '#,##0.00'})
+    
+    if report_type == 'revenue':
+        # Headers
+        headers = ['Receipt Number', 'Date', 'Payer', 'Revenue Stream', 'Amount', 'Method', 'Status']
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, header_format)
+        
+        # Data
+        payments = Payment.objects.filter(
+            payment_date__date__gte=start_date,
+            payment_date__date__lte=end_date
+        ).select_related('revenue_stream', 'payment_method')
+        
+        for row, payment in enumerate(payments, start=1):
+            worksheet.write(row, 0, payment.receipt_number)
+            worksheet.write(row, 1, payment.payment_date.strftime('%Y-%m-%d %H:%M'))
+            worksheet.write(row, 2, payment.payer_name)
+            worksheet.write(row, 3, payment.revenue_stream.name)
+            worksheet.write(row, 4, float(payment.amount), money_format)
+            worksheet.write(row, 5, payment.payment_method.name)
+            worksheet.write(row, 6, payment.get_status_display())
+    
+    workbook.close()
+    output.seek(0)
+    
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="wajir_{report_type}_{start_date}_{end_date}.xlsx"'
+    
+    return response
+
+# Optional API View for dynamic ward loading
+from django.http import JsonResponse
+from .models import Ward
+
+def get_wards_api(request):
+    """
+    API endpoint to get wards by sub-county
+    """
+    sub_county_id = request.GET.get('sub_county')
+    
+    if sub_county_id:
+        wards = Ward.objects.filter(
+            sub_county_id=sub_county_id,
+            is_active=True
+        ).values('id', 'name').order_by('name')
+        return JsonResponse(list(wards), safe=False)
+    
+    return JsonResponse([], safe=False)

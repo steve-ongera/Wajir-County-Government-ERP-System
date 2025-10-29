@@ -113,7 +113,7 @@
     }
 
     .stat-label {
-        color: #0D6EFD;
+        color: #64748B;
         font-size: 14px;
         font-weight: 500;
     }
@@ -171,7 +171,7 @@
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #0D6EFD;
+        color: #64748B;
         border-bottom: 2px solid #E2E8F0;
         padding: 16px 24px;
         background: #F8FAFC;
@@ -247,7 +247,7 @@
     .alert-box.warning {
         background: rgba(193, 139, 90, 0.1);
         border: 1px solid #C18B5A;
-        color: #0D6EFD;
+        color: #64748B;
     }
 
     .alert-box.info {
@@ -279,7 +279,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Chart.js default configuration with Wajir colors
     Chart.defaults.font.family = "'Inter', sans-serif";
-    Chart.defaults.color = '#0D6EFD';
+    Chart.defaults.color = '#64748B';
     
     const wajirColors = {
         green: '#139145',
@@ -873,7 +873,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="status-badge">{{ payment.get_status_display }}</span>
                         {% endif %}
                     </td>
-                    <td style="color: #0D6EFD; font-size: 13px;">
+                    <td style="color: #64748B; font-size: 13px;">
                         {{ payment.payment_date|date:"M d, Y H:i" }}
                     </td>
                 </tr>
@@ -882,7 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td colspan="7">
                         <div style="text-align: center; padding: 48px 24px;">
                             <i class="bi bi-inbox" style="font-size: 48px; color: #CBD5E1;"></i>
-                            <p style="color: #0D6EFD; font-size: 14px; margin: 16px 0 0 0;">No recent payments</p>
+                            <p style="color: #64748B; font-size: 14px; margin: 16px 0 0 0;">No recent payments</p>
                         </div>
                     </td>
                 </tr>
@@ -959,7 +959,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="status-badge">{{ bill.get_status_display }}</span>
                         {% endif %}
                     </td>
-                    <td style="color: #0D6EFD; font-size: 13px;">
+                    <td style="color: #64748B; font-size: 13px;">
                         {{ bill.due_date|date:"M d, Y" }}
                     </td>
                 </tr>
@@ -968,7 +968,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td colspan="7">
                         <div style="text-align: center; padding: 48px 24px;">
                             <i class="bi bi-inbox" style="font-size: 48px; color: #CBD5E1;"></i>
-                            <p style="color: #0D6EFD; font-size: 14px; margin: 16px 0 0 0;">No recent bills</p>
+                            <p style="color: #64748B; font-size: 14px; margin: 16px 0 0 0;">No recent bills</p>
                         </div>
                     </td>
                 </tr>
@@ -990,25 +990,25 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="padding: 24px;">
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Total Patients</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Total Patients</div>
                     <div style="font-size: 24px; font-weight: 700; color: #000000;">
                         {{ total_patients|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Visits Today</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Visits Today</div>
                     <div style="font-size: 24px; font-weight: 700; color: #139145;">
                         {{ visits_today|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Active Admissions</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Active Admissions</div>
                     <div style="font-size: 24px; font-weight: 700; color: #CD4F27;">
                         {{ active_admissions|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Pending Lab Tests</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Pending Lab Tests</div>
                     <div style="font-size: 24px; font-weight: 700; color: #C18B5A;">
                         {{ pending_lab_tests|intcomma }}
                     </div>
@@ -1027,25 +1027,25 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="padding: 24px;">
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Total Employees</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Total Employees</div>
                     <div style="font-size: 24px; font-weight: 700; color: #000000;">
                         {{ total_employees|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Present Today</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Present Today</div>
                     <div style="font-size: 24px; font-weight: 700; color: #139145;">
                         {{ present_today|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Pending Leaves</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Pending Leaves</div>
                     <div style="font-size: 24px; font-weight: 700; color: #C18B5A;">
                         {{ pending_leaves|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Attendance Rate</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Attendance Rate</div>
                     <div style="font-size: 24px; font-weight: 700; color: #3B82F6;">
                         {% if total_employees > 0 %}
                             {% widthratio present_today total_employees 100 %}%
@@ -1071,25 +1071,25 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="padding: 24px;">
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Active Vehicles</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Active Vehicles</div>
                     <div style="font-size: 24px; font-weight: 700; color: #139145;">
                         {{ total_vehicles_fleet|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Under Maintenance</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Under Maintenance</div>
                     <div style="font-size: 24px; font-weight: 700; color: #CD4F27;">
                         {{ vehicles_maintenance|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Fuel Cost (Month)</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Fuel Cost (Month)</div>
                     <div style="font-size: 24px; font-weight: 700; color: #C18B5A;">
                         {{ fuel_cost_month|floatformat:0|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Total Assets</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Total Assets</div>
                     <div style="font-size: 24px; font-weight: 700; color: #3B82F6;">
                         {{ total_assets|intcomma }}
                     </div>
@@ -1108,25 +1108,25 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="padding: 24px;">
             <div class="stats-grid" style="margin-bottom: 0;">
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Total Properties</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Total Properties</div>
                     <div style="font-size: 24px; font-weight: 700; color: #000000;">
                         {{ total_properties|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Active Licenses</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Active Licenses</div>
                     <div style="font-size: 24px; font-weight: 700; color: #139145;">
                         {{ active_licenses|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Registered Vehicles</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Registered Vehicles</div>
                     <div style="font-size: 24px; font-weight: 700; color: #3B82F6;">
                         {{ total_vehicles|intcomma }}
                     </div>
                 </div>
                 <div>
-                    <div style="color: #0D6EFD; font-size: 13px; margin-bottom: 8px;">Expired Licenses</div>
+                    <div style="color: #64748B; font-size: 13px; margin-bottom: 8px;">Expired Licenses</div>
                     <div style="font-size: 24px; font-weight: 700; color: #CD4F27;">
                         {{ expired_licenses|intcomma }}
                     </div>
