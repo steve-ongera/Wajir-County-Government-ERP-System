@@ -1,0 +1,141 @@
+<!-- ============================================ -->
+<!-- trip_list.html -->
+<!-- ============================================ -->
+{% extends 'admin_base.html' %}
+{% load humanize %}
+
+{% block title %}Work Tickets - Fleet Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb { padding: 0; margin-bottom: 20px; font-size: 14px; list-style: none; display: flex; }
+    .breadcrumb-item { color: #64748B; }
+    .breadcrumb-item + .breadcrumb-item::before { content: "/ "; padding: 0 8px; }
+    .breadcrumb a { color: #3498db; text-decoration: none; }
+    .section-container { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 24px; border: 1px solid #E2E8F0; }
+    .page-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .page-title { font-size: 22px; font-weight: 600; color: #1E293B; display: flex; align-items: center; gap: 10px; }
+    .btn-primary { padding: 10px 20px; background: #3498db; color: white; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; position: relative; overflow: hidden; }
+    .stat-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(180deg, #3498db, #2980b9); }
+    .stat-label { font-size: 13px; font-weight: 600; color: #64748B; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #1E293B; }
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .data-table thead th { background: #F8FAFC; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; border-bottom: 1px solid #E2E8F0; }
+    .data-table tbody td { padding: 16px; border-bottom: 1px solid #F1F5F9; font-size: 14px; color: #334155; }
+    .data-table tbody tr:hover { background-color: #F8FAFC; }
+    .status-badge { display: inline-flex; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+    .status-scheduled { background: #DBEAFE; color: #1E40AF; }
+    .status-in_progress { background: #FEF3C7; color: #92400E; }
+    .status-completed { background: #D1FAE5; color: #065F46; }
+    .status-cancelled { background: #FEE2E2; color: #991B1B; }
+    .btn-action { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 6px; font-size: 14px; text-decoration: none; border: 1px solid; }
+    .btn-outline-warning { border-color: #f39c12; color: #f39c12; }
+    .btn-outline-warning:hover { background: #f39c12; color: white; }
+    .btn-outline-danger { border-color: #e74c3c; color: #e74c3c; }
+    .btn-outline-danger:hover { background: #e74c3c; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a></li>
+            <li class="breadcrumb-item">Fleet Management</li>
+            <li class="breadcrumb-item active">Work Tickets</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title"><i class="bi bi-map"></i> Vehicle Trips & Work Tickets</h1>
+                <p style="color: #64748B; font-size: 14px; margin: 0;">Manage vehicle trip authorizations</p>
+            </div>
+            <a href="{% url 'trip_create' %}" class="btn-primary">
+                <i class="bi bi-plus-circle"></i> Create Work Ticket
+            </a>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Trips</div>
+                <div class="stat-value">{{ stats.total|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Scheduled</div>
+                <div class="stat-value" style="color: #3498db;">{{ stats.scheduled|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">In Progress</div>
+                <div class="stat-value" style="color: #f39c12;">{{ stats.in_progress|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completed</div>
+                <div class="stat-value" style="color: #27ae60;">{{ stats.completed|intcomma }}</div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Work Ticket #</th>
+                        <th>Vehicle</th>
+                        <th>Driver</th>
+                        <th>Destination</th>
+                        <th>Purpose</th>
+                        <th>Scheduled Departure</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in page_obj %}
+                    <tr>
+                        <td><strong>{{ trip.trip_number }}</strong></td>
+                        <td>
+                            <a href="{% url 'vehicle_detail' trip.vehicle.fleet_number %}" style="color: #3498db; text-decoration: none;">
+                                {{ trip.vehicle.fleet_number }}
+                            </a><br>
+                            <small style="color: #64748B;">{{ trip.vehicle.registration_number }}</small>
+                        </td>
+                        <td>{{ trip.driver.get_full_name }}</td>
+                        <td>{{ trip.destination }}</td>
+                        <td>{{ trip.purpose|truncatewords:8 }}</td>
+                        <td>{{ trip.scheduled_departure|date:"M d, Y H:i" }}</td>
+                        <td><span class="status-badge status-{{ trip.status }}">{{ trip.get_status_display }}</span></td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <a href="{% url 'trip_update' trip.trip_number %}" class="btn-action btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="post" action="{% url 'trip_delete' trip.trip_number %}" style="display: inline;" 
+                                      onsubmit="return confirm('Delete this work ticket?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-action btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748B;">
+                            <i class="bi bi-inbox" style="font-size: 48px; display: block; margin-bottom: 16px;"></i>
+                            No work tickets found. <a href="{% url 'trip_create' %}" style="color: #3498db; text-decoration: none;">Create a new work ticket</a>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 16px;">
+            {% include 'pagination.html' with page_obj=page_obj %}
+        </div>
+    </div>
+</div>
+{% endblock %}

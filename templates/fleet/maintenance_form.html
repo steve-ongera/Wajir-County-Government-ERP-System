@@ -1,0 +1,131 @@
+<!-- ============================================ -->
+<!-- maintenance_form.html -->
+<!-- ============================================ -->
+{% extends 'admin_base.html' %}
+
+{% block title %}{% if maintenance %}Edit{% else %}Schedule{% endif %} Maintenance - Fleet Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb { padding: 0; margin-bottom: 20px; font-size: 14px; list-style: none; display: flex; }
+    .breadcrumb-item { color: #64748B; }
+    .breadcrumb-item + .breadcrumb-item::before { content: "/ "; padding: 0 8px; }
+    .breadcrumb a { color: #3498db; text-decoration: none; }
+    .section-container { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border: 1px solid #E2E8F0; }
+    .page-title { font-size: 22px; font-weight: 600; color: #1E293B; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px; }
+    .required { color: #e74c3c; }
+    .form-control, .form-select { width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 14px; }
+    .form-control:focus, .form-select:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+    .full-width { grid-column: 1 / -1; }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 24px; border-top: 1px solid #F1F5F9; }
+    .btn { padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; border: none; }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-secondary { background: white; color: #64748B; border: 1px solid #E2E8F0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'maintenance_list' %}">Maintenance</a></li>
+            <li class="breadcrumb-item active">{% if maintenance %}Edit{% else %}Schedule{% endif %}</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <h1 class="page-title">
+            <i class="bi bi-tools"></i>
+            {% if maintenance %}Edit Maintenance - {{ maintenance.maintenance_number }}{% else %}Schedule Maintenance{% endif %}
+        </h1>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="vehicle">Vehicle <span class="required">*</span></label>
+                    <select class="form-select" id="vehicle" name="vehicle" required>
+                        <option value="">Select Vehicle</option>
+                        {% for v in vehicles %}
+                        <option value="{{ v.id }}" {% if maintenance.vehicle.id == v.id %}selected{% endif %}>
+                            {{ v.fleet_number }} - {{ v.registration_number }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="maintenance_type">Maintenance Type <span class="required">*</span></label>
+                    <select class="form-select" id="maintenance_type" name="maintenance_type" required>
+                        <option value="">Select Type</option>
+                        <option value="routine" {% if maintenance.maintenance_type == 'routine' %}selected{% endif %}>Routine Service</option>
+                        <option value="repair" {% if maintenance.maintenance_type == 'repair' %}selected{% endif %}>Repair</option>
+                        <option value="inspection" {% if maintenance.maintenance_type == 'inspection' %}selected{% endif %}>Inspection</option>
+                        <option value="emergency" {% if maintenance.maintenance_type == 'emergency' %}selected{% endif %}>Emergency</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="scheduled_date">Scheduled Date <span class="required">*</span></label>
+                    <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" 
+                           value="{{ maintenance.scheduled_date|date:'Y-m-d' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="service_provider">Service Provider <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="service_provider" name="service_provider" 
+                           value="{{ maintenance.service_provider|default:'' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="cost">Estimated Cost (KES) <span class="required">*</span></label>
+                    <input type="number" class="form-control" id="cost" name="cost" 
+                           value="{{ maintenance.cost|default:'' }}" required min="0" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label for="mileage">Current Mileage (km) <span class="required">*</span></label>
+                    <input type="number" class="form-control" id="mileage" name="mileage" 
+                           value="{{ maintenance.mileage|default:'' }}" required min="0">
+                </div>
+
+                {% if maintenance %}
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="scheduled" {% if maintenance.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                        <option value="in_progress" {% if maintenance.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                        <option value="completed" {% if maintenance.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="cancelled" {% if maintenance.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="completed_date">Completed Date</label>
+                    <input type="date" class="form-control" id="completed_date" name="completed_date" 
+                           value="{{ maintenance.completed_date|date:'Y-m-d' }}">
+                </div>
+                {% endif %}
+
+                <div class="form-group full-width">
+                    <label for="description">Description <span class="required">*</span></label>
+                    <textarea class="form-control" id="description" name="description" rows="4" required>{{ maintenance.description|default:'' }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'maintenance_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> {% if maintenance %}Update{% else %}Schedule{% endif %} Maintenance
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
