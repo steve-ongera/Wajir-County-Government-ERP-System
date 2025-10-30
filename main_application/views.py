@@ -4932,3 +4932,888 @@ def reconciliation_create(request):
     }
     
     return render(request, 'payments/reconciliation_create.html', context)
+
+
+"""
+Fleet Management Views - Wajir County ERP
+Handles vehicles, fuel, maintenance, and trips management
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Sum, Count, Avg
+from django.http import HttpResponse
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+from .models import (
+    FleetVehicle, FuelStation, FuelCard, FuelTransaction,
+    VehicleMaintenance, VehicleTrip, Department, SubCounty, User
+)
+
+
+# ============================================================================
+# VEHICLES MANAGEMENT
+# ============================================================================
+
+@login_required
+def vehicle_list(request):
+    """List all fleet vehicles with filtering and search"""
+    vehicles = FleetVehicle.objects.select_related(
+        'department', 'current_driver'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        vehicles = vehicles.filter(
+            Q(fleet_number__icontains=search_query) |
+            Q(registration_number__icontains=search_query) |
+            Q(make__icontains=search_query) |
+            Q(model__icontains=search_query)
+        )
+    
+    # Filters
+    vehicle_type = request.GET.get('vehicle_type', '')
+    department_id = request.GET.get('department', '')
+    status = request.GET.get('status', '')
+    fuel_type = request.GET.get('fuel_type', '')
+    
+    if vehicle_type:
+        vehicles = vehicles.filter(vehicle_type=vehicle_type)
+    if department_id:
+        vehicles = vehicles.filter(department_id=department_id)
+    if status:
+        vehicles = vehicles.filter(status=status)
+    if fuel_type:
+        vehicles = vehicles.filter(fuel_type=fuel_type)
+    
+    # Statistics
+    stats = {
+        'total': FleetVehicle.objects.count(),
+        'active': FleetVehicle.objects.filter(status='active').count(),
+        'maintenance': FleetVehicle.objects.filter(status='maintenance').count(),
+        'inactive': FleetVehicle.objects.filter(status='inactive').count(),
+        'cars': FleetVehicle.objects.filter(vehicle_type='car').count(),
+        'trucks': FleetVehicle.objects.filter(vehicle_type='truck').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(vehicles, 25)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+    
+    # Get departments for filter
+    departments = Department.objects.filter(is_active=True)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'departments': departments,
+        'current_vehicle_type': vehicle_type,
+        'current_department': department_id,
+        'current_status': status,
+        'current_fuel_type': fuel_type,
+    }
+    
+    return render(request, 'fleet/vehicle_list.html', context)
+
+
+@login_required
+def vehicle_detail(request, fleet_number):
+    """View vehicle details"""
+    vehicle = get_object_or_404(FleetVehicle, fleet_number=fleet_number)
+    
+    # Get related data
+    fuel_transactions = FuelTransaction.objects.filter(
+        vehicle=vehicle
+    ).select_related('fuel_station', 'driver').order_by('-transaction_date')[:10]
+    
+    maintenance_records = VehicleMaintenance.objects.filter(
+        vehicle=vehicle
+    ).select_related('requested_by').order_by('-scheduled_date')[:10]
+    
+    trips = VehicleTrip.objects.filter(
+        vehicle=vehicle
+    ).select_related('driver', 'approved_by').order_by('-scheduled_departure')[:10]
+    
+    # Calculate statistics
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    
+    fuel_stats = FuelTransaction.objects.filter(
+        vehicle=vehicle,
+        transaction_date__gte=thirty_days_ago
+    ).aggregate(
+        total_fuel=Sum('quantity_liters'),
+        total_cost=Sum('total_amount'),
+        avg_price=Avg('unit_price')
+    )
+    
+    maintenance_stats = VehicleMaintenance.objects.filter(
+        vehicle=vehicle,
+        completed_date__gte=thirty_days_ago
+    ).aggregate(
+        total_cost=Sum('cost'),
+        count=Count('id')
+    )
+    
+    trip_stats = VehicleTrip.objects.filter(
+        vehicle=vehicle,
+        actual_departure__gte=thirty_days_ago
+    ).count()
+    
+    context = {
+        'vehicle': vehicle,
+        'fuel_transactions': fuel_transactions,
+        'maintenance_records': maintenance_records,
+        'trips': trips,
+        'fuel_stats': fuel_stats,
+        'maintenance_stats': maintenance_stats,
+        'trip_stats': trip_stats,
+    }
+    
+    return render(request, 'fleet/vehicle_detail.html', context)
+
+
+@login_required
+def vehicle_create(request):
+    """Create new vehicle"""
+    if request.method == 'POST':
+        try:
+            vehicle = FleetVehicle.objects.create(
+                fleet_number=request.POST.get('fleet_number'),
+                registration_number=request.POST.get('registration_number'),
+                vehicle_type=request.POST.get('vehicle_type'),
+                make=request.POST.get('make'),
+                model=request.POST.get('model'),
+                year=request.POST.get('year'),
+                department_id=request.POST.get('department'),
+                fuel_type=request.POST.get('fuel_type'),
+                engine_capacity=request.POST.get('engine_capacity', ''),
+                purchase_date=request.POST.get('purchase_date'),
+                purchase_cost=request.POST.get('purchase_cost'),
+                insurance_expiry=request.POST.get('insurance_expiry'),
+                inspection_due=request.POST.get('inspection_due'),
+                current_mileage=request.POST.get('current_mileage', 0),
+                has_gps=request.POST.get('has_gps') == 'on',
+                gps_device_id=request.POST.get('gps_device_id', ''),
+            )
+            
+            # Assign driver if provided
+            driver_id = request.POST.get('current_driver')
+            if driver_id:
+                vehicle.current_driver_id = driver_id
+                vehicle.save()
+            
+            messages.success(request, f'Vehicle {vehicle.fleet_number} registered successfully!')
+            return redirect('vehicle_detail', fleet_number=vehicle.fleet_number)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating vehicle: {str(e)}')
+    
+    departments = Department.objects.filter(is_active=True)
+    drivers = User.objects.filter(is_active=True, is_active_staff=True)
+    
+    context = {
+        'departments': departments,
+        'drivers': drivers,
+    }
+    
+    return render(request, 'fleet/vehicle_form.html', context)
+
+
+@login_required
+def vehicle_update(request, fleet_number):
+    """Update vehicle details"""
+    vehicle = get_object_or_404(FleetVehicle, fleet_number=fleet_number)
+    
+    if request.method == 'POST':
+        try:
+            vehicle.registration_number = request.POST.get('registration_number')
+            vehicle.vehicle_type = request.POST.get('vehicle_type')
+            vehicle.make = request.POST.get('make')
+            vehicle.model = request.POST.get('model')
+            vehicle.year = request.POST.get('year')
+            vehicle.department_id = request.POST.get('department')
+            vehicle.fuel_type = request.POST.get('fuel_type')
+            vehicle.engine_capacity = request.POST.get('engine_capacity', '')
+            vehicle.purchase_date = request.POST.get('purchase_date')
+            vehicle.purchase_cost = request.POST.get('purchase_cost')
+            vehicle.insurance_expiry = request.POST.get('insurance_expiry')
+            vehicle.inspection_due = request.POST.get('inspection_due')
+            vehicle.current_mileage = request.POST.get('current_mileage')
+            vehicle.status = request.POST.get('status')
+            vehicle.has_gps = request.POST.get('has_gps') == 'on'
+            vehicle.gps_device_id = request.POST.get('gps_device_id', '')
+            
+            driver_id = request.POST.get('current_driver')
+            vehicle.current_driver_id = driver_id if driver_id else None
+            
+            vehicle.save()
+            
+            messages.success(request, 'Vehicle updated successfully!')
+            return redirect('vehicle_detail', fleet_number=vehicle.fleet_number)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating vehicle: {str(e)}')
+    
+    departments = Department.objects.filter(is_active=True)
+    drivers = User.objects.filter(is_active=True, is_active_staff=True)
+    
+    context = {
+        'vehicle': vehicle,
+        'departments': departments,
+        'drivers': drivers,
+    }
+    
+    return render(request, 'fleet/vehicle_form.html', context)
+
+
+@login_required
+def vehicle_delete(request, fleet_number):
+    """Delete vehicle"""
+    vehicle = get_object_or_404(FleetVehicle, fleet_number=fleet_number)
+    
+    if request.method == 'POST':
+        try:
+            vehicle.delete()
+            messages.success(request, f'Vehicle {fleet_number} deleted successfully!')
+            return redirect('vehicle_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting vehicle: {str(e)}')
+            return redirect('vehicle_detail', fleet_number=fleet_number)
+    
+    return redirect('vehicle_detail', fleet_number=fleet_number)
+
+
+@login_required
+def vehicle_export_excel(request):
+    """Export vehicles to Excel"""
+    # Get filtered vehicles
+    vehicles = FleetVehicle.objects.select_related('department', 'current_driver').all()
+    
+    # Apply filters
+    vehicle_type = request.GET.get('vehicle_type', '')
+    department_id = request.GET.get('department', '')
+    status = request.GET.get('status', '')
+    
+    if vehicle_type:
+        vehicles = vehicles.filter(vehicle_type=vehicle_type)
+    if department_id:
+        vehicles = vehicles.filter(department_id=department_id)
+    if status:
+        vehicles = vehicles.filter(status=status)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Fleet Vehicles'
+    
+    # Styles
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True, size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Fleet Number', 'Registration Number', 'Vehicle Type', 'Make', 'Model',
+        'Year', 'Department', 'Current Driver', 'Fuel Type', 'Status',
+        'Current Mileage', 'Insurance Expiry', 'Inspection Due', 'Purchase Cost'
+    ]
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data
+    for row, vehicle in enumerate(vehicles, 2):
+        data = [
+            vehicle.fleet_number,
+            vehicle.registration_number,
+            vehicle.get_vehicle_type_display(),
+            vehicle.make,
+            vehicle.model,
+            vehicle.year,
+            vehicle.department.name if vehicle.department else '',
+            vehicle.current_driver.get_full_name() if vehicle.current_driver else '',
+            vehicle.fuel_type,
+            vehicle.get_status_display(),
+            vehicle.current_mileage,
+            vehicle.insurance_expiry.strftime('%Y-%m-%d') if vehicle.insurance_expiry else '',
+            vehicle.inspection_due.strftime('%Y-%m-%d') if vehicle.inspection_due else '',
+            float(vehicle.purchase_cost),
+        ]
+        
+        for col, value in enumerate(data, 1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = border
+            if col == 14:  # Purchase cost
+                cell.number_format = '#,##0.00'
+    
+    # Adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=fleet_vehicles_{timezone.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# FUEL MANAGEMENT
+# ============================================================================
+
+@login_required
+def fuel_transaction_list(request):
+    """List fuel transactions"""
+    transactions = FuelTransaction.objects.select_related(
+        'vehicle', 'fuel_station', 'driver', 'fuel_card'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        transactions = transactions.filter(
+            Q(transaction_number__icontains=search_query) |
+            Q(vehicle__registration_number__icontains=search_query) |
+            Q(vehicle__fleet_number__icontains=search_query)
+        )
+    
+    # Filters
+    vehicle_id = request.GET.get('vehicle', '')
+    fuel_station_id = request.GET.get('fuel_station', '')
+    transaction_type = request.GET.get('transaction_type', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if vehicle_id:
+        transactions = transactions.filter(vehicle_id=vehicle_id)
+    if fuel_station_id:
+        transactions = transactions.filter(fuel_station_id=fuel_station_id)
+    if transaction_type:
+        transactions = transactions.filter(transaction_type=transaction_type)
+    if date_from:
+        transactions = transactions.filter(transaction_date__gte=date_from)
+    if date_to:
+        transactions = transactions.filter(transaction_date__lte=date_to)
+    
+    # Statistics
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    stats = FuelTransaction.objects.filter(
+        transaction_date__gte=thirty_days_ago
+    ).aggregate(
+        total_transactions=Count('id'),
+        total_liters=Sum('quantity_liters'),
+        total_amount=Sum('total_amount'),
+        avg_price=Avg('unit_price')
+    )
+    
+    # Pagination
+    paginator = Paginator(transactions, 25)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+    
+    vehicles = FleetVehicle.objects.filter(status='active')
+    fuel_stations = FuelStation.objects.filter(is_active=True)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'vehicles': vehicles,
+        'fuel_stations': fuel_stations,
+        'current_vehicle': vehicle_id,
+        'current_fuel_station': fuel_station_id,
+        'current_transaction_type': transaction_type,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'fleet/fuel_transaction_list.html', context)
+
+
+@login_required
+def fuel_transaction_create(request):
+    """Create fuel transaction"""
+    if request.method == 'POST':
+        try:
+            # Generate transaction number
+            last_transaction = FuelTransaction.objects.order_by('-id').first()
+            if last_transaction:
+                last_num = int(last_transaction.transaction_number.split('-')[-1])
+                transaction_number = f'FT-{timezone.now().year}-{last_num + 1:06d}'
+            else:
+                transaction_number = f'FT-{timezone.now().year}-000001'
+            
+            quantity = Decimal(request.POST.get('quantity_liters'))
+            unit_price = Decimal(request.POST.get('unit_price'))
+            total_amount = quantity * unit_price
+            
+            transaction = FuelTransaction.objects.create(
+                transaction_number=transaction_number,
+                vehicle_id=request.POST.get('vehicle'),
+                fuel_station_id=request.POST.get('fuel_station'),
+                transaction_type=request.POST.get('transaction_type'),
+                transaction_date=request.POST.get('transaction_date'),
+                quantity_liters=quantity,
+                unit_price=unit_price,
+                total_amount=total_amount,
+                mileage=request.POST.get('mileage'),
+                driver_id=request.POST.get('driver'),
+                receipt_number=request.POST.get('receipt_number', ''),
+                notes=request.POST.get('notes', ''),
+            )
+            
+            # Update vehicle mileage
+            vehicle = transaction.vehicle
+            vehicle.current_mileage = transaction.mileage
+            vehicle.save()
+            
+            messages.success(request, f'Fuel transaction {transaction_number} recorded successfully!')
+            return redirect('fuel_transaction_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating transaction: {str(e)}')
+    
+    vehicles = FleetVehicle.objects.filter(status='active')
+    fuel_stations = FuelStation.objects.filter(is_active=True)
+    drivers = User.objects.filter(is_active=True, is_active_staff=True)
+    
+    context = {
+        'vehicles': vehicles,
+        'fuel_stations': fuel_stations,
+        'drivers': drivers,
+    }
+    
+    return render(request, 'fleet/fuel_transaction_form.html', context)
+
+
+@login_required
+def fuel_export_excel(request):
+    """Export fuel transactions to Excel"""
+    transactions = FuelTransaction.objects.select_related(
+        'vehicle', 'fuel_station', 'driver'
+    ).all()
+    
+    # Apply filters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if date_from:
+        transactions = transactions.filter(transaction_date__gte=date_from)
+    if date_to:
+        transactions = transactions.filter(transaction_date__lte=date_to)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Fuel Transactions'
+    
+    # Styles
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True, size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Transaction Number', 'Date', 'Vehicle', 'Registration', 'Fuel Station',
+        'Type', 'Quantity (L)', 'Unit Price', 'Total Amount', 'Mileage',
+        'Driver', 'Receipt Number'
+    ]
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data
+    for row, trans in enumerate(transactions, 2):
+        data = [
+            trans.transaction_number,
+            trans.transaction_date.strftime('%Y-%m-%d %H:%M'),
+            trans.vehicle.fleet_number,
+            trans.vehicle.registration_number,
+            trans.fuel_station.name,
+            trans.get_transaction_type_display(),
+            float(trans.quantity_liters),
+            float(trans.unit_price),
+            float(trans.total_amount),
+            trans.mileage,
+            trans.driver.get_full_name() if trans.driver else '',
+            trans.receipt_number,
+        ]
+        
+        for col, value in enumerate(data, 1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = border
+            if col in [7, 8, 9]:  # Numeric columns
+                cell.number_format = '#,##0.00'
+    
+    # Adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=fuel_transactions_{timezone.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# MAINTENANCE MANAGEMENT
+# ============================================================================
+
+@login_required
+def maintenance_list(request):
+    """List maintenance records"""
+    maintenance = VehicleMaintenance.objects.select_related(
+        'vehicle', 'requested_by'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        maintenance = maintenance.filter(
+            Q(maintenance_number__icontains=search_query) |
+            Q(vehicle__registration_number__icontains=search_query) |
+            Q(vehicle__fleet_number__icontains=search_query)
+        )
+    
+    # Filters
+    vehicle_id = request.GET.get('vehicle', '')
+    maintenance_type = request.GET.get('maintenance_type', '')
+    status = request.GET.get('status', '')
+    
+    if vehicle_id:
+        maintenance = maintenance.filter(vehicle_id=vehicle_id)
+    if maintenance_type:
+        maintenance = maintenance.filter(maintenance_type=maintenance_type)
+    if status:
+        maintenance = maintenance.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total': VehicleMaintenance.objects.count(),
+        'scheduled': VehicleMaintenance.objects.filter(status='scheduled').count(),
+        'in_progress': VehicleMaintenance.objects.filter(status='in_progress').count(),
+        'completed': VehicleMaintenance.objects.filter(status='completed').count(),
+        'total_cost': VehicleMaintenance.objects.filter(
+            status='completed'
+        ).aggregate(Sum('cost'))['cost__sum'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(maintenance, 25)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+    
+    vehicles = FleetVehicle.objects.all()
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'vehicles': vehicles,
+        'current_vehicle': vehicle_id,
+        'current_maintenance_type': maintenance_type,
+        'current_status': status,
+    }
+    
+    return render(request, 'fleet/maintenance_list.html', context)
+
+
+@login_required
+def maintenance_create(request):
+    """Create maintenance record"""
+    if request.method == 'POST':
+        try:
+            # Generate maintenance number
+            last_maintenance = VehicleMaintenance.objects.order_by('-id').first()
+            if last_maintenance:
+                last_num = int(last_maintenance.maintenance_number.split('-')[-1])
+                maintenance_number = f'MT-{timezone.now().year}-{last_num + 1:06d}'
+            else:
+                maintenance_number = f'MT-{timezone.now().year}-000001'
+            
+            maintenance = VehicleMaintenance.objects.create(
+                maintenance_number=maintenance_number,
+                vehicle_id=request.POST.get('vehicle'),
+                maintenance_type=request.POST.get('maintenance_type'),
+                description=request.POST.get('description'),
+                scheduled_date=request.POST.get('scheduled_date'),
+                service_provider=request.POST.get('service_provider'),
+                cost=request.POST.get('cost'),
+                mileage=request.POST.get('mileage'),
+                requested_by=request.user,
+            )
+            
+            messages.success(request, f'Maintenance {maintenance_number} scheduled successfully!')
+            return redirect('maintenance_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating maintenance record: {str(e)}')
+    
+    vehicles = FleetVehicle.objects.all()
+    
+    context = {
+        'vehicles': vehicles,
+    }
+    
+    return render(request, 'fleet/maintenance_form.html', context)
+
+
+@login_required
+def maintenance_update(request, maintenance_number):
+    """Update maintenance record"""
+    maintenance = get_object_or_404(VehicleMaintenance, maintenance_number=maintenance_number)
+    
+    if request.method == 'POST':
+        try:
+            maintenance.vehicle_id = request.POST.get('vehicle')
+            maintenance.maintenance_type = request.POST.get('maintenance_type')
+            maintenance.description = request.POST.get('description')
+            maintenance.scheduled_date = request.POST.get('scheduled_date')
+            maintenance.service_provider = request.POST.get('service_provider')
+            maintenance.cost = request.POST.get('cost')
+            maintenance.mileage = request.POST.get('mileage')
+            maintenance.status = request.POST.get('status')
+            
+            if request.POST.get('completed_date'):
+                maintenance.completed_date = request.POST.get('completed_date')
+            
+            maintenance.save()
+            
+            messages.success(request, 'Maintenance record updated successfully!')
+            return redirect('maintenance_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating maintenance record: {str(e)}')
+    
+    vehicles = FleetVehicle.objects.all()
+    
+    context = {
+        'maintenance': maintenance,
+        'vehicles': vehicles,
+    }
+    
+    return render(request, 'fleet/maintenance_form.html', context)
+
+
+@login_required
+def maintenance_delete(request, maintenance_number):
+    """Delete maintenance record"""
+    maintenance = get_object_or_404(VehicleMaintenance, maintenance_number=maintenance_number)
+    
+    if request.method == 'POST':
+        try:
+            maintenance.delete()
+            messages.success(request, f'Maintenance record {maintenance_number} deleted successfully!')
+            return redirect('maintenance_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting maintenance record: {str(e)}')
+    
+    return redirect('maintenance_list')
+
+
+# ============================================================================
+# TRIPS & WORK TICKETS
+# ============================================================================
+
+@login_required
+def trip_list(request):
+    """List vehicle trips"""
+    trips = VehicleTrip.objects.select_related(
+        'vehicle', 'driver', 'approved_by'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        trips = trips.filter(
+            Q(trip_number__icontains=search_query) |
+            Q(vehicle__registration_number__icontains=search_query) |
+            Q(destination__icontains=search_query)
+        )
+    
+    # Filters
+    vehicle_id = request.GET.get('vehicle', '')
+    status = request.GET.get('status', '')
+    
+    if vehicle_id:
+        trips = trips.filter(vehicle_id=vehicle_id)
+    if status:
+        trips = trips.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total': VehicleTrip.objects.count(),
+        'scheduled': VehicleTrip.objects.filter(status='scheduled').count(),
+        'in_progress': VehicleTrip.objects.filter(status='in_progress').count(),
+        'completed': VehicleTrip.objects.filter(status='completed').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(trips, 25)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+    
+    vehicles = FleetVehicle.objects.filter(status='active')
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'vehicles': vehicles,
+        'current_vehicle': vehicle_id,
+        'current_status': status,
+    }
+    
+    return render(request, 'fleet/trip_list.html', context)
+
+
+@login_required
+def trip_create(request):
+    """Create trip/work ticket"""
+    if request.method == 'POST':
+        try:
+            # Generate trip number
+            last_trip = VehicleTrip.objects.order_by('-id').first()
+            if last_trip:
+                last_num = int(last_trip.trip_number.split('-')[-1])
+                trip_number = f'WT-{timezone.now().year}-{last_num + 1:06d}'
+            else:
+                trip_number = f'WT-{timezone.now().year}-000001'
+            
+            trip = VehicleTrip.objects.create(
+                trip_number=trip_number,
+                vehicle_id=request.POST.get('vehicle'),
+                driver_id=request.POST.get('driver'),
+                purpose=request.POST.get('purpose'),
+                destination=request.POST.get('destination'),
+                scheduled_departure=request.POST.get('scheduled_departure'),
+                scheduled_return=request.POST.get('scheduled_return'),
+                start_mileage=request.POST.get('start_mileage'),
+                notes=request.POST.get('notes', ''),
+            )
+            
+            messages.success(request, f'Work ticket {trip_number} created successfully!')
+            return redirect('trip_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating work ticket: {str(e)}')
+    
+    vehicles = FleetVehicle.objects.filter(status='active')
+    drivers = User.objects.filter(is_active=True, is_active_staff=True)
+    
+    context = {
+        'vehicles': vehicles,
+        'drivers': drivers,
+    }
+    
+    return render(request, 'fleet/trip_form.html', context)
+
+
+@login_required
+def trip_update(request, trip_number):
+    """Update trip/work ticket"""
+    trip = get_object_or_404(VehicleTrip, trip_number=trip_number)
+    
+    if request.method == 'POST':
+        try:
+            trip.vehicle_id = request.POST.get('vehicle')
+            trip.driver_id = request.POST.get('driver')
+            trip.purpose = request.POST.get('purpose')
+            trip.destination = request.POST.get('destination')
+            trip.scheduled_departure = request.POST.get('scheduled_departure')
+            trip.scheduled_return = request.POST.get('scheduled_return')
+            trip.start_mileage = request.POST.get('start_mileage')
+            trip.status = request.POST.get('status')
+            trip.notes = request.POST.get('notes', '')
+            
+            if request.POST.get('actual_departure'):
+                trip.actual_departure = request.POST.get('actual_departure')
+            if request.POST.get('actual_return'):
+                trip.actual_return = request.POST.get('actual_return')
+            if request.POST.get('end_mileage'):
+                trip.end_mileage = request.POST.get('end_mileage')
+            
+            trip.save()
+            
+            # Update vehicle mileage if trip completed
+            if trip.status == 'completed' and trip.end_mileage:
+                vehicle = trip.vehicle
+                vehicle.current_mileage = trip.end_mileage
+                vehicle.save()
+            
+            messages.success(request, 'Work ticket updated successfully!')
+            return redirect('trip_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating work ticket: {str(e)}')
+    
+    vehicles = FleetVehicle.objects.filter(status='active')
+    drivers = User.objects.filter(is_active=True, is_active_staff=True)
+    
+    context = {
+        'trip': trip,
+        'vehicles': vehicles,
+        'drivers': drivers,
+    }
+    
+    return render(request, 'fleet/trip_form.html', context)
+
+
+@login_required
+def trip_delete(request, trip_number):
+    """Delete trip/work ticket"""
+    trip = get_object_or_404(VehicleTrip, trip_number=trip_number)
+    
+    if request.method == 'POST':
+        try:
+            trip.delete()
+            messages.success(request, f'Work ticket {trip_number} deleted successfully!')
+            return redirect('trip_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting work ticket: {str(e)}')
+    
+    return redirect('trip_list')

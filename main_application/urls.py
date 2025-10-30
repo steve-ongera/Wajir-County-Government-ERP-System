@@ -75,4 +75,29 @@ urlpatterns = [
     path('reconciliations/create/', views.reconciliation_create, name='reconciliation_create'),
     path('reversals/', views.reversal_list, name='reversal_list'),
 
+    # Vehicle Management
+    path('fleet/vehicles/', views.vehicle_list, name='vehicle_list'),
+    path('fleet/vehicles/create/', views.vehicle_create, name='vehicle_create'),
+    path('fleet/vehicles/<str:fleet_number>/', views.vehicle_detail, name='vehicle_detail'),
+    path('fleet/vehicles/<str:fleet_number>/update/', views.vehicle_update, name='vehicle_update'),
+    path('fleet/vehicles/<str:fleet_number>/delete/', views.vehicle_delete, name='vehicle_delete'),
+    path('fleet/vehicles/export/excel/', views.vehicle_export_excel, name='vehicle_export_excel'),
+    
+    # Fuel Management
+    path('fleet/fuel/', views.fuel_transaction_list, name='fuel_transaction_list'),
+    path('fleet/fuel/create/', views.fuel_transaction_create, name='fuel_transaction_create'),
+    path('fleet/fuel/export/excel/', views.fuel_export_excel, name='fuel_export_excel'),
+    
+    # Maintenance Management
+    path('fleet/maintenance/', views.maintenance_list, name='maintenance_list'),
+    path('fleet/maintenance/create/', views.maintenance_create, name='maintenance_create'),
+    path('fleet/maintenance/<str:maintenance_number>/update/', views.maintenance_update, name='maintenance_update'),
+    path('fleet/maintenance/<str:maintenance_number>/delete/', views.maintenance_delete, name='maintenance_delete'),
+    
+    # Trips & Work Tickets
+    path('fleet/trips/', views.trip_list, name='trip_list'),
+    path('fleet/trips/create/', views.trip_create, name='trip_create'),
+    path('fleet/trips/<str:trip_number>/update/', views.trip_update, name='trip_update'),
+    path('fleet/trips/<str:trip_number>/delete/', views.trip_delete, name='trip_delete'),
+
 ]
