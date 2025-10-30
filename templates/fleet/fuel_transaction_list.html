@@ -1,0 +1,425 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Fuel Transactions - Fleet Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+    }
+
+    .search-section, .filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 14px 12px 42px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .filter-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .data-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .data-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 5px;
+        list-style: none;
+        padding: 0;
+        margin: 20px 0 0 0;
+    }
+
+    .page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        color: #64748B;
+        text-decoration: none;
+        font-size: 14px;
+        background: white;
+    }
+
+    .page-item.active .page-link {
+        background: #3498db;
+        border-color: #3498db;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">Fleet Management</li>
+            <li class="breadcrumb-item active">Fuel Transactions</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="bi bi-fuel-pump"></i>
+                    Fuel Transactions
+                </h1>
+                <p class="page-subtitle">Track fuel, oil, and lubricant consumption</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'fuel_export_excel' %}?{{ request.GET.urlencode }}" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i> Export to Excel
+                </a>
+                <a href="{% url 'fuel_transaction_create' %}" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i> Record Transaction
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Transactions</div>
+                <div class="stat-value">{{ stats.total_transactions|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Liters (30 Days)</div>
+                <div class="stat-value">{{ stats.total_liters|default:0|floatformat:2 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Amount (30 Days)</div>
+                <div class="stat-value">KES {{ stats.total_amount|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Price/Liter</div>
+                <div class="stat-value">KES {{ stats.avg_price|default:0|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-section">
+            <form method="get" style="display: flex; gap: 12px; align-items: center;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94A3B8;"></i>
+                    <input type="text" name="search" class="search-input" 
+                           placeholder="Search by transaction #, vehicle..." 
+                           value="{{ search_query }}">
+                </div>
+                <button type="submit" class="btn-primary">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </form>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <form method="get">
+                {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
+                <div class="filter-content">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 6px; display: block;">Vehicle</label>
+                        <select class="filter-select" name="vehicle">
+                            <option value="">All Vehicles</option>
+                            {% for v in vehicles %}
+                            <option value="{{ v.id }}" {% if current_vehicle == v.id|stringformat:"s" %}selected{% endif %}>
+                                {{ v.fleet_number }} - {{ v.registration_number }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 6px; display: block;">Fuel Station</label>
+                        <select class="filter-select" name="fuel_station">
+                            <option value="">All Stations</option>
+                            {% for station in fuel_stations %}
+                            <option value="{{ station.id }}" {% if current_fuel_station == station.id|stringformat:"s" %}selected{% endif %}>
+                                {{ station.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 6px; display: block;">Transaction Type</label>
+                        <select class="filter-select" name="transaction_type">
+                            <option value="">All Types</option>
+                            <option value="fuel" {% if current_transaction_type == 'fuel' %}selected{% endif %}>Fuel</option>
+                            <option value="oil" {% if current_transaction_type == 'oil' %}selected{% endif %}>Oil</option>
+                            <option value="lubricant" {% if current_transaction_type == 'lubricant' %}selected{% endif %}>Lubricant</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 6px; display: block;">Date From</label>
+                        <input type="date" class="filter-select" name="date_from" value="{{ date_from }}">
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 6px; display: block;">Date To</label>
+                        <input type="date" class="filter-select" name="date_to" value="{{ date_to }}">
+                    </div>
+                </div>
+                <div style="margin-top: 16px; display: flex; gap: 10px;">
+                    <button type="submit" class="btn-primary">Apply Filters</button>
+                    <a href="{% url 'fuel_transaction_list' %}" style="padding: 10px 20px; background: white; color: #64748B; border: 1px solid #E2E8F0; border-radius: 6px; text-decoration: none;">Clear All</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Transaction #</th>
+                        <th>Date</th>
+                        <th>Vehicle</th>
+                        <th>Station</th>
+                        <th>Type</th>
+                        <th>Quantity (L)</th>
+                        <th>Unit Price</th>
+                        <th>Total Amount</th>
+                        <th>Mileage</th>
+                        <th>Driver</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in page_obj %}
+                    <tr>
+                        <td><strong>{{ transaction.transaction_number }}</strong></td>
+                        <td>{{ transaction.transaction_date|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'vehicle_detail' transaction.vehicle.fleet_number %}" style="color: #3498db; text-decoration: none;">
+                                {{ transaction.vehicle.fleet_number }}
+                            </a>
+                            <br>
+                            <small style="color: #64748B;">{{ transaction.vehicle.registration_number }}</small>
+                        </td>
+                        <td>{{ transaction.fuel_station.name }}</td>
+                        <td>{{ transaction.get_transaction_type_display }}</td>
+                        <td>{{ transaction.quantity_liters|floatformat:2 }}</td>
+                        <td>KES {{ transaction.unit_price|floatformat:2 }}</td>
+                        <td><strong>KES {{ transaction.total_amount|intcomma }}</strong></td>
+                        <td>{{ transaction.mileage|intcomma }} km</td>
+                        <td>{{ transaction.driver.get_full_name|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #64748B;">
+                            <i class="bi bi-inbox" style="font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.5;"></i>
+                            No fuel transactions found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav>
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
