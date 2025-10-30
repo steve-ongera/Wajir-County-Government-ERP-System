@@ -5817,3 +5817,722 @@ def trip_delete(request, trip_number):
             messages.error(request, f'Error deleting work ticket: {str(e)}')
     
     return redirect('trip_list')
+
+
+# facilities/views.py
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Sum, Case, When, IntegerField
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+from datetime import datetime
+
+from .models import (
+    Facility, FacilityUnit, FacilityTenancy, FacilityBooking,
+    FacilityCategory, SubCounty, Ward, Department, Citizen, User, Payment
+)
+
+
+# ============================================================================
+# ALL FACILITIES
+# ============================================================================
+
+@login_required
+def facility_list(request):
+    """List all facilities with search and filters"""
+    facilities = Facility.objects.select_related(
+        'category', 'sub_county', 'ward', 'managed_by'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        facilities = facilities.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(physical_address__icontains=search_query)
+        )
+    
+    # Filters
+    facility_type = request.GET.get('facility_type', '')
+    category = request.GET.get('category', '')
+    sub_county = request.GET.get('sub_county', '')
+    status = request.GET.get('status', '')
+    
+    if facility_type:
+        facilities = facilities.filter(facility_type=facility_type)
+    if category:
+        facilities = facilities.filter(category_id=category)
+    if sub_county:
+        facilities = facilities.filter(sub_county_id=sub_county)
+    if status:
+        is_active = status == 'active'
+        facilities = facilities.filter(is_active=is_active)
+    
+    # Statistics
+    stats = {
+        'total': Facility.objects.count(),
+        'active': Facility.objects.filter(is_active=True).count(),
+        'inactive': Facility.objects.filter(is_active=False).count(),
+        'markets': Facility.objects.filter(facility_type='market').count(),
+        'stadiums': Facility.objects.filter(facility_type='stadium').count(),
+        'housing': Facility.objects.filter(facility_type='housing').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(facilities, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_facility_type': facility_type,
+        'current_category': category,
+        'current_sub_county': sub_county,
+        'current_status': status,
+        'categories': FacilityCategory.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'facilities/facility_list.html', context)
+
+
+@login_required
+def facility_detail(request, code):
+    """View facility details"""
+    facility = get_object_or_404(
+        Facility.objects.select_related(
+            'category', 'sub_county', 'ward', 'managed_by'
+        ),
+        code=code
+    )
+    
+    # Get units statistics
+    units_stats = FacilityUnit.objects.filter(facility=facility).aggregate(
+        total_units=Count('id'),
+        vacant=Count(Case(When(status='vacant', then=1), output_field=IntegerField())),
+        occupied=Count(Case(When(status='occupied', then=1), output_field=IntegerField())),
+        maintenance=Count(Case(When(status='maintenance', then=1), output_field=IntegerField())),
+    )
+    
+    # Get recent bookings
+    recent_bookings = FacilityBooking.objects.filter(
+        facility=facility
+    ).select_related('customer').order_by('-created_at')[:10]
+    
+    # Get active tenancies
+    active_tenancies = FacilityTenancy.objects.filter(
+        unit__facility=facility,
+        status='active'
+    ).select_related('unit', 'tenant').order_by('-start_date')[:10]
+    
+    context = {
+        'facility': facility,
+        'units_stats': units_stats,
+        'recent_bookings': recent_bookings,
+        'active_tenancies': active_tenancies,
+    }
+    
+    return render(request, 'facilities/facility_detail.html', context)
+
+
+@login_required
+def facility_create(request):
+    """Create new facility"""
+    if request.method == 'POST':
+        try:
+            facility = Facility.objects.create(
+                name=request.POST.get('name'),
+                code=request.POST.get('code'),
+                facility_type=request.POST.get('facility_type'),
+                category_id=request.POST.get('category'),
+                sub_county_id=request.POST.get('sub_county'),
+                ward_id=request.POST.get('ward'),
+                physical_address=request.POST.get('physical_address'),
+                description=request.POST.get('description', ''),
+                capacity=request.POST.get('capacity', 0),
+                is_active=request.POST.get('is_active') == 'on',
+                managed_by_id=request.POST.get('managed_by') if request.POST.get('managed_by') else None,
+            )
+            
+            messages.success(request, f'Facility {facility.name} created successfully!')
+            return redirect('facility_detail', code=facility.code)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating facility: {str(e)}')
+    
+    context = {
+        'categories': FacilityCategory.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'wards': Ward.objects.filter(is_active=True),
+        'managers': User.objects.filter(is_active=True),
+        'form_title': 'Add New Facility',
+        'submit_text': 'Create Facility',
+    }
+    
+    return render(request, 'facilities/facility_form.html', context)
+
+
+@login_required
+def facility_update(request, code):
+    """Update facility"""
+    facility = get_object_or_404(Facility, code=code)
+    
+    if request.method == 'POST':
+        try:
+            facility.name = request.POST.get('name')
+            facility.code = request.POST.get('code')
+            facility.facility_type = request.POST.get('facility_type')
+            facility.category_id = request.POST.get('category')
+            facility.sub_county_id = request.POST.get('sub_county')
+            facility.ward_id = request.POST.get('ward')
+            facility.physical_address = request.POST.get('physical_address')
+            facility.description = request.POST.get('description', '')
+            facility.capacity = request.POST.get('capacity', 0)
+            facility.is_active = request.POST.get('is_active') == 'on'
+            
+            if request.POST.get('managed_by'):
+                facility.managed_by_id = request.POST.get('managed_by')
+            else:
+                facility.managed_by = None
+                
+            facility.save()
+            
+            messages.success(request, f'Facility {facility.name} updated successfully!')
+            return redirect('facility_detail', code=facility.code)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating facility: {str(e)}')
+    
+    context = {
+        'facility': facility,
+        'categories': FacilityCategory.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'wards': Ward.objects.filter(is_active=True),
+        'managers': User.objects.filter(is_active=True),
+        'form_title': 'Edit Facility',
+        'submit_text': 'Update Facility',
+    }
+    
+    return render(request, 'facilities/facility_form.html', context)
+
+
+@login_required
+def facility_delete(request, code):
+    """Delete facility"""
+    facility = get_object_or_404(Facility, code=code)
+    
+    try:
+        facility_name = facility.name
+        facility.delete()
+        messages.success(request, f'Facility {facility_name} deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting facility: {str(e)}')
+    
+    return redirect('facility_list')
+
+
+@login_required
+def facility_export_excel(request):
+    """Export facilities to Excel"""
+    facilities = Facility.objects.select_related(
+        'category', 'sub_county', 'ward', 'managed_by'
+    ).all()
+    
+    # Apply same filters as list view
+    search_query = request.GET.get('search', '')
+    if search_query:
+        facilities = facilities.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    facility_type = request.GET.get('facility_type', '')
+    category = request.GET.get('category', '')
+    sub_county = request.GET.get('sub_county', '')
+    status = request.GET.get('status', '')
+    
+    if facility_type:
+        facilities = facilities.filter(facility_type=facility_type)
+    if category:
+        facilities = facilities.filter(category_id=category)
+    if sub_county:
+        facilities = facilities.filter(sub_county_id=sub_county)
+    if status:
+        is_active = status == 'active'
+        facilities = facilities.filter(is_active=is_active)
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Facilities"
+    
+    # Styles
+    header_fill = PatternFill(start_color="3498DB", end_color="3498DB", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Facility Code', 'Name', 'Type', 'Category', 'Sub County', 
+        'Ward', 'Physical Address', 'Capacity', 'Managed By', 'Status'
+    ]
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data
+    for row, facility in enumerate(facilities, 2):
+        ws.cell(row=row, column=1).value = facility.code
+        ws.cell(row=row, column=2).value = facility.name
+        ws.cell(row=row, column=3).value = facility.get_facility_type_display()
+        ws.cell(row=row, column=4).value = facility.category.name
+        ws.cell(row=row, column=5).value = facility.sub_county.name
+        ws.cell(row=row, column=6).value = facility.ward.name
+        ws.cell(row=row, column=7).value = facility.physical_address
+        ws.cell(row=row, column=8).value = facility.capacity
+        ws.cell(row=row, column=9).value = facility.managed_by.get_full_name() if facility.managed_by else '-'
+        ws.cell(row=row, column=10).value = 'Active' if facility.is_active else 'Inactive'
+        
+        for col in range(1, 11):
+            ws.cell(row=row, column=col).border = border
+    
+    # Adjust column widths
+    for col in range(1, 11):
+        ws.column_dimensions[get_column_letter(col)].width = 20
+    
+    # Response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=facilities_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# MARKETS & STALLS
+# ============================================================================
+
+from django.db.models import Count, Q
+
+@login_required
+def market_list(request):
+    """List market facilities"""
+    markets = Facility.objects.filter(
+        facility_type='market'
+    ).select_related('category', 'sub_county', 'ward', 'managed_by')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        markets = markets.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filters
+    sub_county = request.GET.get('sub_county', '')
+    status = request.GET.get('status', '')
+    
+    if sub_county:
+        markets = markets.filter(sub_county_id=sub_county)
+    if status:
+        is_active = status == 'active'
+        markets = markets.filter(is_active=is_active)
+    
+
+    # ✅ Annotate units & occupancy
+    markets = markets.annotate(
+        total_units=Count('units'),
+        occupied_units=Count('units', filter=Q(units__status='occupied')),
+        vacant_units=Count('units', filter=Q(units__status='vacant')),
+    )
+
+    
+    # Statistics
+    stats = {
+        'total_markets': markets.count(),
+        'active': markets.filter(is_active=True).count(),
+        'total_stalls': FacilityUnit.objects.filter(
+            facility__facility_type='market',
+            unit_type='stall'
+        ).count(),
+        'occupied_stalls': FacilityUnit.objects.filter(
+            facility__facility_type='market',
+            unit_type='stall',
+            status='occupied'
+        ).count(),
+        'vacant_stalls': FacilityUnit.objects.filter(
+            facility__facility_type='market',
+            unit_type='stall',
+            status='vacant'
+        ).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(markets, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_sub_county': sub_county,
+        'current_status': status,
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'facilities/market_list.html', context)
+
+@login_required
+def stall_list(request):
+    """List all stalls"""
+    stalls = FacilityUnit.objects.filter(
+        unit_type='stall'
+    ).select_related('facility', 'current_tenant')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        stalls = stalls.filter(
+            Q(unit_number__icontains=search_query) |
+            Q(facility__name__icontains=search_query)
+        )
+    
+    # Filters
+    facility = request.GET.get('facility', '')
+    status = request.GET.get('status', '')
+    
+    if facility:
+        stalls = stalls.filter(facility_id=facility)
+    if status:
+        stalls = stalls.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total': FacilityUnit.objects.filter(unit_type='stall').count(),
+        'vacant': FacilityUnit.objects.filter(unit_type='stall', status='vacant').count(),
+        'occupied': FacilityUnit.objects.filter(unit_type='stall', status='occupied').count(),
+        'maintenance': FacilityUnit.objects.filter(unit_type='stall', status='maintenance').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(stalls, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_facility': facility,
+        'current_status': status,
+        'facilities': Facility.objects.filter(facility_type='market', is_active=True),
+    }
+    
+    return render(request, 'facilities/stall_list.html', context)
+
+
+# ============================================================================
+# HOUSING
+# ============================================================================
+
+@login_required
+def housing_list(request):
+    """List housing facilities"""
+    housing = Facility.objects.filter(
+        facility_type='housing'
+    ).select_related('category', 'sub_county', 'ward', 'managed_by')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        housing = housing.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filters
+    sub_county = request.GET.get('sub_county', '')
+    status = request.GET.get('status', '')
+    
+    if sub_county:
+        housing = housing.filter(sub_county_id=sub_county)
+    if status:
+        is_active = status == 'active'
+        housing = housing.filter(is_active=is_active)
+    
+    # Statistics
+    stats = {
+        'total_estates': housing.count(),
+        'total_houses': FacilityUnit.objects.filter(
+            facility__facility_type='housing',
+            unit_type='house'
+        ).count(),
+        'occupied': FacilityUnit.objects.filter(
+            facility__facility_type='housing',
+            unit_type='house',
+            status='occupied'
+        ).count(),
+        'vacant': FacilityUnit.objects.filter(
+            facility__facility_type='housing',
+            unit_type='house',
+            status='vacant'
+        ).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(housing, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_sub_county': sub_county,
+        'current_status': status,
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'facilities/housing_list.html', context)
+
+
+# ============================================================================
+# BOOKINGS
+# ============================================================================
+
+@login_required
+def booking_list(request):
+    """List facility bookings"""
+    bookings = FacilityBooking.objects.select_related(
+        'facility', 'customer', 'payment', 'approved_by'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        bookings = bookings.filter(
+            Q(booking_number__icontains=search_query) |
+            Q(facility__name__icontains=search_query) |
+            Q(customer__first_name__icontains=search_query) |
+            Q(customer__last_name__icontains=search_query)
+        )
+    
+    # Filters
+    facility = request.GET.get('facility', '')
+    status = request.GET.get('status', '')
+    
+    if facility:
+        bookings = bookings.filter(facility_id=facility)
+    if status:
+        bookings = bookings.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total': FacilityBooking.objects.count(),
+        'pending': FacilityBooking.objects.filter(status='pending').count(),
+        'confirmed': FacilityBooking.objects.filter(status='confirmed').count(),
+        'completed': FacilityBooking.objects.filter(status='completed').count(),
+        'cancelled': FacilityBooking.objects.filter(status='cancelled').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(bookings, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_facility': facility,
+        'current_status': status,
+        'facilities': Facility.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'facilities/booking_list.html', context)
+
+
+@login_required
+def booking_detail(request, booking_number):
+    """View booking details"""
+    booking = get_object_or_404(
+        FacilityBooking.objects.select_related(
+            'facility', 'customer', 'payment', 'approved_by'
+        ),
+        booking_number=booking_number
+    )
+    
+    context = {
+        'booking': booking,
+    }
+    
+    return render(request, 'facilities/booking_detail.html', context)
+
+
+# ============================================================================
+# TENANCIES
+# ============================================================================
+
+@login_required
+def tenancy_list(request):
+    """List facility tenancies"""
+    tenancies = FacilityTenancy.objects.select_related(
+        'unit', 'unit__facility', 'tenant', 'created_by'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        tenancies = tenancies.filter(
+            Q(tenancy_number__icontains=search_query) |
+            Q(tenant__first_name__icontains=search_query) |
+            Q(tenant__last_name__icontains=search_query) |
+            Q(unit__unit_number__icontains=search_query)
+        )
+    
+    # Filters
+    facility = request.GET.get('facility', '')
+    status = request.GET.get('status', '')
+    
+    if facility:
+        tenancies = tenancies.filter(unit__facility_id=facility)
+    if status:
+        tenancies = tenancies.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total': FacilityTenancy.objects.count(),
+        'active': FacilityTenancy.objects.filter(status='active').count(),
+        'expired': FacilityTenancy.objects.filter(status='expired').count(),
+        'terminated': FacilityTenancy.objects.filter(status='terminated').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(tenancies, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_facility': facility,
+        'current_status': status,
+        'facilities': Facility.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'facilities/tenancy_list.html', context)
+
+
+@login_required
+def tenancy_detail(request, tenancy_number):
+    """View tenancy details"""
+    tenancy = get_object_or_404(
+        FacilityTenancy.objects.select_related(
+            'unit', 'unit__facility', 'tenant', 'created_by'
+        ),
+        tenancy_number=tenancy_number
+    )
+    
+    context = {
+        'tenancy': tenancy,
+    }
+    
+    return render(request, 'facilities/tenancy_detail.html', context)
+
+
+@login_required
+def tenancy_export_excel(request):
+    """Export tenancies to Excel"""
+    tenancies = FacilityTenancy.objects.select_related(
+        'unit', 'unit__facility', 'tenant', 'created_by'
+    ).all()
+    
+    # Apply filters
+    facility = request.GET.get('facility', '')
+    status = request.GET.get('status', '')
+    
+    if facility:
+        tenancies = tenancies.filter(unit__facility_id=facility)
+    if status:
+        tenancies = tenancies.filter(status=status)
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tenancies"
+    
+    # Styles
+    header_fill = PatternFill(start_color="3498DB", end_color="3498DB", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Tenancy Number', 'Facility', 'Unit', 'Tenant', 'Phone',
+        'Start Date', 'End Date', 'Rental Amount', 'Payment Frequency', 'Status'
+    ]
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data
+    for row, tenancy in enumerate(tenancies, 2):
+        ws.cell(row=row, column=1).value = tenancy.tenancy_number
+        ws.cell(row=row, column=2).value = tenancy.unit.facility.name
+        ws.cell(row=row, column=3).value = tenancy.unit.unit_number
+        ws.cell(row=row, column=4).value = str(tenancy.tenant)
+        ws.cell(row=row, column=5).value = tenancy.tenant.phone_primary
+        ws.cell(row=row, column=6).value = tenancy.start_date.strftime('%Y-%m-%d')
+        ws.cell(row=row, column=7).value = tenancy.end_date.strftime('%Y-%m-%d') if tenancy.end_date else '-'
+        ws.cell(row=row, column=8).value = float(tenancy.rental_amount)
+        ws.cell(row=row, column=9).value = tenancy.payment_frequency
+        ws.cell(row=row, column=10).value = tenancy.get_status_display()
+        
+        for col in range(1, 11):
+            ws.cell(row=row, column=col).border = border
+    
+    # Adjust column widths
+    for col in range(1, 11):
+        ws.column_dimensions[get_column_letter(col)].width = 18
+    
+    # Response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=tenancies_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    wb.save(response)
+    
+    return response

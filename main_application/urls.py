@@ -100,4 +100,21 @@ urlpatterns = [
     path('fleet/trips/<str:trip_number>/update/', views.trip_update, name='trip_update'),
     path('fleet/trips/<str:trip_number>/delete/', views.trip_delete, name='trip_delete'),
 
+    # All Facilities
+    path('facility/', views.facility_list, name='facility_list'),
+    path('facility/create/', views.facility_create, name='facility_create'),
+    path('facility/<str:code>/', views.facility_detail, name='facility_detail'),
+    path('facility/<str:code>/update/', views.facility_update, name='facility_update'),
+    path('facility/<str:code>/delete/', views.facility_delete, name='facility_delete'),
+    path('facility/export/excel/', views.facility_export_excel, name='facility_export_excel'),
+    path('facility-markets/', views.market_list, name='market_list'),
+    path('facility-stalls/', views.stall_list, name='stall_list'),
+    path('facility-housing/', views.housing_list, name='housing_list'),
+    path('facility-bookings/', views.booking_list, name='booking_list'),
+    path('facility-bookings/<str:booking_number>/', views.booking_detail, name='booking_detail'),
+    path('facility-tenancies/', views.tenancy_list, name='tenancy_list'),
+    path('facility-tenancies/<str:tenancy_number>/', views.tenancy_detail, name='tenancy_detail'),
+    path('facility-tenancies/export/excel/', views.tenancy_export_excel, name='tenancy_export_excel'),
+
+
 ]

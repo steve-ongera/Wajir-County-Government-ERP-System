@@ -792,11 +792,11 @@
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
             <div class="submenu" id="submenu-facilities">
-                <a href="#" class="submenu-item">All Facilities</a>
-                <a href="#" class="submenu-item">Markets & Stalls</a>
-                <a href="#" class="submenu-item">Housing</a>
-                <a href="#" class="submenu-item">Bookings</a>
-                <a href="#" class="submenu-item">Tenancies</a>
+                <a href="{% url 'facility_list'%}" class="submenu-item">All Facilities</a>
+                <a href="{% url 'market_list'%}" class="submenu-item">Markets & Stalls</a>
+                <a href="{% url 'housing_list'%}" class="submenu-item">Housing</a>
+                <a href="{% url 'booking_list'%}" class="submenu-item">Bookings</a>
+                <a href="{% url 'tenancy_list'%}" class="submenu-item">Tenancies</a>
             </div>
 
             <div class="menu-item has-submenu" data-submenu="assets">

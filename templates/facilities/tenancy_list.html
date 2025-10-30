@@ -1,0 +1,209 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+
+{% block title %}Tenancies - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="#">Facilities</a></li>
+            <li class="breadcrumb-item active">Tenancies</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title"><i class="fas fa-file-contract"></i> Facility Tenancies</h1>
+                <p class="page-subtitle">Manage facility rental agreements and tenancies</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'tenancy_export_excel' %}?{{ request.GET.urlencode }}" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i> Export to Excel
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label"><i class="fas fa-file-contract"></i> Total Tenancies</div>
+                <div class="stat-value">{{ stats.total|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fas fa-check-circle"></i> Active</div>
+                <div class="stat-value success">{{ stats.active|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fas fa-clock"></i> Expired</div>
+                <div class="stat-value warning">{{ stats.expired|default:0|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fas fa-ban"></i> Terminated</div>
+                <div class="stat-value danger">{{ stats.terminated|default:0|intcomma }}</div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-section">
+            <form method="get" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" name="search" class="search-input" 
+                           placeholder="Search by tenancy number, tenant name, unit..." 
+                           value="{{ search_query }}">
+                </div>
+                {% if current_facility %}<input type="hidden" name="facility" value="{{ current_facility }}">{% endif %}
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                <button type="submit" class="search-btn"><i class="bi bi-search"></i> Search</button>
+                {% if search_query %}
+                <a href="{% url 'tenancy_list' %}" class="clear-search-btn"><i class="bi bi-x-circle"></i> Clear</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="facilities-table">
+                <thead>
+                    <tr>
+                        <th>Tenancy #</th>
+                        <th>Facility & Unit</th>
+                        <th>Tenant</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Rental Amount</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tenancy in page_obj %}
+                    <tr>
+                        <td><strong>{{ tenancy.tenancy_number }}</strong></td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ tenancy.unit.facility.name }}</strong></div>
+                                <div style="color: #64748B;">Unit: {{ tenancy.unit.unit_number }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ tenancy.tenant }}</strong></div>
+                                <div style="color: #64748B;">{{ tenancy.tenant.phone_primary }}</div>
+                            </div>
+                        </td>
+                        <td>{{ tenancy.start_date|date:"M d, Y" }}</td>
+                        <td>{{ tenancy.end_date|date:"M d, Y"|default:"-" }}</td>
+                        <td><strong>KES {{ tenancy.rental_amount|floatformat:2|intcomma }}</strong></td>
+                        <td>
+                            <span class="status-badge status-{{ tenancy.status }}">
+                                {{ tenancy.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'tenancy_detail' tenancy.tenancy_number %}" 
+                                   class="btn-action btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-icon"><i class="fas fa-file-contract"></i></div>
+                                <h3 class="empty-title">No Tenancies Found</h3>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+            </div>
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    /* Reuse same styles from facility_list.html */
+    .breadcrumb { padding: 0; margin-bottom: 20px; font-size: 14px; list-style: none; display: flex; }
+    .breadcrumb-item { color: #64748B; }
+    .breadcrumb-item + .breadcrumb-item::before { content: "/ "; color: #94A3B8; padding: 0 8px; }
+    .breadcrumb a { color: #3498db; text-decoration: none; }
+    .section-container { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); border: 1px solid #E2E8F0; }
+    .page-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .page-title { font-size: 22px; font-weight: 600; color: #1E293B; display: flex; align-items: center; gap: 10px; }
+    .page-subtitle { color: #64748B; font-size: 14px; margin: 0; }
+    .export-btn { padding: 10px 20px; background: white; color: #64748B; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; position: relative; overflow: hidden; }
+    .stat-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(180deg, #3498db, #2980b9); }
+    .stat-label { font-size: 13px; font-weight: 600; color: #64748B; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #1E293B; }
+    .stat-value.success { color: #27ae60; }
+    .stat-value.warning { color: #f39c12; }
+    .stat-value.danger { color: #e74c3c; }
+    .search-section { background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; display: flex; gap: 12px; }
+    .search-input-wrapper { position: relative; flex: 1; }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94A3B8; pointer-events: none; }
+    .search-input { width: 100%; padding: 12px 14px 12px 42px; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 14px; background: #F8FAFC; }
+    .search-btn { padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .facilities-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .facilities-table thead th { background: #F8FAFC; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; border-bottom: 1px solid #E2E8F0; }
+    .facilities-table tbody td { padding: 16px; border-bottom: 1px solid #F1F5F9; font-size: 14px; color: #334155; }
+    .facilities-table tbody tr:hover { background-color: #F8FAFC; }
+    .status-badge { display: inline-flex; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+    .status-active { background: #D1FAE5; color: #065F46; }
+    .status-expired { background: #FEF3C7; color: #92400E; }
+    .status-terminated { background: #FEE2E2; color: #991B1B; }
+    .action-buttons { display: flex; justify-content: center; gap: 0.2rem; }
+    .btn-action { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; border: 1px solid transparent; font-size: 14px; transition: all 0.2s ease; background-color: transparent; cursor: pointer; text-decoration: none; }
+    .btn-outline-primary { border-color: #3498db; color: #3498db; }
+    .btn-outline-primary:hover { background-color: #3498db; color: #fff; }
+    .pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #F1F5F9; }
+    .pagination { display: flex; gap: 5px; list-style: none; padding: 0; margin: 0; }
+    .page-link { display: flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 12px; border: 1px solid #E2E8F0; border-radius: 6px; color: #64748B; text-decoration: none; font-size: 14px; background: white; }
+    .page-item.active .page-link { background: #3498db; border-color: #3498db; color: white; }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-icon { font-size: 48px; color: #CBD5E1; margin-bottom: 16px; }
+    .empty-title { font-size: 18px; font-weight: 600; color: #64748B; }
+</style>
+{% endblock %}
