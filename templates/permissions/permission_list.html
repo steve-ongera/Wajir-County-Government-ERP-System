@@ -1,0 +1,152 @@
+<!-- ============================================== -->
+<!-- FILE: permission_list.html -->
+<!-- ============================================== -->
+{% extends 'admin_base.html' %}
+{% load humanize %}
+
+{% block title %}Permissions - Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .permissions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .permissions-table thead th {
+        background: #F8FAFC;
+        padding: 12px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .permissions-table tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .permissions-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .module-badge {
+        padding: 4px 10px;
+        background: #EBF5FF;
+        color: #1E40AF;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="section-container">
+        <h1 class="page-title">
+            <i class="fas fa-key"></i>
+            System Permissions
+        </h1>
+
+        <div class="table-responsive">
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Model</th>
+                        <th>Object</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr>
+                        <td>{{ log.timestamp|date:"M d, Y H:i:s" }}</td>
+                        <td>{{ log.user.username|default:"System" }}</td>
+                        <td>
+                            <span class="action-badge action-{{ log.action }}">
+                                {{ log.get_action_display }}
+                            </span>
+                        </td>
+                        <td>{{ log.model_name }}</td>
+                        <td>{{ log.object_repr|truncatewords:5 }}</td>
+                        <td><code>{{ log.ip_address|default:"-" }}</code></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #64748B;">
+                            No audit logs found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div style="display: flex; justify-content: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid #F1F5F9;">
+            <nav>
+                <ul style="display: flex; gap: 5px; list-style: none; padding: 0; margin: 0;">
+                    {% if page_obj.has_previous %}
+                    <li>
+                        <a href="?page={{ page_obj.previous_page_number }}" style="display: flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 12px; border: 1px solid #E2E8F0; border-radius: 6px; color: #64748B; text-decoration: none;">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li>
+                            <span style="display: flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 12px; border: 1px solid #3498db; border-radius: 6px; background: #3498db; color: white;">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li>
+                            <a href="?page={{ num }}" style="display: flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 12px; border: 1px solid #E2E8F0; border-radius: 6px; color: #64748B; text-decoration: none;">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li>
+                        <a href="?page={{ page_obj.next_page_number }}" style="display: flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 12px; border: 1px solid #E2E8F0; border-radius: 6px; color: #64748B; text-decoration: none;">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

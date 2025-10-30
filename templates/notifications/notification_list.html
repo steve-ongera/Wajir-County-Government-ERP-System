@@ -1,0 +1,118 @@
+<!-- ============================================== -->
+<!-- FILE: notification_list.html -->
+<!-- ============================================== -->
+{% extends 'admin_base.html' %}
+{% load humanize %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .notification-item {
+        padding: 16px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        transition: all 0.2s;
+    }
+
+    .notification-item:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .notification-item.unread {
+        background: #EBF5FF;
+        border-left: 4px solid #3498db;
+    }
+
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 8px;
+    }
+
+    .notification-subject {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .notification-time {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .notification-message {
+        color: #64748B;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .btn-primary {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="section-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h1 class="page-title" style="margin: 0;">
+                <i class="fas fa-bell"></i>
+                Notifications
+            </h1>
+            <a href="{% url 'notification_mark_all_read' %}" class="btn-primary">
+                <i class="bi bi-check-all"></i>
+                Mark All Read
+            </a>
+        </div>
+
+        {% for notification in page_obj %}
+            <div class="notification-item {% if not notification.read_at %}unread{% endif %}">
+                <div class="notification-header">
+                    <div class="notification-subject">{{ notification.subject }}</div>
+                    <div class="notification-time">{{ notification.created_at|naturaltime }}</div>
+                </div>
+                <div class="notification-message">{{ notification.message }}</div>
+            </div>
+        {% empty %}
+            <div style="text-align: center; padding: 60px 20px; color: #64748B;">
+                <i class="fas fa-bell" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                <p>No notifications</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -116,5 +116,27 @@ urlpatterns = [
     path('facility-tenancies/<str:tenancy_number>/', views.tenancy_detail, name='tenancy_detail'),
     path('facility-tenancies/export/excel/', views.tenancy_export_excel, name='tenancy_export_excel'),
 
+    # ================= USERS =================
+    path('users/', views.user_list, name='user_list'),
+    path('users/create/', views.user_create, name='user_create'),
+    path('users/<int:pk>/', views.user_detail, name='user_detail'),
+    path('users/<int:pk>/edit/', views.user_update, name='user_update'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
+    path('users/export/excel/', views.user_export_excel, name='user_export_excel'),
+
+    # ================= ROLES =================
+    path('roles/', views.role_list, name='role_list'),
+    path('roles/create/', views.role_create, name='role_create'),
+    path('roles/<int:pk>/', views.role_detail, name='role_detail'),
+    path('roles/<int:pk>/edit/', views.role_update, name='role_update'),
+    path('roles/<int:pk>/delete/', views.role_delete, name='role_delete'),
+    path('permissions/', views.permission_list, name='permission_list'),
+    path('notifications/', views.notification_list, name='notification_list'),
+    path('notifications/<int:pk>/mark-read/', views.notification_mark_read, name='notification_mark_read'),
+    path('notifications/mark-all-read/', views.notification_mark_all_read, name='notification_mark_all_read'),
+    path('audit/', views.audit_trail_list, name='audit_trail_list'),
+    path('audit/export/', views.audit_trail_export, name='audit_trail_export'),
+    path('settings/', views.system_settings, name='system_settings'),
+    path('settings/update/', views.system_settings_update, name='system_settings_update'),
 
 ]

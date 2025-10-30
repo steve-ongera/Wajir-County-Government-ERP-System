@@ -1,0 +1,160 @@
+
+<!-- ============================================== -->
+<!-- ADDITIONAL: system_settings.html (bonus) -->
+<!-- ============================================== -->
+{% extends 'admin_base.html' %}
+{% load humanize %}
+
+{% block title %}System Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .settings-group {
+        margin-bottom: 32px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .settings-group-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F1F5F9;
+        text-transform: capitalize;
+    }
+
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #F8FAFC;
+    }
+
+    .setting-item:last-child {
+        border-bottom: none;
+    }
+
+    .setting-label {
+        flex: 1;
+    }
+
+    .setting-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+
+    .setting-description {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .setting-control {
+        width: 300px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .btn-primary {
+        padding: 12px 24px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="section-container">
+        <h1 class="page-title">
+            <i class="fas fa-cog"></i>
+            System Settings
+        </h1>
+
+        <form method="post" action="{% url 'system_settings_update' %}">
+            {% csrf_token %}
+            
+            {% for category, settings in grouped_settings.items %}
+            <div class="settings-group">
+                <h3 class="settings-group-title">{{ category }}</h3>
+                
+                {% for setting in settings %}
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <div class="setting-name">{{ setting.key|title }}</div>
+                        <div class="setting-description">{{ setting.description }}</div>
+                    </div>
+                    <div class="setting-control">
+                        {% if setting.data_type == 'boolean' %}
+                            <select name="{{ setting.key }}" class="form-control" {% if not setting.is_editable %}disabled{% endif %}>
+                                <option value="true" {% if setting.value == 'true' %}selected{% endif %}>Enabled</option>
+                                <option value="false" {% if setting.value == 'false' %}selected{% endif %}>Disabled</option>
+                            </select>
+                        {% else %}
+                            <input type="text" name="{{ setting.key }}" value="{{ setting.value }}" 
+                                   class="form-control" {% if not setting.is_editable %}disabled{% endif %}>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+
+            <div style="padding-top: 20px; border-top: 1px solid #F1F5F9;">
+                <button type="submit" class="btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

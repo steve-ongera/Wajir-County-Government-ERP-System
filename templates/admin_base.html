@@ -877,26 +877,27 @@
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
             <div class="submenu" id="submenu-users">
-                <a href="#" class="submenu-item">All Users</a>
-                <a href="#" class="submenu-item">Roles</a>
-                <a href="#" class="submenu-item">Permissions</a>
+                <a href="{% url 'user_list' %}" class="submenu-item">All Users</a>
+                <a href="{% url 'role_list' %}" class="submenu-item">Roles</a>
+                <a href="{% url 'permission_list' %}" class="submenu-item">Permissions</a>
             </div>
 
-            <a href="#" class="menu-item">
+            <a href="{% url 'notification_list' %}" class="menu-item">
                 <i class="fas fa-bell"></i>
                 <span>Notifications</span>
             </a>
 
-            <a href="#" class="menu-item">
+            <a href="{% url 'audit_trail_list' %}" class="menu-item">
                 <i class="fas fa-shield-alt"></i>
                 <span>Audit Trail</span>
             </a>
 
-            <a href="#" class="menu-item">
+            <a href="{% url 'system_settings'%}" class="menu-item">
                 <i class="fas fa-cog"></i>
                 <span>Settings</span>
             </a>
         </div>
+
     </div>
 
     <!-- Main Content -->

@@ -1,0 +1,277 @@
+<!-- ============================================== -->
+<!-- FILE: role_form.html -->
+<!-- ============================================== -->
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{% if role %}Edit Role{% else %}Create Role{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item { color: #64748B; }
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ "; color: #94A3B8; padding: 0 8px;
+    }
+    .breadcrumb-item.active { color: #1E293B; font-weight: 500; }
+    .breadcrumb a { color: #3498db; text-decoration: none; }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-section {
+        margin-bottom: 32px;
+    }
+
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #F1F5F9;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .permissions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .permission-module-group {
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px;
+        background: #F8FAFC;
+    }
+
+    .module-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #E2E8F0;
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .checkbox-item:hover {
+        background: white;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .checkbox-label {
+        font-size: 13px;
+        color: #334155;
+        cursor: pointer;
+        flex: 1;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}"><i class="bi bi-house-door"></i> Dashboard</a>
+            </li>
+            <li class="breadcrumb-item"><a href="{% url 'role_list' %}">Roles</a></li>
+            <li class="breadcrumb-item active">{% if role %}Edit Role{% else %}Create Role{% endif %}</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="{% if role %}bi bi-pencil{% else %}bi bi-plus-circle{% endif %}"></i>
+                {% if role %}Edit Role{% else %}Create New Role{% endif %}
+            </h1>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="bi bi-info-circle"></i>
+                    Basic Information
+                </h3>
+                
+                <div class="form-group">
+                    <label for="name" class="form-label required-field">Role Name</label>
+                    <input type="text" class="form-control" id="name" name="name" 
+                           value="{{ form.name.value|default:'' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description" class="form-label required-field">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" required>{{ form.description.value|default:'' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="is_active" {% if form.is_active.value or not role %}checked{% endif %}>
+                        Active
+                    </label>
+                </div>
+            </div>
+
+            <!-- Permissions -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="bi bi-key"></i>
+                    Assign Permissions
+                </h3>
+                
+                <div class="permissions-grid">
+                    {% regroup permissions by module as module_list %}
+                    {% for module in module_list %}
+                        <div class="permission-module-group">
+                            <div class="module-title">{{ module.grouper }}</div>
+                            {% for permission in module.list %}
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="permissions" value="{{ permission.id }}" 
+                                           {% if permission.id in current_permissions %}checked{% endif %}>
+                                    <span class="checkbox-label">{{ permission.name }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    {% if role %}Update Role{% else %}Create Role{% endif %}
+                </button>
+                <a href="{% url 'role_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

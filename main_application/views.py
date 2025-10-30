@@ -6536,3 +6536,814 @@ def tenancy_export_excel(request):
     wb.save(response)
     
     return response
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+import json
+
+from .models import (
+    User, Role, Permission, UserRole, Notification, 
+    AuditLog, SystemConfiguration, Department, SubCounty
+)
+from .forms import (
+    UserForm, RoleForm, PermissionForm, 
+    SystemConfigurationForm
+)
+
+
+# ============================================================================
+# USERS MANAGEMENT
+# ============================================================================
+
+@login_required
+def user_list(request):
+    """List all users with search and filters"""
+    users = User.objects.select_related('department', 'sub_county').all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        users = users.filter(
+            Q(username__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(employee_number__icontains=search_query) |
+            Q(phone_number__icontains=search_query)
+        )
+    
+    # Filters
+    department = request.GET.get('department', '')
+    if department:
+        users = users.filter(department_id=department)
+    
+    sub_county = request.GET.get('sub_county', '')
+    if sub_county:
+        users = users.filter(sub_county_id=sub_county)
+    
+    is_active = request.GET.get('is_active', '')
+    if is_active:
+        users = users.filter(is_active=is_active == 'true')
+    
+    is_staff = request.GET.get('is_staff', '')
+    if is_staff:
+        users = users.filter(is_staff=is_staff == 'true')
+    
+    # Statistics
+    stats = {
+        'total': User.objects.count(),
+        'active': User.objects.filter(is_active=True).count(),
+        'inactive': User.objects.filter(is_active=False).count(),
+        'staff': User.objects.filter(is_staff=True).count(),
+        'superusers': User.objects.filter(is_superuser=True).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(users, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'departments': Department.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'current_department': department,
+        'current_sub_county': sub_county,
+        'current_is_active': is_active,
+        'current_is_staff': is_staff,
+    }
+    
+    return render(request, 'users/user_list.html', context)
+
+
+@login_required
+def user_detail(request, pk):
+    """User detail view"""
+    user = get_object_or_404(User, pk=pk)
+    
+    # Get user roles
+    user_roles = UserRole.objects.filter(
+        user=user, 
+        is_active=True
+    ).select_related('role')
+    
+    # Get recent activity
+    recent_activity = AuditLog.objects.filter(
+        user=user
+    ).order_by('-timestamp')[:10]
+    
+    # Get login history
+    login_attempts = LoginAttempt.objects.filter(
+        username=user.username
+    ).order_by('-timestamp')[:10]
+
+    
+    context = {
+        'user': user,
+        'user_roles': user_roles,
+        'recent_activity': recent_activity,
+        'login_attempts': login_attempts,
+    }
+    
+    return render(request, 'users/user_detail.html', context)
+
+
+@login_required
+def user_create(request):
+    """Create new user"""
+    if request.method == 'POST':
+        form = UserForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.save()
+            
+            # Assign roles if selected
+            roles = request.POST.getlist('roles')
+            for role_id in roles:
+                UserRole.objects.create(
+                    user=user,
+                    role_id=role_id,
+                    assigned_by=request.user
+                )
+            
+            # Log action
+            AuditLog.objects.create(
+                user=request.user,
+                action='create',
+                model_name='User',
+                object_id=str(user.id),
+                object_repr=str(user),
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(request, f'User {user.username} created successfully!')
+            return redirect('user_detail', pk=user.pk)
+    else:
+        form = UserForm()
+    
+    context = {
+        'form': form,
+        'roles': Role.objects.filter(is_active=True),
+        'departments': Department.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'users/user_form.html', context)
+
+
+@login_required
+def user_update(request, pk):
+    """Update user"""
+    user = get_object_or_404(User, pk=pk)
+    
+    if request.method == 'POST':
+        form = UserForm(request.POST, instance=user)
+        if form.is_valid():
+            user = form.save()
+            
+            # Update roles
+            UserRole.objects.filter(user=user).update(is_active=False)
+            roles = request.POST.getlist('roles')
+            for role_id in roles:
+                UserRole.objects.update_or_create(
+                    user=user,
+                    role_id=role_id,
+                    defaults={
+                        'is_active': True,
+                        'assigned_by': request.user
+                    }
+                )
+            
+            # Log action
+            AuditLog.objects.create(
+                user=request.user,
+                action='update',
+                model_name='User',
+                object_id=str(user.id),
+                object_repr=str(user),
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(request, f'User {user.username} updated successfully!')
+            return redirect('user_detail', pk=user.pk)
+    else:
+        form = UserForm(instance=user)
+    
+    # Get current roles
+    current_roles = user.userrole_set.filter(
+        is_active=True
+    ).values_list('role_id', flat=True)
+    
+    context = {
+        'form': form,
+        'user': user,
+        'roles': Role.objects.filter(is_active=True),
+        'current_roles': list(current_roles),
+        'departments': Department.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'users/user_form.html', context)
+
+
+@login_required
+def user_delete(request, pk):
+    """Delete user"""
+    user = get_object_or_404(User, pk=pk)
+    
+    if request.method == 'POST':
+        username = user.username
+        
+        # Log action before deletion
+        AuditLog.objects.create(
+            user=request.user,
+            action='delete',
+            model_name='User',
+            object_id=str(user.id),
+            object_repr=str(user),
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        user.delete()
+        messages.success(request, f'User {username} deleted successfully!')
+        return redirect('user_list')
+    
+    return render(request, 'users/user_confirm_delete.html', {'user': user})
+
+
+@login_required
+def user_export_excel(request):
+    """Export users to Excel"""
+    users = User.objects.select_related('department', 'sub_county').all()
+    
+    # Apply filters from request
+    search_query = request.GET.get('search', '')
+    if search_query:
+        users = users.filter(
+            Q(username__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Users"
+    
+    # Headers
+    headers = [
+        'Username', 'Full Name', 'Email', 'Phone Number',
+        'Employee Number', 'Department', 'Sub County',
+        'Is Active', 'Is Staff', 'Date Joined'
+    ]
+    
+    # Style headers
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data rows
+    for row, user in enumerate(users, 2):
+        ws.cell(row=row, column=1, value=user.username)
+        ws.cell(row=row, column=2, value=user.get_full_name())
+        ws.cell(row=row, column=3, value=user.email)
+        ws.cell(row=row, column=4, value=user.phone_number)
+        ws.cell(row=row, column=5, value=user.employee_number)
+        ws.cell(row=row, column=6, value=user.department.name if user.department else '')
+        ws.cell(row=row, column=7, value=user.sub_county.name if user.sub_county else '')
+        ws.cell(row=row, column=8, value='Yes' if user.is_active else 'No')
+        ws.cell(row=row, column=9, value='Yes' if user.is_staff else 'No')
+        ws.cell(row=row, column=10, value=user.date_joined.strftime('%Y-%m-%d'))
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column = [cell for cell in column]
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column[0].column_letter].width = adjusted_width
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=users_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# ROLES MANAGEMENT
+# ============================================================================
+
+@login_required
+def role_list(request):
+    """List all roles"""
+    roles = Role.objects.annotate(
+        user_count=Count('userrole', filter=Q(userrole__is_active=True))
+    ).prefetch_related('permissions')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        roles = roles.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Filter by status
+    is_active = request.GET.get('is_active', '')
+    if is_active:
+        roles = roles.filter(is_active=is_active == 'true')
+    
+    # Statistics
+    stats = {
+        'total': Role.objects.count(),
+        'active': Role.objects.filter(is_active=True).count(),
+        'inactive': Role.objects.filter(is_active=False).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(roles, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_is_active': is_active,
+    }
+    
+    return render(request, 'roles/role_list.html', context)
+
+
+@login_required
+def role_detail(request, pk):
+    """Role detail view"""
+    role = get_object_or_404(Role, pk=pk)
+    
+    # Get users with this role
+    users = UserRole.objects.filter(
+        role=role,
+        is_active=True
+    ).select_related('user')[:10]
+    
+    # Get permissions
+    permissions = role.permissions.all()
+    
+    context = {
+        'role': role,
+        'users': users,
+        'permissions': permissions,
+        'user_count': UserRole.objects.filter(role=role, is_active=True).count(),
+    }
+    
+    return render(request, 'roles/role_detail.html', context)
+
+
+@login_required
+def role_create(request):
+    """Create new role"""
+    if request.method == 'POST':
+        form = RoleForm(request.POST)
+        if form.is_valid():
+            role = form.save()
+            
+            # Assign permissions
+            permissions = request.POST.getlist('permissions')
+            role.permissions.set(permissions)
+            
+            # Log action
+            AuditLog.objects.create(
+                user=request.user,
+                action='create',
+                model_name='Role',
+                object_id=str(role.id),
+                object_repr=str(role),
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(request, f'Role {role.name} created successfully!')
+            return redirect('role_detail', pk=role.pk)
+    else:
+        form = RoleForm()
+    
+    context = {
+        'form': form,
+        'permissions': Permission.objects.all().order_by('module', 'name'),
+    }
+    
+    return render(request, 'roles/role_form.html', context)
+
+
+@login_required
+def role_update(request, pk):
+    """Update role"""
+    role = get_object_or_404(Role, pk=pk)
+    
+    if request.method == 'POST':
+        form = RoleForm(request.POST, instance=role)
+        if form.is_valid():
+            role = form.save()
+            
+            # Update permissions
+            permissions = request.POST.getlist('permissions')
+            role.permissions.set(permissions)
+            
+            # Log action
+            AuditLog.objects.create(
+                user=request.user,
+                action='update',
+                model_name='Role',
+                object_id=str(role.id),
+                object_repr=str(role),
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(request, f'Role {role.name} updated successfully!')
+            return redirect('role_detail', pk=role.pk)
+    else:
+        form = RoleForm(instance=role)
+    
+    context = {
+        'form': form,
+        'role': role,
+        'permissions': Permission.objects.all().order_by('module', 'name'),
+        'current_permissions': list(role.permissions.values_list('id', flat=True)),
+    }
+    
+    return render(request, 'roles/role_form.html', context)
+
+
+@login_required
+def role_delete(request, pk):
+    """Delete role"""
+    role = get_object_or_404(Role, pk=pk)
+    
+    if request.method == 'POST':
+        role_name = role.name
+        
+        # Log action
+        AuditLog.objects.create(
+            user=request.user,
+            action='delete',
+            model_name='Role',
+            object_id=str(role.id),
+            object_repr=str(role),
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        role.delete()
+        messages.success(request, f'Role {role_name} deleted successfully!')
+        return redirect('role_list')
+    
+    return render(request, 'roles/role_confirm_delete.html', {'role': role})
+
+
+# ============================================================================
+# PERMISSIONS MANAGEMENT
+# ============================================================================
+
+@login_required
+def permission_list(request):
+    """List all permissions"""
+    permissions = Permission.objects.all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        permissions = permissions.filter(
+            Q(name__icontains=search_query) |
+            Q(codename__icontains=search_query) |
+            Q(module__icontains=search_query)
+        )
+    
+    # Filter by module
+    module = request.GET.get('module', '')
+    if module:
+        permissions = permissions.filter(module=module)
+    
+    # Get unique modules
+    modules = Permission.objects.values_list('module', flat=True).distinct()
+    
+    # Statistics
+    stats = {
+        'total': Permission.objects.count(),
+        'modules': len(modules),
+    }
+    
+    # Pagination
+    paginator = Paginator(permissions, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'modules': sorted(modules),
+        'current_module': module,
+    }
+    
+    return render(request, 'permissions/permission_list.html', context)
+
+
+# Continue in next part due to length...
+# Continuation of views.py
+
+# ============================================================================
+# NOTIFICATIONS
+# ============================================================================
+
+@login_required
+def notification_list(request):
+    """List user notifications"""
+    notifications = Notification.objects.filter(
+        recipient=request.user
+    ).order_by('-created_at')
+    
+    # Filter
+    status = request.GET.get('status', '')
+    if status == 'unread':
+        notifications = notifications.filter(read_at__isnull=True)
+    elif status == 'read':
+        notifications = notifications.filter(read_at__isnull=False)
+    
+    notification_type = request.GET.get('type', '')
+    if notification_type:
+        notifications = notifications.filter(notification_type=notification_type)
+    
+    # Statistics
+    stats = {
+        'total': Notification.objects.filter(recipient=request.user).count(),
+        'unread': Notification.objects.filter(recipient=request.user, read_at__isnull=True).count(),
+        'read': Notification.objects.filter(recipient=request.user, read_at__isnull=False).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(notifications, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'current_status': status,
+        'current_type': notification_type,
+    }
+    
+    return render(request, 'notifications/notification_list.html', context)
+
+
+@login_required
+def notification_mark_read(request, pk):
+    """Mark notification as read"""
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    
+    if not notification.read_at:
+        notification.read_at = timezone.now()
+        notification.save()
+    
+    return JsonResponse({'status': 'success'})
+
+
+@login_required
+def notification_mark_all_read(request):
+    """Mark all notifications as read"""
+    Notification.objects.filter(
+        recipient=request.user,
+        read_at__isnull=True
+    ).update(read_at=timezone.now())
+    
+    messages.success(request, 'All notifications marked as read!')
+    return redirect('notification_list')
+
+
+# ============================================================================
+# AUDIT TRAIL
+# ============================================================================
+
+@login_required
+def audit_trail_list(request):
+    """List audit trail logs"""
+    logs = AuditLog.objects.select_related('user').order_by('-timestamp')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        logs = logs.filter(
+            Q(user__username__icontains=search_query) |
+            Q(model_name__icontains=search_query) |
+            Q(object_repr__icontains=search_query)
+        )
+    
+    # Filters
+    action = request.GET.get('action', '')
+    if action:
+        logs = logs.filter(action=action)
+    
+    model_name = request.GET.get('model', '')
+    if model_name:
+        logs = logs.filter(model_name=model_name)
+    
+    user_id = request.GET.get('user', '')
+    if user_id:
+        logs = logs.filter(user_id=user_id)
+    
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        logs = logs.filter(timestamp__gte=date_from)
+    
+    date_to = request.GET.get('date_to', '')
+    if date_to:
+        logs = logs.filter(timestamp__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': AuditLog.objects.count(),
+        'today': AuditLog.objects.filter(
+            timestamp__date=timezone.now().date()
+        ).count(),
+        'this_week': AuditLog.objects.filter(
+            timestamp__gte=timezone.now() - timezone.timedelta(days=7)
+        ).count(),
+    }
+    
+    # Get unique models and actions
+    models = AuditLog.objects.values_list('model_name', flat=True).distinct()
+    actions = AuditLog.objects.values_list('action', flat=True).distinct()
+    
+    # Pagination
+    paginator = Paginator(logs, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'models': sorted(models),
+        'actions': sorted(actions),
+        'users': User.objects.filter(is_staff=True).order_by('username'),
+        'current_action': action,
+        'current_model': model_name,
+        'current_user': user_id,
+        'current_date_from': date_from,
+        'current_date_to': date_to,
+    }
+    
+    return render(request, 'audit/audit_trail_list.html', context)
+
+
+@login_required
+def audit_trail_export(request):
+    """Export audit trail to Excel"""
+    logs = AuditLog.objects.select_related('user').order_by('-timestamp')
+    
+    # Apply filters
+    action = request.GET.get('action', '')
+    if action:
+        logs = logs.filter(action=action)
+    
+    model_name = request.GET.get('model', '')
+    if model_name:
+        logs = logs.filter(model_name=model_name)
+    
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        logs = logs.filter(timestamp__gte=date_from)
+    
+    date_to = request.GET.get('date_to', '')
+    if date_to:
+        logs = logs.filter(timestamp__lte=date_to)
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Audit Trail"
+    
+    # Headers
+    headers = [
+        'Timestamp', 'User', 'Action', 'Model', 
+        'Object ID', 'Object', 'IP Address'
+    ]
+    
+    # Style headers
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data rows
+    for row, log in enumerate(logs[:1000], 2):  # Limit to 1000 rows
+        ws.cell(row=row, column=1, value=log.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
+        ws.cell(row=row, column=2, value=log.user.username if log.user else 'System')
+        ws.cell(row=row, column=3, value=log.action.upper())
+        ws.cell(row=row, column=4, value=log.model_name)
+        ws.cell(row=row, column=5, value=log.object_id)
+        ws.cell(row=row, column=6, value=log.object_repr)
+        ws.cell(row=row, column=7, value=log.ip_address or '')
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column = [cell for cell in column]
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column[0].column_letter].width = adjusted_width
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=audit_trail_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# SYSTEM SETTINGS
+# ============================================================================
+
+@login_required
+def system_settings(request):
+    """System settings view"""
+    settings = SystemConfiguration.objects.all().order_by('key')
+    
+    # Group settings by category
+    grouped_settings = {}
+    for setting in settings:
+        category = setting.key.split('_')[0] if '_' in setting.key else 'general'
+        if category not in grouped_settings:
+            grouped_settings[category] = []
+        grouped_settings[category].append(setting)
+    
+    context = {
+        'grouped_settings': grouped_settings,
+    }
+    
+    return render(request, 'settings/system_settings.html', context)
+
+
+@login_required
+def system_settings_update(request):
+    """Update system settings"""
+    if request.method == 'POST':
+        for key, value in request.POST.items():
+            if key != 'csrfmiddlewaretoken':
+                try:
+                    setting = SystemConfiguration.objects.get(key=key)
+                    if setting.is_editable:
+                        setting.value = value
+                        setting.updated_by = request.user
+                        setting.save()
+                        
+                        # Log action
+                        AuditLog.objects.create(
+                            user=request.user,
+                            action='update',
+                            model_name='SystemConfiguration',
+                            object_id=str(setting.id),
+                            object_repr=setting.key,
+                            changes={'key': key, 'new_value': value},
+                            ip_address=request.META.get('REMOTE_ADDR')
+                        )
+                except SystemConfiguration.DoesNotExist:
+                    pass
+        
+        messages.success(request, 'Settings updated successfully!')
+        return redirect('system_settings')
