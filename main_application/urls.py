@@ -139,4 +139,35 @@ urlpatterns = [
     path('settings/', views.system_settings, name='system_settings'),
     path('settings/update/', views.system_settings_update, name='system_settings_update'),
 
+    path('licenses/dashboard/', views.licenses_dashboard, name='licenses_dashboard'),
+    path('businesses/', views.business_list, name='business_list'),
+    path('businesses/<int:pk>/', views.business_detail, name='business_detail'),
+    path('businesses/create/', views.business_create, name='business_create'),
+    path('businesses/<int:pk>/update/', views.business_update, name='business_update'),
+    path('businesses/<int:pk>/delete/', views.business_delete, name='business_delete'),
+    path('businesses/export/excel/', views.business_export_excel, name='business_export_excel'),
+    
+    # License Management
+    path('licenses/', views.license_list, name='license_list'),
+    path('licenses/<int:pk>/', views.license_detail, name='license_detail'),
+    path('licenses/create/', views.license_create, name='license_create'),
+    path('licenses/<int:pk>/update/', views.license_update, name='license_update'),
+    path('licenses/<int:pk>/approve/', views.license_approve, name='license_approve'),
+    path('licenses/<int:pk>/reject/', views.license_reject, name='license_reject'),
+    path('licenses/<int:pk>/delete/', views.license_delete, name='license_delete'),
+    path('licenses/export/excel/', views.license_export_excel, name='license_export_excel'),
+    
+    # License Types
+    path('license-types/', views.license_type_list, name='license_type_list'),
+    path('license-types/export/excel/', views.license_type_export_excel, name='license_type_export_excel'),
+    path('license-types/create/', views.license_type_create, name='license_type_create'),
+    path('license-types/<int:pk>/', views.license_type_detail, name='license_type_detail'),
+    path('license-types/<int:pk>/update/', views.license_type_update, name='license_type_update'),
+    path('license-types/<int:pk>/delete/', views.license_type_delete, name='license_type_delete'),
+    
+    # AJAX Endpoints
+    path('ajax/wards-by-subcounty/', views.get_wards_by_subcounty, name='get_wards_by_subcounty'),
+    path('ajax/license-types-by-category/', views.get_license_types_by_category, name='get_license_types_by_category'),
+    path('ajax/license-requirements/', views.get_license_requirements, name='get_license_requirements'),
+
 ]

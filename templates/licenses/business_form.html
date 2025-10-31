@@ -1,0 +1,509 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{% if business %}Edit Business{% else %}New Business{% endif %} - Licenses & Permits{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .form-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid #E2E8F0;
+    }
+
+    .form-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .form-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin-top: 8px;
+    }
+
+    .form-section {
+        margin-bottom: 32px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #E2E8F0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .required {
+        color: #e74c3c;
+    }
+
+    .form-control {
+        padding: 12px 14px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 4px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FCA5A5;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        color: #065F46;
+        border: 1px solid #6EE7B7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'licenses_dashboard' %}">Licenses & Permits</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'business_list' %}">Businesses</a>
+            </li>
+            <li class="breadcrumb-item active">{% if business %}Edit{% else %}New{% endif %}</li>
+        </ol>
+    </nav>
+
+    <div class="form-container">
+        <!-- Form Header -->
+        <div class="form-header">
+            <h1 class="form-title">
+                <i class="fas fa-briefcase"></i>
+                {% if business %}Edit Business{% else %}Register New Business{% endif %}
+            </h1>
+            <p class="form-subtitle">
+                {% if business %}Update business information{% else %}Enter business details to register{% endif %}
+            </p>
+        </div>
+
+        <!-- Form -->
+        <form method="post" id="businessForm">
+            {% csrf_token %}
+
+            <!-- Business Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-info-circle"></i>
+                    Business Information
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Owner/Proprietor <span class="required">*</span>
+                        </label>
+                        <select name="citizen" class="form-control" required>
+                            <option value="">Select Owner</option>
+                            {% for citizen in citizens %}
+                            <option value="{{ citizen.id }}" 
+                                {% if business and business.citizen.id == citizen.id %}selected{% endif %}>
+                                {% if citizen.entity_type == 'individual' %}
+                                    {{ citizen.first_name }} {{ citizen.last_name }}
+                                {% else %}
+                                    {{ citizen.business_name }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text">Select the business owner from registered citizens</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Business Category <span class="required">*</span>
+                        </label>
+                        <select name="business_category" class="form-control" required>
+                            <option value="">Select Category</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" 
+                                {% if business and business.business_category.id == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Business Name <span class="required">*</span>
+                        </label>
+                        <input type="text" name="business_name" class="form-control" 
+                               value="{% if business %}{{ business.business_name }}{% endif %}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Trading Name
+                        </label>
+                        <input type="text" name="trading_name" class="form-control" 
+                               value="{% if business %}{{ business.trading_name }}{% endif %}">
+                        <small class="form-text">If different from business name</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Registration Number
+                        </label>
+                        <input type="text" name="registration_number" class="form-control" 
+                               value="{% if business %}{{ business.registration_number }}{% endif %}">
+                        <small class="form-text">Official business registration number</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Registration Date <span class="required">*</span>
+                        </label>
+                        <input type="date" name="registration_date" class="form-control" 
+                               value="{% if business %}{{ business.registration_date|date:'Y-m-d' }}{% endif %}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label class="form-label">
+                            Nature of Business <span class="required">*</span>
+                        </label>
+                        <textarea name="nature_of_business" class="form-control" required>{% if business %}{{ business.nature_of_business }}{% endif %}</textarea>
+                        <small class="form-text">Describe what the business does</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-geo-alt"></i>
+                    Location Information
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Sub County <span class="required">*</span>
+                        </label>
+                        <select name="sub_county" id="subCountySelect" class="form-control" required>
+                            <option value="">Select Sub County</option>
+                            {% for sc in sub_counties %}
+                            <option value="{{ sc.id }}" 
+                                {% if business and business.sub_county.id == sc.id %}selected{% endif %}>
+                                {{ sc.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Ward <span class="required">*</span>
+                        </label>
+                        <select name="ward" id="wardSelect" class="form-control" required>
+                            <option value="">Select Ward</option>
+                            {% if business %}
+                                {% for ward in wards %}
+                                <option value="{{ ward.id }}" 
+                                    {% if business.ward.id == ward.id %}selected{% endif %}>
+                                    {{ ward.name }}
+                                </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Plot Number
+                        </label>
+                        <input type="text" name="plot_number" class="form-control" 
+                               value="{% if business %}{{ business.plot_number }}{% endif %}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Phone Number <span class="required">*</span>
+                        </label>
+                        <input type="tel" name="phone" class="form-control" 
+                               value="{% if business %}{{ business.phone }}{% endif %}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Email Address
+                        </label>
+                        <input type="email" name="email" class="form-control" 
+                               value="{% if business %}{{ business.email }}{% endif %}">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label">
+                            Physical Address <span class="required">*</span>
+                        </label>
+                        <textarea name="physical_address" class="form-control" required>{% if business %}{{ business.physical_address }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Business Details -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-building"></i>
+                    Business Details
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Number of Employees
+                        </label>
+                        <input type="number" name="number_of_employees" class="form-control" min="0"
+                               value="{% if business %}{{ business.number_of_employees }}{% else %}0{% endif %}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Annual Turnover (KES)
+                        </label>
+                        <input type="number" name="annual_turnover" class="form-control" min="0" step="0.01"
+                               value="{% if business and business.annual_turnover %}{{ business.annual_turnover }}{% endif %}">
+                        <small class="form-text">Estimated annual revenue</small>
+                    </div>
+                </div>
+
+                {% if business %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Status
+                        </label>
+                        <select name="is_active" class="form-control">
+                            <option value="true" {% if business.is_active %}selected{% endif %}>Active</option>
+                            <option value="false" {% if not business.is_active %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    {% if business %}Update Business{% else %}Register Business{% endif %}
+                </button>
+                <a href="{% if business %}{% url 'business_detail' business.pk %}{% else %}{% url 'business_list' %}{% endif %}" 
+                   class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load wards when sub-county changes
+    document.getElementById('subCountySelect').addEventListener('change', function() {
+        const subCountyId = this.value;
+        const wardSelect = document.getElementById('wardSelect');
+        
+        wardSelect.innerHTML = '<option value="">Select Ward</option>';
+        
+        if (subCountyId) {
+            fetch(`/ajax/wards-by-subcounty/?sub_county_id=${subCountyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(ward => {
+                        const option = document.createElement('option');
+                        option.value = ward.id;
+                        option.textContent = ward.name;
+                        wardSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error loading wards:', error));
+        }
+    });
+
+    // Form validation
+    document.getElementById('businessForm').addEventListener('submit', function(e) {
+        const requiredFields = this.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.style.borderColor = '#e74c3c';
+            } else {
+                field.style.borderColor = '#E2E8F0';
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+        }
+    });
+</script>
+{% endblock %}

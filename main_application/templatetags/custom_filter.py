@@ -20,3 +20,12 @@ def div(value, arg):
         return float(value) / arg
     except (ValueError, TypeError):
         return ''
+
+
+@register.filter
+def abs(value):
+    """Return absolute value"""
+    try:
+        return abs(int(value))
+    except (ValueError, TypeError):
+        return value

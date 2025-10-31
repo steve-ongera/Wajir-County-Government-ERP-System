@@ -7347,3 +7347,1440 @@ def system_settings_update(request):
         
         messages.success(request, 'Settings updated successfully!')
         return redirect('system_settings')
+
+
+"""
+Licenses & Permits Management Views
+Handles business licenses, permits, and applications
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Sum
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+from .models import (
+    Business, License, LicenseType, LicenseRequirement, 
+    LicenseDocument, BusinessCategory, Citizen, SubCounty, 
+    Ward, RevenueStream, User
+)
+
+
+# ============================================================================
+# DASHBOARD & STATISTICS
+# ============================================================================
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Avg, Q
+from django.utils import timezone
+from datetime import timedelta
+from collections import defaultdict
+import json
+
+@login_required
+def licenses_dashboard(request):
+    """Licenses & Permits dashboard with comprehensive statistics and analysis"""
+    
+    # Get date ranges
+    today = timezone.now().date()
+    this_month_start = today.replace(day=1)
+    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+    this_year_start = today.replace(month=1, day=1)
+    last_year_start = this_year_start.replace(year=this_year_start.year - 1)
+    
+    # ============================================================================
+    # CORE LICENSE STATISTICS
+    # ============================================================================
+    
+    total_licenses = License.objects.count()
+    active_licenses = License.objects.filter(
+        status='active',
+        expiry_date__gte=today
+    ).count()
+    expired_licenses = License.objects.filter(
+        expiry_date__lt=today
+    ).count()
+    pending_applications = License.objects.filter(
+        status__in=['submitted', 'under_review']
+    ).count()
+    
+    # Business statistics
+    total_businesses = Business.objects.filter(is_active=True).count()
+    businesses_with_licenses = Business.objects.filter(
+        licenses__isnull=False
+    ).distinct().count()
+    
+    # Monthly statistics
+    licenses_this_month = License.objects.filter(
+        issue_date__gte=this_month_start,
+        issue_date__lte=today
+    ).count()
+    
+    licenses_last_month = License.objects.filter(
+        issue_date__gte=last_month_start,
+        issue_date__lt=this_month_start
+    ).count()
+    
+    # Calculate month-over-month growth
+    if licenses_last_month > 0:
+        mom_growth = ((licenses_this_month - licenses_last_month) / licenses_last_month) * 100
+    else:
+        mom_growth = 100 if licenses_this_month > 0 else 0
+    
+    # Expiring soon (next 30 days)
+    expiring_soon = License.objects.filter(
+        status='active',
+        expiry_date__range=[today, today + timedelta(days=30)]
+    ).count()
+    
+    # Renewals this month
+    renewals_this_month = License.objects.filter(
+        is_renewal=True,
+        application_date__gte=this_month_start
+    ).count()
+    
+    # ============================================================================
+    # LICENSE TYPE DISTRIBUTION
+    # ============================================================================
+    
+    license_type_distribution = list(
+        License.objects.values('license_type__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:10]
+    )
+    
+    # Prepare data for pie chart
+    license_type_labels = [item['license_type__name'] for item in license_type_distribution]
+    license_type_data = [item['count'] for item in license_type_distribution]
+    
+    # ============================================================================
+    # STATUS DISTRIBUTION
+    # ============================================================================
+    
+    status_distribution = list(
+        License.objects.values('status')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+    
+    status_labels = [item['status'].replace('_', ' ').title() for item in status_distribution]
+    status_data = [item['count'] for item in status_distribution]
+    
+    # ============================================================================
+    # MONTHLY TRENDS (Last 12 Months)
+    # ============================================================================
+    
+    monthly_trends = []
+    months_labels = []
+    
+    for i in range(11, -1, -1):
+        month_date = today.replace(day=1) - timedelta(days=i*30)
+        month_start = month_date.replace(day=1)
+        if month_date.month == 12:
+            month_end = month_date.replace(year=month_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            month_end = month_date.replace(month=month_date.month + 1, day=1) - timedelta(days=1)
+        
+        count = License.objects.filter(
+            issue_date__gte=month_start,
+            issue_date__lte=month_end
+        ).count()
+        
+        monthly_trends.append(count)
+        months_labels.append(month_start.strftime('%b %Y'))
+    
+    # ============================================================================
+    # GEOGRAPHICAL DISTRIBUTION (By Sub-County)
+    # ============================================================================
+    
+    subcounty_distribution = list(
+        Business.objects.values('sub_county__name')
+        .annotate(
+            business_count=Count('id'),
+            license_count=Count('licenses')
+        )
+        .order_by('-license_count')[:10]
+    )
+    
+    subcounty_labels = [item['sub_county__name'] for item in subcounty_distribution]
+    subcounty_business_data = [item['business_count'] for item in subcounty_distribution]
+    subcounty_license_data = [item['license_count'] for item in subcounty_distribution]
+    
+    # ============================================================================
+    # BUSINESS CATEGORY DISTRIBUTION
+    # ============================================================================
+    
+    category_distribution = list(
+        Business.objects.values('business_category__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:8]
+    )
+    
+    category_labels = [item['business_category__name'] for item in category_distribution]
+    category_data = [item['count'] for item in category_distribution]
+    
+    # ============================================================================
+    # APPLICATION PROCESSING TIME ANALYSIS
+    # ============================================================================
+    
+    # Average processing time for approved licenses
+    approved_licenses = License.objects.filter(
+        status__in=['approved', 'active', 'issued'],
+        approval_date__isnull=False
+    )
+    
+    processing_times = []
+    for license in approved_licenses:
+        if license.approval_date and license.application_date:
+            days = (license.approval_date - license.application_date).days
+            processing_times.append(days)
+    
+    avg_processing_time = sum(processing_times) / len(processing_times) if processing_times else 0
+    
+    # ============================================================================
+    # RENEWAL RATE ANALYSIS
+    # ============================================================================
+    
+    total_renewals = License.objects.filter(is_renewal=True).count()
+    renewal_rate = (total_renewals / total_licenses * 100) if total_licenses > 0 else 0
+    
+    # ============================================================================
+    # RECENT APPLICATIONS
+    # ============================================================================
+    
+    recent_applications = License.objects.select_related(
+        'business', 'license_type', 'business__citizen'
+    ).order_by('-application_date')[:15]
+    
+    # ============================================================================
+    # EXPIRING LICENSES (Next 90 Days)
+    # ============================================================================
+    
+    expiring_licenses = License.objects.filter(
+        status='active',
+        expiry_date__range=[today, today + timedelta(days=90)]
+    ).select_related('business', 'license_type').order_by('expiry_date')[:15]
+    
+    # ============================================================================
+    # TOP REVENUE GENERATING LICENSE TYPES
+    # ============================================================================
+    
+    # This assumes you have bill/payment data linked to licenses
+    top_revenue_types = list(
+        Bill.objects.filter(
+            license_id__isnull=False
+        ).values('revenue_stream__name')
+        .annotate(total_revenue=Sum('amount_paid'))
+        .order_by('-total_revenue')[:5]
+    )
+    
+    revenue_type_labels = [item['revenue_stream__name'] for item in top_revenue_types]
+    revenue_type_data = [float(item['total_revenue']) for item in top_revenue_types]
+    
+    # ============================================================================
+    # COMPLIANCE RATE
+    # ============================================================================
+    
+    total_active_businesses = Business.objects.filter(is_active=True).count()
+    businesses_with_valid_licenses = Business.objects.filter(
+        licenses__status='active',
+        licenses__expiry_date__gte=today
+    ).distinct().count()
+    
+    compliance_rate = (businesses_with_valid_licenses / total_active_businesses * 100) if total_active_businesses > 0 else 0
+    
+    # ============================================================================
+    # QUARTERLY COMPARISON (This Year vs Last Year)
+    # ============================================================================
+    
+    current_quarter = (today.month - 1) // 3 + 1
+    quarters_this_year = []
+    quarters_last_year = []
+    quarter_labels = ['Q1', 'Q2', 'Q3', 'Q4']
+    
+    for q in range(1, 5):
+        # This year
+        q_start = this_year_start.replace(month=(q-1)*3+1)
+        if q == 4:
+            q_end = this_year_start.replace(year=this_year_start.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            q_end = this_year_start.replace(month=q*3+1) - timedelta(days=1)
+        
+        count_this_year = License.objects.filter(
+            issue_date__gte=q_start,
+            issue_date__lte=min(q_end, today)
+        ).count()
+        quarters_this_year.append(count_this_year)
+        
+        # Last year
+        q_start_last = last_year_start.replace(month=(q-1)*3+1)
+        if q == 4:
+            q_end_last = last_year_start.replace(year=last_year_start.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            q_end_last = last_year_start.replace(month=q*3+1) - timedelta(days=1)
+        
+        count_last_year = License.objects.filter(
+            issue_date__gte=q_start_last,
+            issue_date__lte=q_end_last
+        ).count()
+        quarters_last_year.append(count_last_year)
+    
+    # ============================================================================
+    # CONTEXT DATA
+    # ============================================================================
+    
+    context = {
+        # Core Statistics
+        'total_licenses': total_licenses,
+        'active_licenses': active_licenses,
+        'expired_licenses': expired_licenses,
+        'pending_applications': pending_applications,
+        'total_businesses': total_businesses,
+        'businesses_with_licenses': businesses_with_licenses,
+        'licenses_this_month': licenses_this_month,
+        'licenses_last_month': licenses_last_month,
+        'mom_growth': round(mom_growth, 1),
+        'expiring_soon': expiring_soon,
+        'renewals_this_month': renewals_this_month,
+        'avg_processing_time': round(avg_processing_time, 1),
+        'renewal_rate': round(renewal_rate, 1),
+        'compliance_rate': round(compliance_rate, 1),
+        
+        # Lists
+        'recent_applications': recent_applications,
+        'expiring_licenses': expiring_licenses,
+        
+        # Chart Data (JSON encoded for JavaScript)
+        'license_type_labels': json.dumps(license_type_labels),
+        'license_type_data': json.dumps(license_type_data),
+        
+        'status_labels': json.dumps(status_labels),
+        'status_data': json.dumps(status_data),
+        
+        'months_labels': json.dumps(months_labels),
+        'monthly_trends': json.dumps(monthly_trends),
+        
+        'subcounty_labels': json.dumps(subcounty_labels),
+        'subcounty_business_data': json.dumps(subcounty_business_data),
+        'subcounty_license_data': json.dumps(subcounty_license_data),
+        
+        'category_labels': json.dumps(category_labels),
+        'category_data': json.dumps(category_data),
+        
+        'revenue_type_labels': json.dumps(revenue_type_labels),
+        'revenue_type_data': json.dumps(revenue_type_data),
+        
+        'quarter_labels': json.dumps(quarter_labels),
+        'quarters_this_year': json.dumps(quarters_this_year),
+        'quarters_last_year': json.dumps(quarters_last_year),
+    }
+    
+    return render(request, 'licenses/dashboard.html', context)
+
+# ============================================================================
+# BUSINESS MANAGEMENT
+# ============================================================================
+
+@login_required
+def business_list(request):
+    """List all businesses with filtering and search"""
+    
+    businesses = Business.objects.select_related(
+        'citizen', 'business_category', 'sub_county', 'ward'
+    ).order_by('-created_at')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        businesses = businesses.filter(
+            Q(business_number__icontains=search_query) |
+            Q(business_name__icontains=search_query) |
+            Q(trading_name__icontains=search_query) |
+            Q(registration_number__icontains=search_query) |
+            Q(citizen__first_name__icontains=search_query) |
+            Q(citizen__last_name__icontains=search_query)
+        )
+    
+    # Filters
+    category = request.GET.get('category', '')
+    if category:
+        businesses = businesses.filter(business_category_id=category)
+    
+    sub_county = request.GET.get('sub_county', '')
+    if sub_county:
+        businesses = businesses.filter(sub_county_id=sub_county)
+    
+    is_active = request.GET.get('is_active', '')
+    if is_active:
+        businesses = businesses.filter(is_active=(is_active == 'true'))
+    
+    # Statistics
+    stats = {
+        'total': Business.objects.count(),
+        'active': Business.objects.filter(is_active=True).count(),
+        'inactive': Business.objects.filter(is_active=False).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(businesses, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'categories': BusinessCategory.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'current_category': category,
+        'current_sub_county': sub_county,
+        'current_is_active': is_active,
+    }
+    
+    return render(request, 'licenses/business_list.html', context)
+
+
+@login_required
+def business_detail(request, pk):
+    """View business details"""
+    
+    business = get_object_or_404(
+        Business.objects.select_related(
+            'citizen', 'business_category', 'sub_county', 'ward', 'created_by'
+        ),
+        pk=pk
+    )
+    
+    # Get all licenses for this business
+    licenses = business.licenses.select_related('license_type').order_by('-issue_date')
+    
+    context = {
+        'business': business,
+        'licenses': licenses,
+    }
+    
+    return render(request, 'licenses/business_detail.html', context)
+
+
+@login_required
+def business_create(request):
+    """Create new business"""
+    
+    if request.method == 'POST':
+        try:
+            # Generate business number
+            last_business = Business.objects.order_by('-id').first()
+            if last_business and last_business.business_number:
+                last_num = int(last_business.business_number.split('-')[-1])
+                business_number = f"BUS-{str(last_num + 1).zfill(6)}"
+            else:
+                business_number = "BUS-000001"
+            
+            # Create business
+            business = Business.objects.create(
+                business_number=business_number,
+                citizen_id=request.POST.get('citizen'),
+                business_name=request.POST.get('business_name'),
+                trading_name=request.POST.get('trading_name', ''),
+                business_category_id=request.POST.get('business_category'),
+                registration_number=request.POST.get('registration_number', ''),
+                physical_address=request.POST.get('physical_address'),
+                sub_county_id=request.POST.get('sub_county'),
+                ward_id=request.POST.get('ward'),
+                plot_number=request.POST.get('plot_number', ''),
+                nature_of_business=request.POST.get('nature_of_business'),
+                number_of_employees=request.POST.get('number_of_employees', 0),
+                annual_turnover=request.POST.get('annual_turnover') or None,
+                phone=request.POST.get('phone'),
+                email=request.POST.get('email', ''),
+                registration_date=request.POST.get('registration_date'),
+                created_by=request.user
+            )
+            
+            messages.success(request, f'Business {business.business_name} created successfully!')
+            return redirect('business_detail', pk=business.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating business: {str(e)}')
+    
+    context = {
+        'citizens': Citizen.objects.filter(is_active=True).order_by('first_name', 'business_name'),
+        'categories': BusinessCategory.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'licenses/business_form.html', context)
+
+
+@login_required
+def business_update(request, pk):
+    """Update business information"""
+    
+    business = get_object_or_404(Business, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            business.citizen_id = request.POST.get('citizen')
+            business.business_name = request.POST.get('business_name')
+            business.trading_name = request.POST.get('trading_name', '')
+            business.business_category_id = request.POST.get('business_category')
+            business.registration_number = request.POST.get('registration_number', '')
+            business.physical_address = request.POST.get('physical_address')
+            business.sub_county_id = request.POST.get('sub_county')
+            business.ward_id = request.POST.get('ward')
+            business.plot_number = request.POST.get('plot_number', '')
+            business.nature_of_business = request.POST.get('nature_of_business')
+            business.number_of_employees = request.POST.get('number_of_employees', 0)
+            business.annual_turnover = request.POST.get('annual_turnover') or None
+            business.phone = request.POST.get('phone')
+            business.email = request.POST.get('email', '')
+            business.registration_date = request.POST.get('registration_date')
+            business.is_active = request.POST.get('is_active') == 'true'
+            
+            business.save()
+            
+            messages.success(request, f'Business {business.business_name} updated successfully!')
+            return redirect('business_detail', pk=business.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating business: {str(e)}')
+    
+    # Get wards for the business's sub_county
+    wards = Ward.objects.filter(sub_county=business.sub_county, is_active=True) if business.sub_county else []
+    
+    context = {
+        'business': business,
+        'citizens': Citizen.objects.filter(is_active=True).order_by('first_name', 'business_name'),
+        'categories': BusinessCategory.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'wards': wards,
+    }
+    
+    return render(request, 'licenses/business_form.html', context)
+
+
+@login_required
+def business_delete(request, pk):
+    """Delete business"""
+    
+    business = get_object_or_404(Business, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            business_name = business.business_name
+            business.delete()
+            messages.success(request, f'Business {business_name} deleted successfully!')
+            return redirect('business_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting business: {str(e)}')
+            return redirect('business_detail', pk=pk)
+    
+    return redirect('business_detail', pk=pk)
+
+
+@login_required
+def business_export_excel(request):
+    """Export businesses to Excel"""
+    
+    # Get filtered businesses
+    businesses = Business.objects.select_related(
+        'citizen', 'business_category', 'sub_county', 'ward'
+    ).order_by('-created_at')
+    
+    # Apply same filters as list view
+    search_query = request.GET.get('search', '')
+    if search_query:
+        businesses = businesses.filter(
+            Q(business_number__icontains=search_query) |
+            Q(business_name__icontains=search_query) |
+            Q(trading_name__icontains=search_query)
+        )
+    
+    category = request.GET.get('category', '')
+    if category:
+        businesses = businesses.filter(business_category_id=category)
+    
+    sub_county = request.GET.get('sub_county', '')
+    if sub_county:
+        businesses = businesses.filter(sub_county_id=sub_county)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Businesses"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'Business Number', 'Business Name', 'Trading Name', 'Owner',
+        'Category', 'Registration Number', 'Phone', 'Email',
+        'Sub County', 'Ward', 'Plot Number', 'Nature of Business',
+        'Employees', 'Annual Turnover', 'Status', 'Registration Date'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data
+    for row_num, business in enumerate(businesses, 2):
+        owner_name = business.citizen.first_name if business.citizen.entity_type == 'individual' else business.citizen.business_name
+        
+        data = [
+            business.business_number,
+            business.business_name,
+            business.trading_name,
+            owner_name,
+            business.business_category.name,
+            business.registration_number,
+            business.phone,
+            business.email,
+            business.sub_county.name,
+            business.ward.name,
+            business.plot_number,
+            business.nature_of_business,
+            business.number_of_employees,
+            float(business.annual_turnover) if business.annual_turnover else 0,
+            'Active' if business.is_active else 'Inactive',
+            business.registration_date.strftime('%Y-%m-%d') if business.registration_date else ''
+        ]
+        
+        for col_num, value in enumerate(data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            cell.alignment = Alignment(vertical='center')
+    
+    # Adjust column widths
+    for col_num in range(1, len(headers) + 1):
+        column_letter = get_column_letter(col_num)
+        ws.column_dimensions[column_letter].width = 18
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=businesses_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# LICENSE MANAGEMENT
+# ============================================================================
+
+@login_required
+def license_list(request):
+    """List all licenses with filtering and search"""
+    
+    licenses = License.objects.select_related(
+        'business', 'license_type', 'business__citizen', 'created_by'
+    ).order_by('-application_date')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        licenses = licenses.filter(
+            Q(license_number__icontains=search_query) |
+            Q(business__business_name__icontains=search_query) |
+            Q(business__business_number__icontains=search_query) |
+            Q(license_type__name__icontains=search_query)
+        )
+    
+    # Filters
+    status = request.GET.get('status', '')
+    if status:
+        licenses = licenses.filter(status=status)
+    
+    license_type = request.GET.get('license_type', '')
+    if license_type:
+        licenses = licenses.filter(license_type_id=license_type)
+    
+    # Date range filter
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        licenses = licenses.filter(application_date__gte=date_from)
+    if date_to:
+        licenses = licenses.filter(application_date__lte=date_to)
+    
+    # Statistics
+    today = timezone.now().date()
+    stats = {
+        'total': License.objects.count(),
+        'active': License.objects.filter(status='active', expiry_date__gte=today).count(),
+        'pending': License.objects.filter(status__in=['submitted', 'under_review']).count(),
+        'expired': License.objects.filter(expiry_date__lt=today).count(),
+        'expiring_soon': License.objects.filter(
+            status='active',
+            expiry_date__range=[today, today + timedelta(days=30)]
+        ).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(licenses, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'license_types': LicenseType.objects.filter(is_active=True),
+        'current_status': status,
+        'current_license_type': license_type,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'licenses/license_list.html', context)
+
+
+@login_required
+def license_detail(request, pk):
+    """View license details"""
+    
+    license = get_object_or_404(
+        License.objects.select_related(
+            'business', 'license_type', 'business__citizen',
+            'created_by', 'reviewed_by', 'approved_by'
+        ),
+        pk=pk
+    )
+    
+    # Get documents
+    documents = license.documents.all()
+    
+    # Calculate days until expiry
+    days_to_expiry = None
+    if license.expiry_date:
+        days_to_expiry = (license.expiry_date - timezone.now().date()).days
+    
+    context = {
+        'license': license,
+        'documents': documents,
+        'days_to_expiry': days_to_expiry,
+    }
+    
+    return render(request, 'licenses/license_detail.html', context)
+
+
+@login_required
+def license_create(request):
+    """Create new license application"""
+    
+    if request.method == 'POST':
+        try:
+            # Generate license number
+            last_license = License.objects.order_by('-id').first()
+            if last_license and last_license.license_number:
+                last_num = int(last_license.license_number.split('-')[-1])
+                license_number = f"LIC-{str(last_num + 1).zfill(6)}"
+            else:
+                license_number = "LIC-000001"
+            
+            # Create license
+            license = License.objects.create(
+                license_number=license_number,
+                business_id=request.POST.get('business'),
+                license_type_id=request.POST.get('license_type'),
+                application_date=request.POST.get('application_date'),
+                is_renewal=request.POST.get('is_renewal') == 'true',
+                notes=request.POST.get('notes', ''),
+                created_by=request.user,
+                status='draft'
+            )
+            
+            messages.success(request, f'License application {license.license_number} created successfully!')
+            return redirect('license_detail', pk=license.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating license: {str(e)}')
+    
+    context = {
+        'businesses': Business.objects.filter(is_active=True).order_by('business_name'),
+        'license_types': LicenseType.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'licenses/license_form.html', context)
+
+
+@login_required
+def license_update(request, pk):
+    """Update license application"""
+    
+    license = get_object_or_404(License, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            license.business_id = request.POST.get('business')
+            license.license_type_id = request.POST.get('license_type')
+            license.application_date = request.POST.get('application_date')
+            license.is_renewal = request.POST.get('is_renewal') == 'true'
+            license.notes = request.POST.get('notes', '')
+            
+            # Update dates if provided
+            if request.POST.get('approval_date'):
+                license.approval_date = request.POST.get('approval_date')
+            if request.POST.get('issue_date'):
+                license.issue_date = request.POST.get('issue_date')
+            if request.POST.get('expiry_date'):
+                license.expiry_date = request.POST.get('expiry_date')
+            
+            # Update status if provided
+            if request.POST.get('status'):
+                license.status = request.POST.get('status')
+            
+            license.save()
+            
+            messages.success(request, f'License {license.license_number} updated successfully!')
+            return redirect('license_detail', pk=license.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating license: {str(e)}')
+    
+    context = {
+        'license': license,
+        'businesses': Business.objects.filter(is_active=True).order_by('business_name'),
+        'license_types': LicenseType.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'licenses/license_form.html', context)
+
+
+@login_required
+def license_approve(request, pk):
+    """Approve a license application"""
+    
+    license = get_object_or_404(License, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            license.status = 'approved'
+            license.approval_date = timezone.now().date()
+            license.approved_by = request.user
+            
+            # Set issue date and expiry date
+            license.issue_date = timezone.now().date()
+            validity_days = license.license_type.validity_period_days
+            license.expiry_date = license.issue_date + timedelta(days=validity_days)
+            
+            license.save()
+            
+            messages.success(request, f'License {license.license_number} approved successfully!')
+            
+        except Exception as e:
+            messages.error(request, f'Error approving license: {str(e)}')
+    
+    return redirect('license_detail', pk=pk)
+
+
+@login_required
+def license_reject(request, pk):
+    """Reject a license application"""
+    
+    license = get_object_or_404(License, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            license.status = 'rejected'
+            license.rejection_reason = request.POST.get('rejection_reason', '')
+            license.reviewed_by = request.user
+            license.save()
+            
+            messages.success(request, f'License {license.license_number} rejected!')
+            
+        except Exception as e:
+            messages.error(request, f'Error rejecting license: {str(e)}')
+    
+    return redirect('license_detail', pk=pk)
+
+
+@login_required
+def license_delete(request, pk):
+    """Delete license"""
+    
+    license = get_object_or_404(License, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            license_number = license.license_number
+            license.delete()
+            messages.success(request, f'License {license_number} deleted successfully!')
+            return redirect('license_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting license: {str(e)}')
+            return redirect('license_detail', pk=pk)
+    
+    return redirect('license_detail', pk=pk)
+
+
+@login_required
+def license_export_excel(request):
+    """Export licenses to Excel"""
+    
+    # Get filtered licenses
+    licenses = License.objects.select_related(
+        'business', 'license_type', 'business__citizen'
+    ).order_by('-application_date')
+    
+    # Apply same filters as list view
+    search_query = request.GET.get('search', '')
+    if search_query:
+        licenses = licenses.filter(
+            Q(license_number__icontains=search_query) |
+            Q(business__business_name__icontains=search_query)
+        )
+    
+    status = request.GET.get('status', '')
+    if status:
+        licenses = licenses.filter(status=status)
+    
+    license_type = request.GET.get('license_type', '')
+    if license_type:
+        licenses = licenses.filter(license_type_id=license_type)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Licenses"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = [
+        'License Number', 'Business', 'License Type', 'Status',
+        'Application Date', 'Approval Date', 'Issue Date', 'Expiry Date',
+        'Is Renewal', 'Created By'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Data
+    for row_num, license in enumerate(licenses, 2):
+        data = [
+            license.license_number,
+            license.business.business_name,
+            license.license_type.name,
+            license.get_status_display(),
+            license.application_date.strftime('%Y-%m-%d') if license.application_date else '',
+            license.approval_date.strftime('%Y-%m-%d') if license.approval_date else '',
+            license.issue_date.strftime('%Y-%m-%d') if license.issue_date else '',
+            license.expiry_date.strftime('%Y-%m-%d') if license.expiry_date else '',
+            'Yes' if license.is_renewal else 'No',
+            license.created_by.get_full_name() if license.created_by else ''
+        ]
+        
+        for col_num, value in enumerate(data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            cell.alignment = Alignment(vertical='center')
+    
+    # Adjust column widths
+    for col_num in range(1, len(headers) + 1):
+        column_letter = get_column_letter(col_num)
+        ws.column_dimensions[column_letter].width = 18
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=licenses_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# LICENSE TYPE MANAGEMENT
+# ============================================================================
+
+@login_required
+def license_type_list(request):
+    """List all license types"""
+    
+    license_types = LicenseType.objects.select_related(
+        'business_category', 'revenue_stream'
+    ).order_by('name')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        license_types = license_types.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filter by category
+    category = request.GET.get('category', '')
+    if category:
+        license_types = license_types.filter(business_category_id=category)
+    
+    # Statistics
+    stats = {
+        'total': LicenseType.objects.count(),
+        'active': LicenseType.objects.filter(is_active=True).count(),
+        'inactive': LicenseType.objects.filter(is_active=False).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(license_types, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'categories': BusinessCategory.objects.filter(is_active=True),
+        'current_category': category,
+    }
+    
+    return render(request, 'licenses/license_type_list.html', context)
+
+@login_required
+def license_type_export_excel(request):
+    """Export license types to Excel"""
+    
+    # Get queryset with filters
+    license_types = LicenseType.objects.select_related(
+        'business_category', 'revenue_stream'
+    ).order_by('name')
+    
+    # Apply search filter
+    search_query = request.GET.get('search', '')
+    if search_query:
+        license_types = license_types.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Apply category filter
+    category = request.GET.get('category', '')
+    if category:
+        license_types = license_types.filter(business_category_id=category)
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "License Types"
+    
+    # Define styles
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    header_fill = PatternFill(start_color="3498DB", end_color="3498DB", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    cell_alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    center_alignment = Alignment(horizontal="center", vertical="center")
+    
+    border_side = Side(style='thin', color='E2E8F0')
+    border = Border(left=border_side, right=border_side, top=border_side, bottom=border_side)
+    
+    # Title row
+    ws.merge_cells('A1:I1')
+    title_cell = ws['A1']
+    title_cell.value = "LICENSE TYPES REPORT"
+    title_cell.font = Font(bold=True, size=16, color="1E293B")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Metadata row
+    ws.merge_cells('A2:I2')
+    metadata_cell = ws['A2']
+    metadata_cell.value = f"Generated on: {datetime.now().strftime('%d %B %Y at %H:%M')}"
+    metadata_cell.font = Font(size=10, color="64748B")
+    metadata_cell.alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Add empty row
+    ws.append([])
+    
+    # Headers
+    headers = [
+        'Code',
+        'License Type Name',
+        'Business Category',
+        'Revenue Stream',
+        'Validity Period (Days)',
+        'Renewable',
+        'Requires Inspection',
+        'Status',
+        'Description'
+    ]
+    
+    ws.append(headers)
+    header_row = ws[4]
+    
+    # Apply header styling
+    for cell in header_row:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Set column widths
+    column_widths = {
+        'A': 15,  # Code
+        'B': 35,  # License Type Name
+        'C': 25,  # Business Category
+        'D': 30,  # Revenue Stream
+        'E': 20,  # Validity Period
+        'F': 12,  # Renewable
+        'G': 18,  # Requires Inspection
+        'H': 12,  # Status
+        'I': 50,  # Description
+    }
+    
+    for col, width in column_widths.items():
+        ws.column_dimensions[col].width = width
+    
+    # Add data rows
+    for license_type in license_types:
+        row = [
+            license_type.code,
+            license_type.name,
+            license_type.business_category.name,
+            f"{license_type.revenue_stream.name} ({license_type.revenue_stream.code})",
+            license_type.validity_period_days,
+            'Yes' if license_type.is_renewable else 'No',
+            'Yes' if license_type.requires_inspection else 'No',
+            'Active' if license_type.is_active else 'Inactive',
+            license_type.description,
+        ]
+        ws.append(row)
+    
+    # Apply styling to data rows
+    for row in ws.iter_rows(min_row=5, max_row=ws.max_row):
+        for cell in row:
+            cell.border = border
+            if cell.column in [1, 5, 6, 7, 8]:  # Center align certain columns
+                cell.alignment = center_alignment
+            else:
+                cell.alignment = cell_alignment
+            
+            # Color coding for status
+            if cell.column == 8:  # Status column
+                if cell.value == 'Active':
+                    cell.font = Font(color="065F46", bold=True)
+                    cell.fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+                elif cell.value == 'Inactive':
+                    cell.font = Font(color="991B1B", bold=True)
+                    cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+            
+            # Highlight renewable and inspection columns
+            if cell.column in [6, 7] and cell.value == 'Yes':
+                cell.font = Font(color="065F46", bold=True)
+    
+    # Add summary section
+    summary_row = ws.max_row + 2
+    ws.merge_cells(f'A{summary_row}:B{summary_row}')
+    summary_cell = ws[f'A{summary_row}']
+    summary_cell.value = "SUMMARY"
+    summary_cell.font = Font(bold=True, size=12, color="1E293B")
+    summary_cell.alignment = Alignment(horizontal="left", vertical="center")
+    
+    # Summary statistics
+    total_count = license_types.count()
+    active_count = license_types.filter(is_active=True).count()
+    inactive_count = license_types.filter(is_active=False).count()
+    renewable_count = license_types.filter(is_renewable=True).count()
+    inspection_count = license_types.filter(requires_inspection=True).count()
+    
+    summary_data = [
+        ['Total License Types:', total_count],
+        ['Active:', active_count],
+        ['Inactive:', inactive_count],
+        ['Renewable:', renewable_count],
+        ['Requires Inspection:', inspection_count],
+    ]
+    
+    for label, value in summary_data:
+        summary_row += 1
+        ws[f'A{summary_row}'] = label
+        ws[f'B{summary_row}'] = value
+        ws[f'A{summary_row}'].font = Font(bold=True, color="64748B")
+        ws[f'B{summary_row}'].font = Font(bold=True, color="1E293B")
+        ws[f'A{summary_row}'].alignment = Alignment(horizontal="left")
+        ws[f'B{summary_row}'].alignment = Alignment(horizontal="center")
+    
+    # Freeze panes (freeze header rows)
+    ws.freeze_panes = 'A5'
+    
+    # Prepare response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    
+    filename = f"license_types_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction
+from .models import (
+    LicenseType, BusinessCategory, RevenueStream, 
+    LicenseRequirement
+)
+from .forms import LicenseTypeForm, LicenseRequirementFormSet
+
+
+@login_required
+def license_type_create(request):
+    """Create a new license type"""
+    
+    if request.method == 'POST':
+        form = LicenseTypeForm(request.POST)
+        requirement_formset = LicenseRequirementFormSet(request.POST)
+        
+        if form.is_valid() and requirement_formset.is_valid():
+            try:
+                with transaction.atomic():
+                    license_type = form.save(commit=False)
+                    license_type.save()
+                    
+                    # Save requirements
+                    requirements = requirement_formset.save(commit=False)
+                    for requirement in requirements:
+                        requirement.license_type = license_type
+                        requirement.save()
+                    
+                    # Delete removed requirements
+                    for obj in requirement_formset.deleted_objects:
+                        obj.delete()
+                    
+                    messages.success(
+                        request, 
+                        f'License type "{license_type.name}" created successfully!'
+                    )
+                    return redirect('license_type_detail', pk=license_type.pk)
+            except Exception as e:
+                messages.error(request, f'Error creating license type: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = LicenseTypeForm()
+        requirement_formset = LicenseRequirementFormSet()
+    
+    context = {
+        'form': form,
+        'requirement_formset': requirement_formset,
+        'categories': BusinessCategory.objects.filter(is_active=True),
+        'revenue_streams': RevenueStream.objects.filter(is_active=True),
+        'is_create': True,
+    }
+    
+    return render(request, 'licenses/license_type_form.html', context)
+
+
+@login_required
+def license_type_detail(request, pk):
+    """View license type details"""
+    
+    license_type = get_object_or_404(
+        LicenseType.objects.select_related(
+            'business_category', 'revenue_stream'
+        ),
+        pk=pk
+    )
+    
+    # Get requirements
+    requirements = license_type.requirements.order_by('display_order')
+    
+    # Get licenses using this type
+    licenses = license_type.license_set.select_related(
+        'business', 'business__citizen'
+    ).order_by('-created_at')[:10]
+    
+    # Statistics
+    total_licenses = license_type.license_set.count()
+    active_licenses = license_type.license_set.filter(status='active').count()
+    pending_licenses = license_type.license_set.filter(
+        status__in=['submitted', 'under_review']
+    ).count()
+    
+    context = {
+        'license_type': license_type,
+        'requirements': requirements,
+        'recent_licenses': licenses,
+        'stats': {
+            'total_licenses': total_licenses,
+            'active_licenses': active_licenses,
+            'pending_licenses': pending_licenses,
+        }
+    }
+    
+    return render(request, 'licenses/license_type_detail.html', context)
+
+
+@login_required
+def license_type_update(request, pk):
+    """Update license type"""
+    
+    license_type = get_object_or_404(LicenseType, pk=pk)
+    
+    if request.method == 'POST':
+        form = LicenseTypeForm(request.POST, instance=license_type)
+        requirement_formset = LicenseRequirementFormSet(
+            request.POST, 
+            instance=license_type
+        )
+        
+        if form.is_valid() and requirement_formset.is_valid():
+            try:
+                with transaction.atomic():
+                    license_type = form.save()
+                    
+                    # Save requirements
+                    requirements = requirement_formset.save(commit=False)
+                    for requirement in requirements:
+                        requirement.license_type = license_type
+                        requirement.save()
+                    
+                    # Delete removed requirements
+                    for obj in requirement_formset.deleted_objects:
+                        obj.delete()
+                    
+                    messages.success(
+                        request, 
+                        f'License type "{license_type.name}" updated successfully!'
+                    )
+                    return redirect('license_type_detail', pk=license_type.pk)
+            except Exception as e:
+                messages.error(request, f'Error updating license type: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = LicenseTypeForm(instance=license_type)
+        requirement_formset = LicenseRequirementFormSet(instance=license_type)
+    
+    context = {
+        'form': form,
+        'requirement_formset': requirement_formset,
+        'license_type': license_type,
+        'categories': BusinessCategory.objects.filter(is_active=True),
+        'revenue_streams': RevenueStream.objects.filter(is_active=True),
+        'is_create': False,
+    }
+    
+    return render(request, 'licenses/license_type_form.html', context)
+
+
+@login_required
+def license_type_delete(request, pk):
+    """Delete license type"""
+    
+    license_type = get_object_or_404(LicenseType, pk=pk)
+    
+    if request.method == 'POST':
+        # Check if there are active licenses using this type
+        active_licenses = license_type.license_set.filter(
+            status__in=['active', 'submitted', 'under_review']
+        ).count()
+        
+        if active_licenses > 0:
+            messages.error(
+                request,
+                f'Cannot delete this license type. There are {active_licenses} active licenses using it. '
+                'Please deactivate it instead.'
+            )
+            return redirect('license_type_detail', pk=pk)
+        
+        try:
+            name = license_type.name
+            license_type.delete()
+            messages.success(request, f'License type "{name}" deleted successfully!')
+            return redirect('license_type_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting license type: {str(e)}')
+            return redirect('license_type_detail', pk=pk)
+    
+    # GET request - show confirmation
+    context = {
+        'license_type': license_type,
+        'active_licenses_count': license_type.license_set.filter(
+            status__in=['active', 'submitted', 'under_review']
+        ).count(),
+    }
+    
+    return render(request, 'licenses/license_type_confirm_delete.html', context)
+
+
+
+# ============================================================================
+# AJAX ENDPOINTS
+# ============================================================================
+
+@login_required
+def get_wards_by_subcounty(request):
+    """Get wards for a specific sub-county (AJAX)"""
+    
+    sub_county_id = request.GET.get('sub_county_id')
+    wards = Ward.objects.filter(
+        sub_county_id=sub_county_id,
+        is_active=True
+    ).values('id', 'name').order_by('name')
+    
+    return JsonResponse(list(wards), safe=False)
+
+
+@login_required
+def get_license_types_by_category(request):
+    """Get license types for a specific business category (AJAX)"""
+    
+    category_id = request.GET.get('category_id')
+    license_types = LicenseType.objects.filter(
+        business_category_id=category_id,
+        is_active=True
+    ).values('id', 'name', 'code').order_by('name')
+    
+    return JsonResponse(list(license_types), safe=False)
+
+
+@login_required
+def get_license_requirements(request):
+    """Get requirements for a specific license type (AJAX)"""
+    
+    license_type_id = request.GET.get('license_type_id')
+    requirements = LicenseRequirement.objects.filter(
+        license_type_id=license_type_id
+    ).values('id', 'requirement_name', 'description', 'is_mandatory').order_by('display_order')
+    
+    return JsonResponse(list(requirements), safe=False)

@@ -2,7 +2,7 @@
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Role, Permission, SystemConfiguration
+from .models import *
 
 
 class UserForm(forms.ModelForm):
@@ -87,3 +87,111 @@ class SystemConfigurationForm(forms.ModelForm):
             'value': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+
+
+# Forms.py - Add these forms
+from django import forms
+from django.forms import inlineformset_factory
+
+
+class LicenseTypeForm(forms.ModelForm):
+    """Form for creating/updating license types"""
+    
+    class Meta:
+        model = LicenseType
+        fields = [
+            'name', 'code', 'description', 'business_category',
+            'revenue_stream', 'validity_period_days', 'is_renewable',
+            'requires_inspection', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter license type name'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., LIC-001'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Enter detailed description'
+            }),
+            'business_category': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'revenue_stream': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'validity_period_days': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 365'
+            }),
+            'is_renewable': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'requires_inspection': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+    
+    def clean_code(self):
+        code = self.cleaned_data.get('code')
+        if code:
+            code = code.upper()
+            # Check for duplicate code
+            qs = LicenseType.objects.filter(code=code)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError('A license type with this code already exists.')
+        return code
+    
+    def clean_validity_period_days(self):
+        days = self.cleaned_data.get('validity_period_days')
+        if days and days <= 0:
+            raise forms.ValidationError('Validity period must be greater than 0.')
+        return days
+
+
+class LicenseRequirementForm(forms.ModelForm):
+    """Form for license requirements"""
+    
+    class Meta:
+        model = LicenseRequirement
+        fields = ['requirement_name', 'description', 'is_mandatory', 'display_order']
+        widgets = {
+            'requirement_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Requirement name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Description'
+            }),
+            'is_mandatory': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'display_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Order'
+            }),
+        }
+
+
+# Create formset for requirements
+LicenseRequirementFormSet = inlineformset_factory(
+    LicenseType,
+    LicenseRequirement,
+    form=LicenseRequirementForm,
+    extra=3,
+    can_delete=True,
+    min_num=0,
+    validate_min=False,
+)

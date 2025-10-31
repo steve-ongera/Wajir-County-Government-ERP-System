@@ -721,11 +721,12 @@
                 <span>Licenses & Permits</span>
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
+
             <div class="submenu" id="submenu-licenses">
-                <a href="#" class="submenu-item">All Licenses</a>
-                <a href="#" class="submenu-item">Applications</a>
-                <a href="#" class="submenu-item">Businesses</a>
-                <a href="#" class="submenu-item">License Types</a>
+                <a href="{% url 'license_list' %}" class="submenu-item">All Licenses</a>
+                <a href="{% url 'licenses_dashboard' %}" class="submenu-item">Applications</a>
+                <a href="{% url 'business_list' %}" class="submenu-item">Businesses</a>
+                <a href="{% url 'license_type_list' %}" class="submenu-item">License Types</a>
             </div>
 
             <div class="menu-item has-submenu" data-submenu="property">

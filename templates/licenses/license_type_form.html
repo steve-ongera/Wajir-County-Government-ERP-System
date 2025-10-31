@@ -1,0 +1,588 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{% if is_create %}Add{% else %}Edit{% endif %} License Type{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-section {
+        margin-bottom: 32px;
+    }
+
+    .form-section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #E2E8F0;
+    }
+
+    .form-section-icon {
+        width: 32px;
+        height: 32px;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #3498db;
+    }
+
+    .form-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-label .required {
+        color: #e74c3c;
+        margin-left: 4px;
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        background: white;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        background: #F8FAFC;
+        border-radius: 6px;
+        margin-bottom: 12px;
+    }
+
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .form-check-label {
+        font-size: 14px;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+        display: block;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FEE2E2;
+    }
+
+    .requirements-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .requirement-item {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .requirement-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .requirement-number {
+        font-weight: 600;
+        color: #3498db;
+    }
+
+    .btn-remove {
+        padding: 6px 12px;
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FEE2E2;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-remove:hover {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-add-requirement {
+        padding: 10px 20px;
+        background: white;
+        color: #3498db;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+    }
+
+    .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'licenses_dashboard' %}">Licenses & Permits</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'license_type_list' %}">License Types</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {% if is_create %}Add New{% else %}Edit{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        <div class="section-container">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-certificate"></i>
+                    {% if is_create %}Add New License Type{% else %}Edit License Type{% endif %}
+                </h1>
+            </div>
+
+            <!-- Error Messages -->
+            {% if form.errors or requirement_formset.errors %}
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>Please correct the errors below.</span>
+            </div>
+            {% endif %}
+
+            <!-- Basic Information -->
+            <div class="form-section">
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <h3 class="form-section-title">Basic Information</h3>
+                </div>
+
+                <div class="row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            License Type Name
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <small class="form-text" style="color: #e74c3c;">{{ form.name.errors.0 }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            License Code
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.code }}
+                        <small class="form-text">Unique code for this license type (e.g., LIC-001)</small>
+                        {% if form.code.errors %}
+                            <small class="form-text" style="color: #e74c3c;">{{ form.code.errors.0 }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Description
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <small class="form-text" style="color: #e74c3c;">{{ form.description.errors.0 }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Business Category
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.business_category }}
+                        {% if form.business_category.errors %}
+                            <small class="form-text" style="color: #e74c3c;">{{ form.business_category.errors.0 }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Revenue Stream
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.revenue_stream }}
+                        {% if form.revenue_stream.errors %}
+                            <small class="form-text" style="color: #e74c3c;">{{ form.revenue_stream.errors.0 }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Validity Period (Days)
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.validity_period_days }}
+                    <small class="form-text">Number of days the license remains valid</small>
+                    {% if form.validity_period_days.errors %}
+                        <small class="form-text" style="color: #e74c3c;">{{ form.validity_period_days.errors.0 }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="form-section">
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <h3 class="form-section-title">Settings</h3>
+                </div>
+
+                <div class="form-check">
+                    {{ form.is_renewable }}
+                    <label class="form-check-label" for="{{ form.is_renewable.id_for_label }}">
+                        Is Renewable - License can be renewed before expiry
+                    </label>
+                </div>
+
+                <div class="form-check">
+                    {{ form.requires_inspection }}
+                    <label class="form-check-label" for="{{ form.requires_inspection.id_for_label }}">
+                        Requires Inspection - Business premises must be inspected before approval
+                    </label>
+                </div>
+
+                <div class="form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        Active - License type is available for new applications
+                    </label>
+                </div>
+            </div>
+
+            <!-- Requirements -->
+            <div class="form-section">
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h3 class="form-section-title">Application Requirements</h3>
+                </div>
+
+                <div class="requirements-section">
+                    {{ requirement_formset.management_form }}
+                    
+                    <div id="requirements-container">
+                        {% for form in requirement_formset %}
+                        <div class="requirement-item">
+                            <div class="requirement-header">
+                                <span class="requirement-number">Requirement {{ forloop.counter }}</span>
+                                {% if not forloop.first or requirement_formset|length > 1 %}
+                                <button type="button" class="btn-remove" onclick="removeRequirement(this)">
+                                    <i class="bi bi-trash"></i> Remove
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            {{ form.id }}
+                            {% if form.DELETE %}
+                                {{ form.DELETE }}
+                            {% endif %}
+                            
+                            <div class="form-group">
+                                <label class="form-label">Requirement Name</label>
+                                {{ form.requirement_name }}
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Description</label>
+                                {{ form.description }}
+                            </div>
+
+                            <div class="row">
+                                <div class="form-check">
+                                    {{ form.is_mandatory }}
+                                    <label class="form-check-label">Mandatory</label>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Display Order</label>
+                                    {{ form.display_order }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" class="btn-add-requirement" onclick="addRequirement()">
+                        <i class="bi bi-plus-circle"></i>
+                        Add Requirement
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    {% if is_create %}Create License Type{% else %}Update License Type{% endif %}
+                </button>
+                <a href="{% url 'license_type_list' %}" class="btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let requirementCount = {{ requirement_formset.total_form_count }};
+    const maxForms = {{ requirement_formset.max_num }};
+
+    function addRequirement() {
+        if (requirementCount >= maxForms) {
+            alert('Maximum number of requirements reached');
+            return;
+        }
+
+        const container = document.getElementById('requirements-container');
+        const emptyForm = container.querySelector('.requirement-item:first-child').cloneNode(true);
+        
+        // Update form indices
+        const formRegex = RegExp(`requirements-(\\d+)-`, 'g');
+        emptyForm.innerHTML = emptyForm.innerHTML.replace(formRegex, `requirements-${requirementCount}-`);
+        
+        // Clear values
+        emptyForm.querySelectorAll('input, textarea').forEach(input => {
+            if (input.type !== 'checkbox') {
+                input.value = '';
+            } else {
+                input.checked = false;
+            }
+        });
+        
+        // Update requirement number
+        emptyForm.querySelector('.requirement-number').textContent = `Requirement ${requirementCount + 1}`;
+        
+        // Add remove button if not present
+        if (!emptyForm.querySelector('.btn-remove')) {
+            const header = emptyForm.querySelector('.requirement-header');
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-remove';
+            removeBtn.onclick = function() { removeRequirement(this); };
+            removeBtn.innerHTML = '<i class="bi bi-trash"></i> Remove';
+            header.appendChild(removeBtn);
+        }
+        
+        container.appendChild(emptyForm);
+        requirementCount++;
+        
+        // Update management form
+        document.querySelector('#id_requirements-TOTAL_FORMS').value = requirementCount;
+    }
+
+    function removeRequirement(button) {
+        const item = button.closest('.requirement-item');
+        const deleteInput = item.querySelector('input[name$="-DELETE"]');
+        
+        if (deleteInput) {
+            // Mark for deletion if it's an existing object
+            deleteInput.checked = true;
+            item.style.display = 'none';
+        } else {
+            // Remove new items completely
+            item.remove();
+            requirementCount--;
+            document.querySelector('#id_requirements-TOTAL_FORMS').value = requirementCount;
+        }
+        
+        // Renumber remaining requirements
+        updateRequirementNumbers();
+    }
+
+    function updateRequirementNumbers() {
+        const items = document.querySelectorAll('.requirement-item:not([style*="display: none"])');
+        items.forEach((item, index) => {
+            item.querySelector('.requirement-number').textContent = `Requirement ${index + 1}`;
+        });
+    }
+</script>
+{% endblock %}

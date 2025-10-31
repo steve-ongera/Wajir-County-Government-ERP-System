@@ -1,0 +1,869 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}{% if license %}Edit License{% else %}New License Application{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 32px;
+        margin-bottom: 24px;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-subtitle {
+        font-size: 16px;
+        opacity: 0.95;
+        margin: 0;
+    }
+
+    .form-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .form-section {
+        padding: 32px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .form-section:last-child {
+        border-bottom: none;
+    }
+
+    .section-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #F1F5F9;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+    }
+
+    .section-description {
+        font-size: 14px;
+        color: #64748B;
+        margin: 0;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 24px;
+    }
+
+    .form-group {
+        margin-bottom: 0;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+    }
+
+    .form-label.required::after {
+        content: " *";
+        color: #ef4444;
+    }
+
+    .form-control,
+    .form-select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #1E293B;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-control:disabled,
+    .form-select:disabled {
+        background: #F8FAFC;
+        color: #94A3B8;
+        cursor: not-allowed;
+    }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .form-help {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .form-help i {
+        color: #94A3B8;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px;
+        background: #F8FAFC;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .checkbox-wrapper:hover {
+        background: #F1F5F9;
+        border-color: #CBD5E1;
+    }
+
+    .checkbox-wrapper input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .checkbox-label {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .checkbox-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 2px;
+    }
+
+    .checkbox-description {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .info-box {
+        padding: 16px;
+        background: #EFF6FF;
+        border-left: 4px solid #3b82f6;
+        border-radius: 8px;
+        margin-bottom: 24px;
+    }
+
+    .info-box.warning {
+        background: #FEF3C7;
+        border-left-color: #f59e0b;
+    }
+
+    .info-box.success {
+        background: #D1FAE5;
+        border-left-color: #10b981;
+    }
+
+    .info-box-content {
+        display: flex;
+        gap: 12px;
+    }
+
+    .info-box-icon {
+        font-size: 20px;
+        color: #3b82f6;
+    }
+
+    .info-box.warning .info-box-icon {
+        color: #f59e0b;
+    }
+
+    .info-box.success .info-box-icon {
+        color: #10b981;
+    }
+
+    .info-box-text {
+        flex: 1;
+    }
+
+    .info-box-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+
+    .info-box-description {
+        font-size: 13px;
+        color: #64748B;
+        margin: 0;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 24px 32px;
+        background: #F8FAFC;
+        border-top: 1px solid #E2E8F0;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #5568d3, #6a3f8f);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #1E293B;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-selection--single {
+        height: 46px !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px !important;
+        padding: 0 !important;
+        color: #1E293B;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 44px !important;
+        right: 8px !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    }
+
+    .quick-info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+    }
+
+    .quick-info-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .quick-info-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+    }
+
+    .quick-info-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1E293B;
+    }
+
+    .quick-info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .quick-info-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        background: #F8FAFC;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #64748B;
+    }
+
+    .quick-info-item i {
+        color: #94A3B8;
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .page-header {
+            padding: 24px;
+        }
+
+        .form-section {
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'licenses_dashboard' %}">Licenses & Permits</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'license_list' %}">All Licenses</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {% if license %}Edit License{% else %}New License{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">
+            <i class="{% if license %}bi bi-pencil-square{% else %}bi bi-plus-circle{% endif %}"></i>
+            {% if license %}
+                Edit License Application
+            {% else %}
+                New License Application
+            {% endif %}
+        </h1>
+        <p class="page-subtitle">
+            {% if license %}
+                Update license details for {{ license.license_number }}
+            {% else %}
+                Create a new business license or permit application
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Info Box -->
+            {% if not license %}
+            <div class="info-box">
+                <div class="info-box-content">
+                    <i class="bi bi-info-circle info-box-icon"></i>
+                    <div class="info-box-text">
+                        <div class="info-box-title">Before You Start</div>
+                        <p class="info-box-description">
+                            Ensure the business is registered in the system before creating a license application. 
+                            All required documents should be ready for upload after creating the application.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Form Container -->
+            <form method="post" id="licenseForm">
+                {% csrf_token %}
+                
+                <div class="form-container">
+                    <!-- Business Selection -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="bi bi-building"></i>
+                                Business Information
+                            </h3>
+                            <p class="section-description">
+                                Select the business for which this license is being issued
+                            </p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label class="form-label required" for="business">Business</label>
+                                <select class="form-select" id="business" name="business" required>
+                                    <option value="">-- Select Business --</option>
+                                    {% for business in businesses %}
+                                    <option value="{{ business.id }}" 
+                                            {% if license and license.business.id == business.id %}selected{% endif %}
+                                            data-category="{{ business.business_category.name }}"
+                                            data-subcounty="{{ business.sub_county.name }}"
+                                            data-ward="{{ business.ward.name }}">
+                                        {{ business.business_name }} ({{ business.business_number }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-help">
+                                    <i class="bi bi-info-circle"></i>
+                                    <span>Can't find the business? <a href="{% url 'business_create' %}" target="_blank">Register a new business</a></span>
+                                </div>
+                            </div>
+
+                            <!-- Business Details (Auto-populated) -->
+                            <div id="businessDetails" style="display: none; grid-column: 1 / -1;">
+                                <div class="info-box success">
+                                    <div class="info-box-content">
+                                        <i class="bi bi-check-circle info-box-icon"></i>
+                                        <div class="info-box-text">
+                                            <div class="info-box-title">Selected Business Details</div>
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px;">
+                                                <div>
+                                                    <div style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Category</div>
+                                                    <div id="businessCategory" style="font-size: 13px; color: #1E293B; font-weight: 600;">-</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Sub-County</div>
+                                                    <div id="businessSubCounty" style="font-size: 13px; color: #1E293B; font-weight: 600;">-</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Ward</div>
+                                                    <div id="businessWard" style="font-size: 13px; color: #1E293B; font-weight: 600;">-</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- License Type Selection -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="bi bi-file-earmark-text"></i>
+                                License Details
+                            </h3>
+                            <p class="section-description">
+                                Choose the type of license and provide application details
+                            </p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label class="form-label required" for="license_type">License Type</label>
+                                <select class="form-select" id="license_type" name="license_type" required>
+                                    <option value="">-- Select License Type --</option>
+                                    {% for type in license_types %}
+                                    <option value="{{ type.id }}" 
+                                            {% if license and license.license_type.id == type.id %}selected{% endif %}
+                                            data-validity="{{ type.validity_period_days }}"
+                                            data-renewable="{{ type.is_renewable }}"
+                                            data-inspection="{{ type.requires_inspection }}">
+                                        {{ type.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-help">
+                                    <i class="bi bi-info-circle"></i>
+                                    <span>Select the appropriate license type for this business</span>
+                                </div>
+                            </div>
+
+                            <!-- License Type Details (Auto-populated) -->
+                            <div id="licenseTypeDetails" style="display: none; grid-column: 1 / -1;">
+                                <div class="info-box">
+                                    <div class="info-box-content">
+                                        <i class="bi bi-info-circle info-box-icon"></i>
+                                        <div class="info-box-text">
+                                            <div class="info-box-title">License Type Information</div>
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 12px;">
+                                                <div>
+                                                    <div style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Validity Period</div>
+                                                    <div id="typeValidity" style="font-size: 13px; color: #1E293B; font-weight: 600;">-</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Renewable</div>
+                                                    <div id="typeRenewable" style="font-size: 13px; color: #1E293B; font-weight: 600;">-</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Inspection Required</div>
+                                                    <div id="typeInspection" style="font-size: 13px; color: #1E293B; font-weight: 600;">-</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label required" for="application_date">Application Date</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="application_date" 
+                                       name="application_date" 
+                                       value="{% if license %}{{ license.application_date|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                                       required>
+                                <div class="form-help">
+                                    <i class="bi bi-calendar"></i>
+                                    <span>Date when the application was received</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <div class="checkbox-wrapper">
+                                    <input type="checkbox" 
+                                           id="is_renewal" 
+                                           name="is_renewal" 
+                                           value="true"
+                                           {% if license and license.is_renewal %}checked{% endif %}>
+                                    <label class="checkbox-label" for="is_renewal">
+                                        <div class="checkbox-title">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                            This is a renewal application
+                                        </div>
+                                        <div class="checkbox-description">
+                                            Check this box if this is a renewal of an existing license
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information (Edit Mode Only) -->
+                    {% if license %}
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="bi bi-calendar-check"></i>
+                                Processing Information
+                            </h3>
+                            <p class="section-description">
+                                Update processing status and important dates
+                            </p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="status">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="draft" {% if license.status == 'draft' %}selected{% endif %}>Draft</option>
+                                    <option value="submitted" {% if license.status == 'submitted' %}selected{% endif %}>Submitted</option>
+                                    <option value="under_review" {% if license.status == 'under_review' %}selected{% endif %}>Under Review</option>
+                                    <option value="approved" {% if license.status == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="rejected" {% if license.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                                    <option value="issued" {% if license.status == 'issued' %}selected{% endif %}>Issued</option>
+                                    <option value="active" {% if license.status == 'active' %}selected{% endif %}>Active</option>
+                                    <option value="expired" {% if license.status == 'expired' %}selected{% endif %}>Expired</option>
+                                    <option value="suspended" {% if license.status == 'suspended' %}selected{% endif %}>Suspended</option>
+                                    <option value="revoked" {% if license.status == 'revoked' %}selected{% endif %}>Revoked</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="approval_date">Approval Date</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="approval_date" 
+                                       name="approval_date" 
+                                       value="{% if license.approval_date %}{{ license.approval_date|date:'Y-m-d' }}{% endif %}">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="issue_date">Issue Date</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="issue_date" 
+                                       name="issue_date" 
+                                       value="{% if license.issue_date %}{{ license.issue_date|date:'Y-m-d' }}{% endif %}">
+                                <div class="form-help">
+                                    <i class="bi bi-info-circle"></i>
+                                    <span>Date when the license was officially issued</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="expiry_date">Expiry Date</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="expiry_date" 
+                                       name="expiry_date" 
+                                       value="{% if license.expiry_date %}{{ license.expiry_date|date:'Y-m-d' }}{% endif %}">
+                                <div class="form-help">
+                                    <i class="bi bi-info-circle"></i>
+                                    <span>License expiration date</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes Section -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="bi bi-sticky"></i>
+                                Additional Notes
+                            </h3>
+                            <p class="section-description">
+                                Add any relevant notes or comments about this application
+                            </p>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="notes">Notes</label>
+                            <textarea class="form-control" 
+                                      id="notes" 
+                                      name="notes" 
+                                      rows="4" 
+                                      placeholder="Enter any additional information or special requirements...">{% if license %}{{ license.notes }}{% endif %}</textarea>
+                            <div class="form-help">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Optional: Add internal notes, special conditions, or requirements</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <a href="{% if license %}{% url 'license_detail' license.pk %}{% else %}{% url 'license_list' %}{% endif %}" 
+                           class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i>
+                            Cancel
+                        </a>
+                        {% if license %}
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i>
+                            Update License
+                        </button>
+                        {% else %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i>
+                            Create License
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Tips -->
+            <div class="quick-info-card">
+                <div class="quick-info-header">
+                    <div class="quick-info-icon">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <div class="quick-info-title">Quick Tips</div>
+                </div>
+                <div class="quick-info-list">
+                    <div class="quick-info-item">
+                        <i class="bi bi-check-circle"></i>
+                        <span>Ensure all business details are up-to-date before applying</span>
+                    </div>
+                    <div class="quick-info-item">
+                        <i class="bi bi-check-circle"></i>
+                        <span>Select the correct license type for the business category</span>
+                    </div>
+                    <div class="quick-info-item">
+                        <i class="bi bi-check-circle"></i>
+                        <span>Upload all required documents after creating the application</span>
+                    </div>
+                    <div class="quick-info-item">
+                        <i class="bi bi-check-circle"></i>
+                        <span>Mark as renewal if replacing an expired license</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help & Support -->
+            <div class="quick-info-card">
+                <div class="quick-info-header">
+                    <div class="quick-info-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="bi bi-question-circle"></i>
+                    </div>
+                    <div class="quick-info-title">Need Help?</div>
+                </div>
+                <div class="quick-info-list">
+                    <div class="quick-info-item">
+                        <i class="bi bi-telephone"></i>
+                        <span>Call: +254 700 000 000</span>
+                    </div>
+                    <div class="quick-info-item">
+                        <i class="bi bi-envelope"></i>
+                        <span>Email: licenses@wajir.go.ke</span>
+                    </div>
+                    <div class="quick-info-item">
+                        <i class="bi bi-book"></i>
+                        <a href="#" style="text-decoration: none; color: inherit;">View License Guidelines</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // Initialize Select2
+        $('#business').select2({
+            placeholder: "-- Select Business --",
+            width: '100%'
+        });
+
+        $('#license_type').select2({
+            placeholder: "-- Select License Type --",
+            width: '100%'
+        });
+
+        // Auto-populate Business Details
+        $('#business').on('change', function() {
+            var selectedOption = $(this).find('option:selected');
+            var category = selectedOption.data('category') || '-';
+            var subCounty = selectedOption.data('subcounty') || '-';
+            var ward = selectedOption.data('ward') || '-';
+
+            if (selectedOption.val()) {
+                $('#businessCategory').text(category);
+                $('#businessSubCounty').text(subCounty);
+                $('#businessWard').text(ward);
+                $('#businessDetails').show();
+            } else {
+                $('#businessDetails').hide();
+            }
+        }).trigger('change');
+
+        // Auto-populate License Type Details
+        $('#license_type').on('change', function() {
+            var selectedOption = $(this).find('option:selected');
+            var validity = selectedOption.data('validity') ? selectedOption.data('validity') + ' days' : '-';
+            var renewable = selectedOption.data('renewable') ? 'Yes' : 'No';
+            var inspection = selectedOption.data('inspection') ? 'Yes' : 'No';
+
+            if (selectedOption.val()) {
+                $('#typeValidity').text(validity);
+                $('#typeRenewable').text(renewable);
+                $('#typeInspection').text(inspection);
+                $('#licenseTypeDetails').show();
+            } else {
+                $('#licenseTypeDetails').hide();
+            }
+        }).trigger('change');
+    });
+</script>
+{% endblock %}
