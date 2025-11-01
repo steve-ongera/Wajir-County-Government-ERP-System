@@ -8784,3 +8784,788 @@ def get_license_requirements(request):
     ).values('id', 'requirement_name', 'description', 'is_mandatory').order_by('display_order')
     
     return JsonResponse(list(requirements), safe=False)
+
+
+
+
+    """
+Property & Land Management Views
+Handles properties, valuations, development applications, and subdivisions
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Sum, Avg
+from django.http import HttpResponse
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+
+from .models import (
+    Property, PropertyType, LandUseType, PropertyValuation,
+    DevelopmentApplication, PropertySubdivision, PropertyAmalgamation,
+    PropertyCaveat, PropertyDocument, SubCounty, Ward, Citizen, User
+)
+
+
+# ============================================================================
+# PROPERTY MANAGEMENT
+# ============================================================================
+
+@login_required
+def property_list(request):
+    """List all properties with filters and search"""
+    properties = Property.objects.select_related(
+        'owner', 'property_type', 'land_use_type', 'sub_county', 'ward'
+    ).order_by('-created_at')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        properties = properties.filter(
+            Q(parcel_number__icontains=search_query) |
+            Q(owner__first_name__icontains=search_query) |
+            Q(owner__last_name__icontains=search_query) |
+            Q(owner__business_name__icontains=search_query) |
+            Q(plot_number__icontains=search_query) |
+            Q(building_name__icontains=search_query)
+        )
+    
+    # Filters
+    property_type = request.GET.get('property_type', '')
+    if property_type:
+        properties = properties.filter(property_type_id=property_type)
+    
+    land_use = request.GET.get('land_use', '')
+    if land_use:
+        properties = properties.filter(land_use_type_id=land_use)
+    
+    sub_county = request.GET.get('sub_county', '')
+    if sub_county:
+        properties = properties.filter(sub_county_id=sub_county)
+    
+    ward = request.GET.get('ward', '')
+    if ward:
+        properties = properties.filter(ward_id=ward)
+    
+    status = request.GET.get('status', '')
+    if status:
+        properties = properties.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total': Property.objects.count(),
+        'active': Property.objects.filter(status='active').count(),
+        'with_caveat': Property.objects.filter(has_caveat=True).count(),
+        'total_area': Property.objects.aggregate(
+            total=Sum('area_sqm')
+        )['total'] or 0,
+        'total_value': Property.objects.aggregate(
+            total=Sum('assessed_value')
+        )['total'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(properties, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'property_types': PropertyType.objects.filter(is_active=True),
+        'land_use_types': LandUseType.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'wards': Ward.objects.filter(is_active=True),
+        'current_property_type': property_type,
+        'current_land_use': land_use,
+        'current_sub_county': sub_county,
+        'current_ward': ward,
+        'current_status': status,
+    }
+    
+    return render(request, 'property/property_list.html', context)
+
+
+@login_required
+def property_detail(request, pk):
+    """Property detail view"""
+    property_obj = get_object_or_404(
+        Property.objects.select_related(
+            'owner', 'property_type', 'land_use_type', 'sub_county', 'ward'
+        ),
+        pk=pk
+    )
+    
+    # Get related data
+    valuations = property_obj.valuations.order_by('-valuation_date')[:5]
+    documents = property_obj.documents.order_by('-uploaded_at')[:10]
+    caveats = property_obj.caveats.filter(is_active=True)
+    development_apps = property_obj.development_applications.order_by('-application_date')[:5]
+    
+    # Ownership history
+    ownership_history = property_obj.ownership_history.select_related(
+        'previous_owner', 'new_owner'
+    ).order_by('-transfer_date')[:10]
+    
+    context = {
+        'property': property_obj,
+        'valuations': valuations,
+        'documents': documents,
+        'caveats': caveats,
+        'development_apps': development_apps,
+        'ownership_history': ownership_history,
+    }
+    
+    return render(request, 'property/property_detail.html', context)
+
+
+@login_required
+def property_create(request):
+    """Create new property"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            parcel_number = request.POST.get('parcel_number')
+            owner_id = request.POST.get('owner')
+            property_type_id = request.POST.get('property_type')
+            land_use_type_id = request.POST.get('land_use_type')
+            area_sqm = request.POST.get('area_sqm')
+            assessed_value = request.POST.get('assessed_value')
+            sub_county_id = request.POST.get('sub_county')
+            ward_id = request.POST.get('ward')
+            street = request.POST.get('street', '')
+            plot_number = request.POST.get('plot_number', '')
+            building_name = request.POST.get('building_name', '')
+            annual_rate = request.POST.get('annual_rate', 0)
+            registration_date = request.POST.get('registration_date')
+            
+            # Create property
+            property_obj = Property.objects.create(
+                parcel_number=parcel_number,
+                owner_id=owner_id,
+                property_type_id=property_type_id,
+                land_use_type_id=land_use_type_id,
+                area_sqm=area_sqm,
+                assessed_value=assessed_value if assessed_value else None,
+                sub_county_id=sub_county_id,
+                ward_id=ward_id,
+                street=street,
+                plot_number=plot_number,
+                building_name=building_name,
+                annual_rate=annual_rate if annual_rate else 0,
+                registration_date=registration_date,
+                status='active'
+            )
+            
+            messages.success(request, f'Property {parcel_number} created successfully!')
+            return redirect('property_detail', pk=property_obj.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating property: {str(e)}')
+    
+    context = {
+        'property_types': PropertyType.objects.filter(is_active=True),
+        'land_use_types': LandUseType.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'property/property_form.html', context)
+
+
+@login_required
+def property_update(request, pk):
+    """Update property"""
+    property_obj = get_object_or_404(Property, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            property_obj.parcel_number = request.POST.get('parcel_number')
+            property_obj.owner_id = request.POST.get('owner')
+            property_obj.property_type_id = request.POST.get('property_type')
+            property_obj.land_use_type_id = request.POST.get('land_use_type')
+            property_obj.area_sqm = request.POST.get('area_sqm')
+            
+            assessed_value = request.POST.get('assessed_value')
+            property_obj.assessed_value = assessed_value if assessed_value else None
+            
+            property_obj.sub_county_id = request.POST.get('sub_county')
+            property_obj.ward_id = request.POST.get('ward')
+            property_obj.street = request.POST.get('street', '')
+            property_obj.plot_number = request.POST.get('plot_number', '')
+            property_obj.building_name = request.POST.get('building_name', '')
+            
+            annual_rate = request.POST.get('annual_rate')
+            property_obj.annual_rate = annual_rate if annual_rate else 0
+            
+            property_obj.status = request.POST.get('status')
+            property_obj.registration_date = request.POST.get('registration_date')
+            
+            property_obj.save()
+            
+            messages.success(request, f'Property {property_obj.parcel_number} updated successfully!')
+            return redirect('property_detail', pk=property_obj.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating property: {str(e)}')
+    
+    context = {
+        'property': property_obj,
+        'property_types': PropertyType.objects.filter(is_active=True),
+        'land_use_types': LandUseType.objects.filter(is_active=True),
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+        'wards': Ward.objects.filter(is_active=True),
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'property/property_form.html', context)
+
+
+@login_required
+def property_delete(request, pk):
+    """Delete property"""
+    property_obj = get_object_or_404(Property, pk=pk)
+    parcel_number = property_obj.parcel_number
+    
+    try:
+        property_obj.delete()
+        messages.success(request, f'Property {parcel_number} deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting property: {str(e)}')
+    
+    return redirect('property_list')
+
+
+@login_required
+def property_export_excel(request):
+    """Export properties to Excel"""
+    # Get filtered queryset
+    properties = Property.objects.select_related(
+        'owner', 'property_type', 'land_use_type', 'sub_county', 'ward'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        properties = properties.filter(
+            Q(parcel_number__icontains=search_query) |
+            Q(owner__first_name__icontains=search_query) |
+            Q(owner__last_name__icontains=search_query)
+        )
+    
+    property_type = request.GET.get('property_type', '')
+    if property_type:
+        properties = properties.filter(property_type_id=property_type)
+    
+    status = request.GET.get('status', '')
+    if status:
+        properties = properties.filter(status=status)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Properties"
+    
+    # Define styles
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    
+    # Headers
+    headers = [
+        'Parcel Number', 'Owner', 'Property Type', 'Land Use', 
+        'Area (sqm)', 'Assessed Value', 'Annual Rate',
+        'Sub County', 'Ward', 'Plot Number', 'Status', 'Registration Date'
+    ]
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Data rows
+    for row, prop in enumerate(properties, 2):
+        owner_name = prop.owner.first_name + ' ' + prop.owner.last_name if prop.owner.entity_type == 'individual' else prop.owner.business_name
+        
+        ws.cell(row=row, column=1, value=prop.parcel_number)
+        ws.cell(row=row, column=2, value=owner_name)
+        ws.cell(row=row, column=3, value=prop.property_type.name)
+        ws.cell(row=row, column=4, value=prop.land_use_type.name)
+        ws.cell(row=row, column=5, value=float(prop.area_sqm))
+        ws.cell(row=row, column=6, value=float(prop.assessed_value) if prop.assessed_value else 0)
+        ws.cell(row=row, column=7, value=float(prop.annual_rate))
+        ws.cell(row=row, column=8, value=prop.sub_county.name)
+        ws.cell(row=row, column=9, value=prop.ward.name)
+        ws.cell(row=row, column=10, value=prop.plot_number)
+        ws.cell(row=row, column=11, value=prop.get_status_display())
+        ws.cell(row=row, column=12, value=prop.registration_date.strftime('%Y-%m-%d'))
+    
+    # Adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[column].width = min(max_length + 2, 50)
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=properties_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# PROPERTY VALUATIONS
+# ============================================================================
+
+@login_required
+def valuation_list(request):
+    """List all property valuations"""
+    valuations = PropertyValuation.objects.select_related(
+        'property', 'property__owner', 'created_by'
+    ).order_by('-valuation_date')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        valuations = valuations.filter(
+            Q(property__parcel_number__icontains=search_query) |
+            Q(valuer_name__icontains=search_query)
+        )
+    
+    # Filters
+    property_id = request.GET.get('property', '')
+    if property_id:
+        valuations = valuations.filter(property_id=property_id)
+    
+    is_current = request.GET.get('is_current', '')
+    if is_current:
+        valuations = valuations.filter(is_current=is_current == 'true')
+    
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        valuations = valuations.filter(valuation_date__gte=date_from)
+    if date_to:
+        valuations = valuations.filter(valuation_date__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': PropertyValuation.objects.count(),
+        'current': PropertyValuation.objects.filter(is_current=True).count(),
+        'avg_value': PropertyValuation.objects.aggregate(
+            avg=Avg('total_value')
+        )['avg'] or 0,
+        'total_value': PropertyValuation.objects.aggregate(
+            total=Sum('total_value')
+        )['total'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(valuations, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'property/valuation_list.html', context)
+
+
+@login_required
+def valuation_create(request):
+    """Create new property valuation"""
+    if request.method == 'POST':
+        try:
+            property_id = request.POST.get('property')
+            land_value = request.POST.get('land_value')
+            improvement_value = request.POST.get('improvement_value', 0)
+            total_value = float(land_value) + float(improvement_value)
+            
+            valuation = PropertyValuation.objects.create(
+                property_id=property_id,
+                valuation_date=request.POST.get('valuation_date'),
+                valuation_method=request.POST.get('valuation_method'),
+                land_value=land_value,
+                improvement_value=improvement_value,
+                total_value=total_value,
+                valuer_name=request.POST.get('valuer_name'),
+                is_current=request.POST.get('is_current') == 'on',
+                created_by=request.user
+            )
+            
+            # If set as current, unset others
+            if valuation.is_current:
+                PropertyValuation.objects.filter(
+                    property_id=property_id
+                ).exclude(pk=valuation.pk).update(is_current=False)
+            
+            messages.success(request, 'Valuation created successfully!')
+            return redirect('valuation_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating valuation: {str(e)}')
+    
+    context = {
+        'properties': Property.objects.filter(status='active'),
+    }
+    
+    return render(request, 'property/valuation_form.html', context)
+
+
+@login_required
+def valuation_update(request, pk):
+    """Update property valuation"""
+    valuation = get_object_or_404(PropertyValuation, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            land_value = request.POST.get('land_value')
+            improvement_value = request.POST.get('improvement_value', 0)
+            total_value = float(land_value) + float(improvement_value)
+            
+            valuation.valuation_date = request.POST.get('valuation_date')
+            valuation.valuation_method = request.POST.get('valuation_method')
+            valuation.land_value = land_value
+            valuation.improvement_value = improvement_value
+            valuation.total_value = total_value
+            valuation.valuer_name = request.POST.get('valuer_name')
+            valuation.is_current = request.POST.get('is_current') == 'on'
+            
+            valuation.save()
+            
+            # If set as current, unset others
+            if valuation.is_current:
+                PropertyValuation.objects.filter(
+                    property_id=valuation.property_id
+                ).exclude(pk=valuation.pk).update(is_current=False)
+            
+            messages.success(request, 'Valuation updated successfully!')
+            return redirect('valuation_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating valuation: {str(e)}')
+    
+    context = {
+        'valuation': valuation,
+        'properties': Property.objects.filter(status='active'),
+    }
+    
+    return render(request, 'property/valuation_form.html', context)
+
+
+@login_required
+def valuation_delete(request, pk):
+    """Delete property valuation"""
+    valuation = get_object_or_404(PropertyValuation, pk=pk)
+    
+    try:
+        valuation.delete()
+        messages.success(request, 'Valuation deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting valuation: {str(e)}')
+    
+    return redirect('valuation_list')
+
+
+# ============================================================================
+# DEVELOPMENT APPLICATIONS
+# ============================================================================
+
+@login_required
+def development_list(request):
+    """List all development applications"""
+    applications = DevelopmentApplication.objects.select_related(
+        'applicant', 'property', 'reviewed_by', 'approved_by'
+    ).order_by('-application_date')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        applications = applications.filter(
+            Q(application_number__icontains=search_query) |
+            Q(applicant__first_name__icontains=search_query) |
+            Q(applicant__last_name__icontains=search_query) |
+            Q(property__parcel_number__icontains=search_query)
+        )
+    
+    # Filters
+    app_type = request.GET.get('application_type', '')
+    if app_type:
+        applications = applications.filter(application_type=app_type)
+    
+    status = request.GET.get('status', '')
+    if status:
+        applications = applications.filter(status=status)
+    
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        applications = applications.filter(application_date__gte=date_from)
+    if date_to:
+        applications = applications.filter(application_date__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': DevelopmentApplication.objects.count(),
+        'submitted': DevelopmentApplication.objects.filter(status='submitted').count(),
+        'under_review': DevelopmentApplication.objects.filter(status='under_review').count(),
+        'approved': DevelopmentApplication.objects.filter(status='approved').count(),
+        'rejected': DevelopmentApplication.objects.filter(status='rejected').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(applications, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'current_type': app_type,
+        'current_status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'property/development_list.html', context)
+
+
+@login_required
+def development_create(request):
+    """Create new development application"""
+    if request.method == 'POST':
+        try:
+            # Generate application number
+            last_app = DevelopmentApplication.objects.order_by('-id').first()
+            if last_app:
+                last_num = int(last_app.application_number.split('-')[-1])
+                app_number = f"DEV-{datetime.now().year}-{last_num + 1:05d}"
+            else:
+                app_number = f"DEV-{datetime.now().year}-00001"
+            
+            application = DevelopmentApplication.objects.create(
+                application_number=app_number,
+                applicant_id=request.POST.get('applicant'),
+                property_id=request.POST.get('property'),
+                application_type=request.POST.get('application_type'),
+                description=request.POST.get('description'),
+                proposed_use=request.POST.get('proposed_use'),
+                estimated_cost=request.POST.get('estimated_cost') or None,
+                floor_area=request.POST.get('floor_area') or None,
+                application_date=request.POST.get('application_date'),
+                status='submitted'
+            )
+            
+            messages.success(request, f'Application {app_number} created successfully!')
+            return redirect('development_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating application: {str(e)}')
+    
+    context = {
+        'properties': Property.objects.filter(status='active'),
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'property/development_form.html', context)
+
+
+@login_required
+def development_update(request, pk):
+    """Update development application"""
+    application = get_object_or_404(DevelopmentApplication, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            application.applicant_id = request.POST.get('applicant')
+            application.property_id = request.POST.get('property')
+            application.application_type = request.POST.get('application_type')
+            application.description = request.POST.get('description')
+            application.proposed_use = request.POST.get('proposed_use')
+            application.estimated_cost = request.POST.get('estimated_cost') or None
+            application.floor_area = request.POST.get('floor_area') or None
+            application.application_date = request.POST.get('application_date')
+            application.status = request.POST.get('status')
+            
+            if request.POST.get('conditions'):
+                application.conditions = request.POST.get('conditions')
+            
+            if request.POST.get('rejection_reason'):
+                application.rejection_reason = request.POST.get('rejection_reason')
+            
+            application.save()
+            
+            messages.success(request, 'Application updated successfully!')
+            return redirect('development_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating application: {str(e)}')
+    
+    context = {
+        'development': application,
+        'properties': Property.objects.filter(status='active'),
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'property/development_form.html', context)
+
+
+@login_required
+def development_delete(request, pk):
+    """Delete development application"""
+    application = get_object_or_404(DevelopmentApplication, pk=pk)
+    app_number = application.application_number
+    
+    try:
+        application.delete()
+        messages.success(request, f'Application {app_number} deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting application: {str(e)}')
+    
+    return redirect('development_list')
+
+
+# ============================================================================
+# PROPERTY SUBDIVISIONS
+# ============================================================================
+
+@login_required
+def subdivision_list(request):
+    """List all property subdivisions"""
+    subdivisions = PropertySubdivision.objects.select_related(
+        'parent_property', 'parent_property__owner', 'created_by'
+    ).prefetch_related('child_properties').order_by('-subdivision_date')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        subdivisions = subdivisions.filter(
+            Q(parent_property__parcel_number__icontains=search_query) |
+            Q(approval_number__icontains=search_query) |
+            Q(surveyor__icontains=search_query)
+        )
+    
+    # Filters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        subdivisions = subdivisions.filter(subdivision_date__gte=date_from)
+    if date_to:
+        subdivisions = subdivisions.filter(subdivision_date__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': PropertySubdivision.objects.count(),
+        'this_year': PropertySubdivision.objects.filter(
+            subdivision_date__year=datetime.now().year
+        ).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(subdivisions, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'property/subdivision_list.html', context)
+
+
+@login_required
+def subdivision_create(request):
+    """Create new property subdivision"""
+    if request.method == 'POST':
+        try:
+            subdivision = PropertySubdivision.objects.create(
+                parent_property_id=request.POST.get('parent_property'),
+                subdivision_date=request.POST.get('subdivision_date'),
+                approval_number=request.POST.get('approval_number'),
+                surveyor=request.POST.get('surveyor'),
+                notes=request.POST.get('notes', ''),
+                created_by=request.user
+            )
+            
+            # Add child properties
+            child_properties = request.POST.getlist('child_properties')
+            subdivision.child_properties.set(child_properties)
+            
+            messages.success(request, 'Subdivision created successfully!')
+            return redirect('subdivision_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating subdivision: {str(e)}')
+    
+    context = {
+        'properties': Property.objects.filter(status='active'),
+    }
+    
+    return render(request, 'property/subdivision_form.html', context)
+
+
+@login_required
+def subdivision_update(request, pk):
+    """Update property subdivision"""
+    subdivision = get_object_or_404(PropertySubdivision, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            subdivision.parent_property_id = request.POST.get('parent_property')
+            subdivision.subdivision_date = request.POST.get('subdivision_date')
+            subdivision.approval_number = request.POST.get('approval_number')
+            subdivision.surveyor = request.POST.get('surveyor')
+            subdivision.notes = request.POST.get('notes', '')
+            
+            subdivision.save()
+            
+            # Update child properties
+            child_properties = request.POST.getlist('child_properties')
+            subdivision.child_properties.set(child_properties)
+            
+            messages.success(request, 'Subdivision updated successfully!')
+            return redirect('subdivision_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating subdivision: {str(e)}')
+    
+    context = {
+        'subdivision': subdivision,
+        'properties': Property.objects.filter(status='active'),
+    }
+    
+    return render(request, 'property/subdivision_form.html', context)
+
+
+@login_required
+def subdivision_delete(request, pk):
+    """Delete property subdivision"""
+    subdivision = get_object_or_404(PropertySubdivision, pk=pk)
+    
+    try:
+        subdivision.delete()
+        messages.success(request, 'Subdivision deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting subdivision: {str(e)}')
+    
+    return redirect('subdivision_list')

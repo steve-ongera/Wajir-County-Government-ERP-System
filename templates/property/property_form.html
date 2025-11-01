@@ -1,0 +1,500 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{% if property %}Edit Property{% else %}New Property{% endif %} - Property & Land{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .form-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        border: 1px solid #E2E8F0;
+    }
+
+    .form-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .form-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .form-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .form-section {
+        margin-bottom: 32px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #E2E8F0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 0;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #e74c3c;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-control:disabled {
+        background: #F8FAFC;
+        color: #94A3B8;
+        cursor: not-allowed;
+    }
+
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 6px;
+        display: block;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 32px;
+        padding-top: 20px;
+        border-top: 1px solid #E2E8F0;
+    }
+
+    .btn {
+        padding: 10px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-danger {
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FCA5A5;
+    }
+
+    .alert-success {
+        background: #D1FAE5;
+        color: #065F46;
+        border: 1px solid #6EE7B7;
+    }
+
+    select.form-control {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'property_list' %}">Properties</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {% if property %}Edit Property{% else %}New Property{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="form-container">
+        <!-- Form Header -->
+        <div class="form-header">
+            <h1 class="form-title">
+                <i class="fas fa-building"></i>
+                {% if property %}Edit Property{% else %}Register New Property{% endif %}
+            </h1>
+            <p class="form-subtitle">
+                {% if property %}
+                    Update property information for {{ property.parcel_number }}
+                {% else %}
+                    Enter property details to register a new land parcel
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Form -->
+        <form method="post" id="propertyForm">
+            {% csrf_token %}
+
+            <!-- Property Details Section -->
+            <div class="form-section">
+                <h6 class="section-title">
+                    <i class="bi bi-info-circle"></i>
+                    Property Details
+                </h6>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label required-field" for="parcel_number">Parcel Number</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="parcel_number" 
+                            name="parcel_number" 
+                            value="{{ property.parcel_number|default:'' }}"
+                            required
+                        >
+                        <small class="form-text">Unique parcel identifier</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required-field" for="owner">Owner</label>
+                        <select class="form-control" id="owner" name="owner" required>
+                            <option value="">Select Owner</option>
+                            {% for citizen in citizens %}
+                            <option value="{{ citizen.id }}" {% if property and property.owner.id == citizen.id %}selected{% endif %}>
+                                {% if citizen.entity_type == 'individual' %}
+                                    {{ citizen.first_name }} {{ citizen.last_name }}
+                                {% else %}
+                                    {{ citizen.business_name }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required-field" for="property_type">Property Type</label>
+                        <select class="form-control" id="property_type" name="property_type" required>
+                            <option value="">Select Type</option>
+                            {% for type in property_types %}
+                            <option value="{{ type.id }}" {% if property and property.property_type.id == type.id %}selected{% endif %}>
+                                {{ type.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required-field" for="land_use_type">Land Use Type</label>
+                        <select class="form-control" id="land_use_type" name="land_use_type" required>
+                            <option value="">Select Land Use</option>
+                            {% for use in land_use_types %}
+                            <option value="{{ use.id }}" {% if property and property.land_use_type.id == use.id %}selected{% endif %}>
+                                {{ use.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required-field" for="area_sqm">Area (Square Meters)</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            class="form-control" 
+                            id="area_sqm" 
+                            name="area_sqm" 
+                            value="{{ property.area_sqm|default:'' }}"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="assessed_value">Assessed Value (KES)</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            class="form-control" 
+                            id="assessed_value" 
+                            name="assessed_value" 
+                            value="{{ property.assessed_value|default:'' }}"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="annual_rate">Annual Rate (KES)</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            class="form-control" 
+                            id="annual_rate" 
+                            name="annual_rate" 
+                            value="{{ property.annual_rate|default:'0' }}"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required-field" for="registration_date">Registration Date</label>
+                        <input 
+                            type="date" 
+                            class="form-control" 
+                            id="registration_date" 
+                            name="registration_date" 
+                            value="{{ property.registration_date|date:'Y-m-d'|default:'' }}"
+                            required
+                        >
+                    </div>
+
+                    {% if property %}
+                    <div class="form-group">
+                        <label class="form-label required-field" for="status">Status</label>
+                        <select class="form-control" id="status" name="status" required>
+                            <option value="active" {% if property.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if property.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                            <option value="disputed" {% if property.status == 'disputed' %}selected{% endif %}>Disputed</option>
+                            <option value="subdivided" {% if property.status == 'subdivided' %}selected{% endif %}>Subdivided</option>
+                            <option value="amalgamated" {% if property.status == 'amalgamated' %}selected{% endif %}>Amalgamated</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Location Section -->
+            <div class="form-section">
+                <h6 class="section-title">
+                    <i class="bi bi-geo-alt"></i>
+                    Location Information
+                </h6>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label required-field" for="sub_county">Sub County</label>
+                        <select class="form-control" id="sub_county" name="sub_county" required>
+                            <option value="">Select Sub County</option>
+                            {% for sc in sub_counties %}
+                            <option value="{{ sc.id }}" {% if property and property.sub_county.id == sc.id %}selected{% endif %}>
+                                {{ sc.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required-field" for="ward">Ward</label>
+                        <select class="form-control" id="ward" name="ward" required>
+                            <option value="">Select Ward</option>
+                            {% for ward in wards %}
+                            <option value="{{ ward.id }}" {% if property and property.ward.id == ward.id %}selected{% endif %}>
+                                {{ ward.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="street">Street/Road</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="street" 
+                            name="street" 
+                            value="{{ property.street|default:'' }}"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="plot_number">Plot Number</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="plot_number" 
+                            name="plot_number" 
+                            value="{{ property.plot_number|default:'' }}"
+                        >
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label class="form-label" for="building_name">Building Name</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="building_name" 
+                            name="building_name" 
+                            value="{{ property.building_name|default:'' }}"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'property_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    {% if property %}Update Property{% else %}Register Property{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Ward filtering based on sub-county
+    document.getElementById('sub_county').addEventListener('change', function() {
+        const subCountyId = this.value;
+        const wardSelect = document.getElementById('ward');
+        
+        // Store original options if not done
+        if (!wardSelect.dataset.originalOptions) {
+            wardSelect.dataset.originalOptions = wardSelect.innerHTML;
+        }
+        
+        // Reset ward select
+        wardSelect.innerHTML = '<option value="">Select Ward</option>';
+        
+        if (subCountyId) {
+            // Parse original options and filter
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(wardSelect.dataset.originalOptions, 'text/html');
+            const options = doc.querySelectorAll('option');
+            
+            options.forEach(option => {
+                if (option.value && option.dataset.subcounty == subCountyId) {
+                    wardSelect.appendChild(option.cloneNode(true));
+                }
+            });
+        }
+    });
+
+    // Form validation
+    document.getElementById('propertyForm').addEventListener('submit', function(e) {
+        const areaInput = document.getElementById('area_sqm');
+        if (parseFloat(areaInput.value) <= 0) {
+            e.preventDefault();
+            alert('Area must be greater than 0');
+            areaInput.focus();
+            return false;
+        }
+    });
+</script>
+{% endblock %}

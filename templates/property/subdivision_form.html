@@ -1,0 +1,700 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ subdivision.id|default:"New" }} - Property Subdivision{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .form-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e67e22;
+    }
+
+    .section-title i {
+        color: #e67e22;
+        font-size: 18px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-row.single {
+        grid-template-columns: 1fr;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .form-label .required {
+        color: #e74c3c;
+        font-size: 16px;
+    }
+
+    .form-label .info-icon {
+        color: #94A3B8;
+        font-size: 14px;
+        cursor: help;
+    }
+
+    .form-control, .form-select, .form-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #e67e22;
+        box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .form-select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+    }
+
+    .help-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 4px;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+    }
+
+    .alert-info {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FCD34D;
+    }
+
+    .alert-warning {
+        background: #FEE2E2;
+        color: #991B1B;
+        border: 1px solid #FCA5A5;
+    }
+
+    .property-details-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 16px;
+    }
+
+    .property-details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .detail-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+        font-size: 14px;
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .detail-value.highlight {
+        color: #e67e22;
+        font-weight: 600;
+    }
+
+    /* Multi-select for child properties */
+    .multi-select-wrapper {
+        position: relative;
+    }
+
+    .multi-select-display {
+        min-height: 120px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        background: white;
+    }
+
+    .multi-select-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .multi-select-item:hover {
+        background: #EFF6FF;
+        border-color: #BFDBFE;
+    }
+
+    .multi-select-item.selected {
+        background: #DBEAFE;
+        border-color: #3B82F6;
+    }
+
+    .multi-select-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #e67e22;
+    }
+
+    .multi-select-item-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .multi-select-item-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .multi-select-item-meta {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .selected-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #e67e22;
+        color: white;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-top: 8px;
+    }
+
+    .no-properties-message {
+        padding: 40px;
+        text-align: center;
+        color: #64748B;
+        font-size: 14px;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+        margin-top: 24px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: #e67e22;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #d35400;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'subdivision_list' %}">Property Subdivisions</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {% if subdivision %}Edit Subdivision{% else %}New Subdivision{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-sitemap"></i>
+                {% if subdivision %}
+                    Edit Property Subdivision
+                {% else %}
+                    New Property Subdivision
+                {% endif %}
+            </h1>
+            <p class="page-subtitle">
+                {% if subdivision %}
+                    Update subdivision record for {{ subdivision.parent_property.parcel_number }}
+                {% else %}
+                    Create a new property subdivision record
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Info Alert -->
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <span>Complete all required fields marked with <span style="color: #e74c3c;">*</span> to record the subdivision</span>
+        </div>
+
+        {% if subdivision %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>Modifying subdivision records may affect land registry data. Ensure all information is accurate.</span>
+        </div>
+        {% endif %}
+
+        <!-- Subdivision Form -->
+        <form method="post" id="subdivisionForm">
+            {% csrf_token %}
+
+            <!-- Section 1: Parent Property -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-geo-alt"></i>
+                    Parent Property Information
+                </h3>
+
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label class="form-label" for="parent_property">
+                            Parent Property <span class="required">*</span>
+                            <i class="bi bi-info-circle info-icon" title="Select the original property being subdivided"></i>
+                        </label>
+                        <select class="form-select" id="parent_property" name="parent_property" required>
+                            <option value="">-- Select Parent Property --</option>
+                            {% for property in properties %}
+                            <option value="{{ property.id }}" 
+                                data-parcel="{{ property.parcel_number }}"
+                                data-owner="{% if property.owner.entity_type == 'individual' %}{{ property.owner.first_name }} {{ property.owner.last_name }}{% else %}{{ property.owner.business_name }}{% endif %}"
+                                data-area="{{ property.area_sqm }}"
+                                data-type="{{ property.property_type.name }}"
+                                data-location="{{ property.sub_county.name }}, {{ property.ward.name }}"
+                                {% if subdivision and subdivision.parent_property.id == property.id %}selected{% endif %}>
+                                {{ property.parcel_number }} - {{ property.property_type.name }} ({{ property.area_sqm }} sqm)
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span class="help-text">The property that will be subdivided into smaller parcels</span>
+                    </div>
+                </div>
+
+                <!-- Property Details Display -->
+                <div id="propertyDetails" class="property-details-card" style="display: none;">
+                    <div class="property-details-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Parcel Number</span>
+                            <span class="detail-value highlight" id="displayParcel">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Property Owner</span>
+                            <span class="detail-value" id="displayOwner">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Total Area</span>
+                            <span class="detail-value" id="displayArea">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Property Type</span>
+                            <span class="detail-value" id="displayType">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Location</span>
+                            <span class="detail-value" id="displayLocation">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Subdivision Details -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-clipboard-check"></i>
+                    Subdivision Details
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="subdivision_date">
+                            Subdivision Date <span class="required">*</span>
+                        </label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="subdivision_date" 
+                               name="subdivision_date" 
+                               value="{% if subdivision %}{{ subdivision.subdivision_date|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                               required>
+                        <span class="help-text">Date when the subdivision was officially recorded</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="approval_number">
+                            Approval Number <span class="required">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="approval_number" 
+                               name="approval_number" 
+                               value="{{ subdivision.approval_number|default:'' }}"
+                               placeholder="e.g., SUB/2024/001"
+                               required>
+                        <span class="help-text">Official subdivision approval reference number</span>
+                    </div>
+                </div>
+
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label class="form-label" for="surveyor">
+                            Licensed Surveyor <span class="required">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="surveyor" 
+                               name="surveyor" 
+                               value="{{ subdivision.surveyor|default:'' }}"
+                               placeholder="Enter surveyor's name and license number"
+                               required>
+                        <span class="help-text">Name and license number of the surveyor who conducted the subdivision</span>
+                    </div>
+                </div>
+
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label class="form-label" for="notes">
+                            Additional Notes
+                        </label>
+                        <textarea class="form-textarea" 
+                                  id="notes" 
+                                  name="notes" 
+                                  placeholder="Enter any additional information about the subdivision...">{{ subdivision.notes|default:'' }}</textarea>
+                        <span class="help-text">Optional - Any relevant notes or observations</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Child Properties -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-box-arrow-in-down-right"></i>
+                    Resulting Child Properties
+                </h3>
+
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Select Child Parcels <span class="required">*</span>
+                            <i class="bi bi-info-circle info-icon" title="Select all properties created from this subdivision"></i>
+                        </label>
+                        
+                        <div class="multi-select-wrapper">
+                            <div class="multi-select-display" id="childPropertiesDisplay">
+                                {% if properties %}
+                                    {% for property in properties %}
+                                    <label class="multi-select-item">
+                                        <input type="checkbox" 
+                                               name="child_properties" 
+                                               value="{{ property.id }}"
+                                               {% if subdivision and property in subdivision.child_properties.all %}checked{% endif %}>
+                                        <div class="multi-select-item-content">
+                                            <span class="multi-select-item-title">{{ property.parcel_number }}</span>
+                                            <span class="multi-select-item-meta">
+                                                {{ property.property_type.name }} • {{ property.area_sqm }} sqm • {{ property.sub_county.name }}
+                                            </span>
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="no-properties-message">
+                                        <i class="bi bi-inbox" style="font-size: 32px; margin-bottom: 8px;"></i>
+                                        <p>No properties available. Please add properties first.</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="selected-count" id="selectedCount" style="display: none;">
+                                <i class="bi bi-check-circle"></i>
+                                <span id="countText">0 parcels selected</span>
+                            </div>
+                        </div>
+                        
+                        <span class="help-text">Select all new properties that resulted from this subdivision</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'subdivision_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <i class="bi bi-check-circle"></i>
+                    {% if subdivision %}Update Subdivision{% else %}Create Subdivision{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Property details display
+    document.getElementById('parent_property').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const detailsDiv = document.getElementById('propertyDetails');
+        
+        if (this.value) {
+            document.getElementById('displayParcel').textContent = selectedOption.dataset.parcel || '-';
+            document.getElementById('displayOwner').textContent = selectedOption.dataset.owner || '-';
+            document.getElementById('displayArea').textContent = (selectedOption.dataset.area || '-') + ' sqm';
+            document.getElementById('displayType').textContent = selectedOption.dataset.type || '-';
+            document.getElementById('displayLocation').textContent = selectedOption.dataset.location || '-';
+            detailsDiv.style.display = 'block';
+        } else {
+            detailsDiv.style.display = 'none';
+        }
+    });
+
+    // Trigger on page load if property is selected
+    if (document.getElementById('parent_property').value) {
+        document.getElementById('parent_property').dispatchEvent(new Event('change'));
+    }
+
+    // Multi-select functionality for child properties
+    const checkboxes = document.querySelectorAll('input[name="child_properties"]');
+    const selectedCount = document.getElementById('selectedCount');
+    const countText = document.getElementById('countText');
+
+    function updateSelectedCount() {
+        const checkedBoxes = document.querySelectorAll('input[name="child_properties"]:checked');
+        const count = checkedBoxes.length;
+        
+        if (count > 0) {
+            selectedCount.style.display = 'inline-flex';
+            countText.textContent = `${count} parcel${count !== 1 ? 's' : ''} selected`;
+        } else {
+            selectedCount.style.display = 'none';
+        }
+    }
+
+    // Add event listeners to checkboxes
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const label = this.closest('.multi-select-item');
+            if (this.checked) {
+                label.classList.add('selected');
+            } else {
+                label.classList.remove('selected');
+            }
+            updateSelectedCount();
+        });
+
+        // Initialize selected state
+        if (checkbox.checked) {
+            checkbox.closest('.multi-select-item').classList.add('selected');
+        }
+    });
+
+    // Initial count
+    updateSelectedCount();
+
+    // Form validation
+    document.getElementById('subdivisionForm').addEventListener('submit', function(e) {
+        const checkedBoxes = document.querySelectorAll('input[name="child_properties"]:checked');
+        
+        if (checkedBoxes.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one child property for this subdivision.');
+            return false;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+    });
+
+    // Auto-format approval number
+    const approvalInput = document.getElementById('approval_number');
+    approvalInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+</script>
+{% endblock %}

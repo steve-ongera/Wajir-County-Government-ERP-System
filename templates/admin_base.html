@@ -735,10 +735,18 @@
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
             <div class="submenu" id="submenu-property">
-                <a href="#" class="submenu-item">Properties</a>
-                <a href="#" class="submenu-item">Valuations</a>
-                <a href="#" class="submenu-item">Development</a>
-                <a href="#" class="submenu-item">Subdivisions</a>
+                <a href="{% url 'property_list' %}" class="submenu-item">
+                    <i class="fas fa-building"></i> Properties
+                </a>
+                <a href="{% url 'valuation_list' %}" class="submenu-item">
+                    <i class="fas fa-gavel"></i> Valuations
+                </a>
+                <a href="{% url 'development_list' %}" class="submenu-item">
+                    <i class="fas fa-file-alt"></i> Development
+                </a>
+                <a href="{% url 'subdivision_list' %}" class="submenu-item">
+                    <i class="fas fa-cut"></i> Subdivisions
+                </a>
             </div>
 
             <a href="#" class="menu-item">

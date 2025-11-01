@@ -170,4 +170,30 @@ urlpatterns = [
     path('ajax/license-types-by-category/', views.get_license_types_by_category, name='get_license_types_by_category'),
     path('ajax/license-requirements/', views.get_license_requirements, name='get_license_requirements'),
 
+    # Properties
+    path('properties/', views.property_list, name='property_list'),
+    path('properties/create/', views.property_create, name='property_create'),
+    path('properties/<int:pk>/', views.property_detail, name='property_detail'),
+    path('properties/<int:pk>/update/', views.property_update, name='property_update'),
+    path('properties/<int:pk>/delete/', views.property_delete, name='property_delete'),
+    path('properties/export/excel/', views.property_export_excel, name='property_export_excel'),
+    
+    # Valuations
+    path('valuations/', views.valuation_list, name='valuation_list'),
+    path('valuations/create/', views.valuation_create, name='valuation_create'),
+    path('valuations/<int:pk>/update/', views.valuation_update, name='valuation_update'),
+    path('valuations/<int:pk>/delete/', views.valuation_delete, name='valuation_delete'),
+    
+    # Development Applications
+    path('development/', views.development_list, name='development_list'),
+    path('development/create/', views.development_create, name='development_create'),
+    path('development/<int:pk>/update/', views.development_update, name='development_update'),
+    path('development/<int:pk>/delete/', views.development_delete, name='development_delete'),
+    
+    # Subdivisions
+    path('subdivisions/', views.subdivision_list, name='subdivision_list'),
+    path('subdivisions/create/', views.subdivision_create, name='subdivision_create'),
+    path('subdivisions/<int:pk>/update/', views.subdivision_update, name='subdivision_update'),
+    path('subdivisions/<int:pk>/delete/', views.subdivision_delete, name='subdivision_delete'),
+
 ]

@@ -1,0 +1,729 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ development.application_number|default:"New" }} - Development Application{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .form-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #3498db;
+    }
+
+    .section-title i {
+        color: #3498db;
+        font-size: 18px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-row.single {
+        grid-template-columns: 1fr;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .form-label .required {
+        color: #e74c3c;
+        font-size: 16px;
+    }
+
+    .form-label .info-icon {
+        color: #94A3B8;
+        font-size: 14px;
+        cursor: help;
+    }
+
+    .form-control, .form-select, .form-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .form-control:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .form-textarea.large {
+        min-height: 150px;
+    }
+
+    .form-select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+    }
+
+    .input-group {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-prefix {
+        position: absolute;
+        left: 12px;
+        color: #64748B;
+        font-size: 14px;
+        pointer-events: none;
+    }
+
+    .input-group .form-control {
+        padding-left: 36px;
+    }
+
+    .help-text {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 4px;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+    }
+
+    .alert-info {
+        background: #DBEAFE;
+        color: #1E40AF;
+        border: 1px solid #93C5FD;
+    }
+
+    .alert-warning {
+        background: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FCD34D;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-submitted {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .status-under_review {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-approved {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-rejected {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .status-conditional {
+        background: #FED7AA;
+        color: #9A3412;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 24px;
+        border-top: 1px solid #F1F5F9;
+        margin-top: 24px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c0392b;
+    }
+
+    .conditional-field {
+        display: none;
+    }
+
+    .conditional-field.active {
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'development_list' %}">Development Applications</a>
+            </li>
+            <li class="breadcrumb-item active">
+                {% if development %}Edit Application{% else %}New Application{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-file-alt"></i>
+                {% if development %}
+                    Edit Development Application
+                {% else %}
+                    New Development Application
+                {% endif %}
+            </h1>
+            <p class="page-subtitle">
+                {% if development %}
+                    Application Number: {{ development.application_number }} | 
+                    <span class="status-badge status-{{ development.status }}">
+                        {{ development.get_status_display }}
+                    </span>
+                {% else %}
+                    Submit a new development application for review
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Info Alert -->
+        {% if not development %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            <span>Complete all required fields marked with <span style="color: #e74c3c;">*</span> to submit your application</span>
+        </div>
+        {% endif %}
+
+        <!-- Application Form -->
+        <form method="post" id="developmentForm">
+            {% csrf_token %}
+
+            <!-- Section 1: Applicant Information -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-person-badge"></i>
+                    Applicant Information
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="applicant">
+                            Applicant <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="applicant" name="applicant" required>
+                            <option value="">-- Select Applicant --</option>
+                            {% for citizen in citizens %}
+                            <option value="{{ citizen.id }}" 
+                                {% if development and development.applicant.id == citizen.id %}selected{% endif %}>
+                                {% if citizen.entity_type == 'individual' %}
+                                    {{ citizen.first_name }} {{ citizen.last_name }} - {{ citizen.unique_identifier }}
+                                {% else %}
+                                    {{ citizen.business_name }} - {{ citizen.unique_identifier }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span class="help-text">Select the property owner or authorized applicant</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="property">
+                            Property/Parcel <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="property" name="property" required>
+                            <option value="">-- Select Property --</option>
+                            {% for property in properties %}
+                            <option value="{{ property.id }}" 
+                                data-parcel="{{ property.parcel_number }}"
+                                data-area="{{ property.area_sqm }}"
+                                data-location="{{ property.sub_county.name }}, {{ property.ward.name }}"
+                                {% if development and development.property.id == property.id %}selected{% endif %}>
+                                {{ property.parcel_number }} - {{ property.property_type.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <span class="help-text">Select the property for development</span>
+                    </div>
+                </div>
+
+                <!-- Property Details Display -->
+                <div id="propertyDetails" style="display: none; margin-top: 16px; padding: 16px; background: white; border: 1px solid #E2E8F0; border-radius: 6px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div>
+                            <strong style="color: #64748B; font-size: 12px;">Parcel Number:</strong>
+                            <div id="displayParcel" style="color: #1E293B; font-size: 14px; margin-top: 4px;">-</div>
+                        </div>
+                        <div>
+                            <strong style="color: #64748B; font-size: 12px;">Area (sqm):</strong>
+                            <div id="displayArea" style="color: #1E293B; font-size: 14px; margin-top: 4px;">-</div>
+                        </div>
+                        <div>
+                            <strong style="color: #64748B; font-size: 12px;">Location:</strong>
+                            <div id="displayLocation" style="color: #1E293B; font-size: 14px; margin-top: 4px;">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Application Details -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-clipboard-check"></i>
+                    Application Details
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="application_type">
+                            Application Type <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="application_type" name="application_type" required>
+                            <option value="">-- Select Type --</option>
+                            <option value="building_plan" {% if development and development.application_type == 'building_plan' %}selected{% endif %}>
+                                Building Plan Approval
+                            </option>
+                            <option value="change_of_use" {% if development and development.application_type == 'change_of_use' %}selected{% endif %}>
+                                Change of Use
+                            </option>
+                            <option value="subdivision" {% if development and development.application_type == 'subdivision' %}selected{% endif %}>
+                                Subdivision
+                            </option>
+                            <option value="amalgamation" {% if development and development.application_type == 'amalgamation' %}selected{% endif %}>
+                                Amalgamation
+                            </option>
+                            <option value="extension" {% if development and development.application_type == 'extension' %}selected{% endif %}>
+                                Extension
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="application_date">
+                            Application Date <span class="required">*</span>
+                        </label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="application_date" 
+                               name="application_date" 
+                               value="{% if development %}{{ development.application_date|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"
+                               required>
+                    </div>
+                </div>
+
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label class="form-label" for="proposed_use">
+                            Proposed Use <span class="required">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="proposed_use" 
+                               name="proposed_use" 
+                               value="{{ development.proposed_use|default:'' }}"
+                               placeholder="e.g., Residential dwelling, Commercial building, etc."
+                               required>
+                        <span class="help-text">Describe the intended use of the development</span>
+                    </div>
+                </div>
+
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label class="form-label" for="description">
+                            Description <span class="required">*</span>
+                        </label>
+                        <textarea class="form-textarea large" 
+                                  id="description" 
+                                  name="description" 
+                                  placeholder="Provide detailed description of the development project..."
+                                  required>{{ development.description|default:'' }}</textarea>
+                        <span class="help-text">Include scope of work, materials, and any other relevant details</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Project Specifications -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-rulers"></i>
+                    Project Specifications
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="floor_area">
+                            Floor Area (sqm)
+                            <i class="bi bi-info-circle info-icon" title="Total floor area of the development"></i>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-prefix">
+                                <i class="bi bi-square"></i>
+                            </span>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="floor_area" 
+                                   name="floor_area" 
+                                   step="0.01"
+                                   min="0"
+                                   value="{{ development.floor_area|default:'' }}"
+                                   placeholder="0.00">
+                        </div>
+                        <span class="help-text">Optional - Total floor area in square meters</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="estimated_cost">
+                            Estimated Cost (KES)
+                            <i class="bi bi-info-circle info-icon" title="Estimated project cost"></i>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-prefix">KES</span>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="estimated_cost" 
+                                   name="estimated_cost" 
+                                   step="0.01"
+                                   min="0"
+                                   value="{{ development.estimated_cost|default:'' }}"
+                                   placeholder="0.00">
+                        </div>
+                        <span class="help-text">Optional - Estimated development cost</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Status & Review (Only for updates) -->
+            {% if development %}
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-flag"></i>
+                    Status & Review
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="status">
+                            Application Status <span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="submitted" {% if development.status == 'submitted' %}selected{% endif %}>
+                                Submitted
+                            </option>
+                            <option value="under_review" {% if development.status == 'under_review' %}selected{% endif %}>
+                                Under Review
+                            </option>
+                            <option value="site_visit" {% if development.status == 'site_visit' %}selected{% endif %}>
+                                Site Visit Scheduled
+                            </option>
+                            <option value="approved" {% if development.status == 'approved' %}selected{% endif %}>
+                                Approved
+                            </option>
+                            <option value="rejected" {% if development.status == 'rejected' %}selected{% endif %}>
+                                Rejected
+                            </option>
+                            <option value="conditional" {% if development.status == 'conditional' %}selected{% endif %}>
+                                Conditionally Approved
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row single conditional-field" id="conditionsField">
+                    <div class="form-group">
+                        <label class="form-label" for="conditions">
+                            Approval Conditions
+                        </label>
+                        <textarea class="form-textarea" 
+                                  id="conditions" 
+                                  name="conditions" 
+                                  placeholder="Enter any conditions for approval...">{{ development.conditions|default:'' }}</textarea>
+                        <span class="help-text">Required for conditional approvals</span>
+                    </div>
+                </div>
+
+                <div class="form-row single conditional-field" id="rejectionField">
+                    <div class="form-group">
+                        <label class="form-label" for="rejection_reason">
+                            Rejection Reason
+                        </label>
+                        <textarea class="form-textarea" 
+                                  id="rejection_reason" 
+                                  name="rejection_reason" 
+                                  placeholder="Enter reason for rejection...">{{ development.rejection_reason|default:'' }}</textarea>
+                        <span class="help-text">Required for rejected applications</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'development_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+                
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <i class="bi bi-check-circle"></i>
+                    {% if development %}Update Application{% else %}Submit Application{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Property details display
+    document.getElementById('property').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const detailsDiv = document.getElementById('propertyDetails');
+        
+        if (this.value) {
+            document.getElementById('displayParcel').textContent = selectedOption.dataset.parcel || '-';
+            document.getElementById('displayArea').textContent = selectedOption.dataset.area || '-';
+            document.getElementById('displayLocation').textContent = selectedOption.dataset.location || '-';
+            detailsDiv.style.display = 'block';
+        } else {
+            detailsDiv.style.display = 'none';
+        }
+    });
+
+    // Trigger on page load if property is selected
+    if (document.getElementById('property').value) {
+        document.getElementById('property').dispatchEvent(new Event('change'));
+    }
+
+    // Status-based conditional fields
+    {% if development %}
+    const statusSelect = document.getElementById('status');
+    const conditionsField = document.getElementById('conditionsField');
+    const rejectionField = document.getElementById('rejectionField');
+
+    function toggleConditionalFields() {
+        const status = statusSelect.value;
+        
+        // Show conditions field for conditional approval
+        if (status === 'conditional') {
+            conditionsField.classList.add('active');
+        } else {
+            conditionsField.classList.remove('active');
+        }
+        
+        // Show rejection reason field for rejected
+        if (status === 'rejected') {
+            rejectionField.classList.add('active');
+        } else {
+            rejectionField.classList.remove('active');
+        }
+    }
+
+    statusSelect.addEventListener('change', toggleConditionalFields);
+    toggleConditionalFields(); // Run on page load
+    {% endif %}
+
+    // Form validation
+    document.getElementById('developmentForm').addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+    });
+
+    // Auto-format currency input
+    const costInput = document.getElementById('estimated_cost');
+    if (costInput) {
+        costInput.addEventListener('blur', function() {
+            if (this.value) {
+                this.value = parseFloat(this.value).toFixed(2);
+            }
+        });
+    }
+
+    // Auto-format area input
+    const areaInput = document.getElementById('floor_area');
+    if (areaInput) {
+        areaInput.addEventListener('blur', function() {
+            if (this.value) {
+                this.value = parseFloat(this.value).toFixed(2);
+            }
+        });
+    }
+</script>
+{% endblock %}
