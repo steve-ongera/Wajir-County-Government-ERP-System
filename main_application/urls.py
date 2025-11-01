@@ -233,4 +233,53 @@ urlpatterns = [
     path('health/morgue/', views.MorgueRecordListView.as_view(), name='health_morgue_list'),
     path('health/morgue/add/', views.MorgueRecordCreateView.as_view(), name='health_morgue_add'),
 
+    # ============================================================================
+    # GEOGRAPHIC SETUP URLs
+    # ============================================================================
+    path('administration/geographic/', views.geographic_setup_dashboard,  name='geographic_setup_dashboard'),
+    path('administration/sub-counties/', views.sub_county_list, name='sub_county_list'), 
+    path('administration/sub-counties/create/', views.sub_county_create, name='sub_county_create'),
+    path('administration/sub-counties/<str:code>/', views.sub_county_detail, name='sub_county_detail'),
+    path('administration/sub-counties/<str:code>/update/', views.sub_county_update, name='sub_county_update'),
+    
+    # Ward URLs
+    path('administration/wards/', views.ward_list, name='ward_list'),
+    path('administration/wards/create/', views.ward_create, name='ward_create'),
+    path('administration/wards/<str:code>/',  views.ward_detail, name='ward_detail'),
+    path('administration/wards/<str:code>/update/', views.ward_update, name='ward_update'),
+    
+    
+    # ============================================================================
+    # DEPARTMENT URLs
+    # ============================================================================
+    
+    path('administration/departments/', views.department_list, name='department_list'),
+    path('administration/departments/create/', views.department_create, name='department_create'),
+    path('administration/departments/<str:code>/', views.department_detail, name='department_detail'),
+    path('administration/departments/<str:code>/update/', views.department_update, name='department_update'), 
+    path('administration/departments/export/excel/', views.department_export_excel, name='department_export_excel'),
+    
+    
+    # ============================================================================
+    # CASE MANAGEMENT URLs
+    # ============================================================================
+    
+    path('administration/cases/', views.case_list, name='case_list'), 
+    path('administration/cases/create/', views.case_create,  name='case_create'),
+    path('administration/cases/<str:case_number>/', views.case_detail, name='case_detail'),
+    path('administration/cases/<str:case_number>/update/', views.case_update, name='case_update'),
+    path('administration/cases/<str:case_number>/add-hearing/', views.case_add_hearing, name='case_add_hearing'),
+    path('administration/cases/export/excel/',  views.case_export_excel,  name='case_export_excel'),
+    path('administration/case-categories/', views.case_category_list, name='case_category_list'),
+    path('administration/case-categories/create/', views.case_category_create, name='case_category_create'),
+    
+    path('administration/documents/', views.document_list, name='document_list'),
+    path('administration/documents/create/',  views.document_create,  name='document_create'),
+    path('administration/documents/<str:document_number>/',  views.document_detail,  name='document_detail'),
+    path('administration/documents/<str:document_number>/update/', views.document_update, name='document_update'),
+    path('administration/documents/<str:document_number>/download/', views.document_download, name='document_download'), 
+    path('administration/documents/export/excel/', views.document_export_excel, name='document_export_excel'),
+    path('administration/document-categories/', views.document_category_list, name='document_category_list'),
+    path('administration/document-categories/create/', views.document_category_create, name='document_category_create'),
+
 ]

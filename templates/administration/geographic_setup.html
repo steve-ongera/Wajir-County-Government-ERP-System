@@ -1,0 +1,677 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Geographic Setup - Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-card.success::before {
+        background: linear-gradient(180deg, #27ae60, #229954);
+    }
+
+    .stat-card.info::before {
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-card.warning::before {
+        background: linear-gradient(180deg, #f39c12, #e67e22);
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #3498db;
+    }
+
+    .stat-card.success .stat-icon {
+        background: rgba(39, 174, 96, 0.1);
+        color: #27ae60;
+    }
+
+    .stat-card.warning .stat-icon {
+        background: rgba(243, 156, 18, 0.1);
+        color: #f39c12;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+        margin-bottom: 8px;
+    }
+
+    .stat-change {
+        font-size: 13px;
+        color: #64748B;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .stat-change.positive {
+        color: #27ae60;
+    }
+
+    .stat-change.negative {
+        color: #e74c3c;
+    }
+
+    .quick-actions {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .actions-header {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+    }
+
+    .action-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px;
+        text-decoration: none;
+        color: #334155;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .action-card:hover {
+        border-color: #3498db;
+        background: #F0F9FF;
+        color: #3498db;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(52, 152, 219, 0.1);
+    }
+
+    .action-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: #3498db;
+        transition: all 0.3s ease;
+    }
+
+    .action-card:hover .action-icon {
+        background: #3498db;
+        color: white;
+    }
+
+    .action-details {
+        flex: 1;
+    }
+
+    .action-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .action-subtitle {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .modules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .module-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .module-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .module-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .module-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #3498db;
+    }
+
+    .module-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 4px;
+    }
+
+    .module-count {
+        font-size: 13px;
+        color: #64748B;
+    }
+
+    .module-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .module-stat {
+        background: #F8FAFC;
+        border-radius: 6px;
+        padding: 12px;
+    }
+
+    .module-stat-label {
+        font-size: 11px;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    .module-stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1E293B;
+    }
+
+    .module-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .module-btn {
+        flex: 1;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        text-align: center;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .btn-primary-outline {
+        background: white;
+        color: #3498db;
+        border: 1px solid #3498db;
+    }
+
+    .btn-primary-outline:hover {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-secondary-outline {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .btn-secondary-outline:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+    }
+
+    .info-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        padding: 24px;
+        color: white;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .banner-content {
+        flex: 1;
+    }
+
+    .banner-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .banner-text {
+        font-size: 14px;
+        opacity: 0.95;
+    }
+
+    .banner-icon {
+        font-size: 64px;
+        opacity: 0.2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Administration</a>
+            </li>
+            <li class="breadcrumb-item active">Geographic Setup</li>
+        </ol>
+    </nav>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+        <div class="banner-content">
+            <h3 class="banner-title">
+                <i class="fas fa-map-marked-alt"></i>
+                Geographic Administration
+            </h3>
+            <p class="banner-text">
+                Manage county administrative boundaries including sub-counties and wards. 
+                Configure hierarchical geographic structure for better service delivery.
+            </p>
+        </div>
+        <div class="banner-icon">
+            <i class="fas fa-globe-africa"></i>
+        </div>
+    </div>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-map-marked-alt"></i>
+                Geographic Setup
+            </h1>
+            <p class="page-subtitle">
+                Overview of administrative boundaries and geographic structure
+            </p>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card info">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">
+                            <i class="fas fa-map"></i>
+                            Total Counties
+                        </div>
+                        <div class="stat-value">{{ counties|default:0|intcomma }}</div>
+                        <div class="stat-change">
+                            <i class="bi bi-info-circle"></i>
+                            National Level
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-map"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">
+                            <i class="fas fa-map-pin"></i>
+                            Sub-Counties
+                        </div>
+                        <div class="stat-value">{{ sub_counties|default:0|intcomma }}</div>
+                        <div class="stat-change positive">
+                            <i class="bi bi-check-circle"></i>
+                            {{ active_sub_counties|default:0 }} Active
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-map-pin"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Wards
+                        </div>
+                        <div class="stat-value">{{ wards|default:0|intcomma }}</div>
+                        <div class="stat-change positive">
+                            <i class="bi bi-check-circle"></i>
+                            {{ active_wards|default:0 }} Active
+                        </div>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <div class="actions-header">
+                <i class="bi bi-lightning-charge"></i>
+                Quick Actions
+            </div>
+            <div class="actions-grid">
+                <a href="{% url 'sub_county_create' %}" class="action-card">
+                    <div class="action-icon">
+                        <i class="bi bi-plus-circle"></i>
+                    </div>
+                    <div class="action-details">
+                        <div class="action-title">Add Sub-County</div>
+                        <div class="action-subtitle">Create new sub-county</div>
+                    </div>
+                </a>
+
+                <a href="{% url 'ward_create' %}" class="action-card">
+                    <div class="action-icon">
+                        <i class="bi bi-plus-circle"></i>
+                    </div>
+                    <div class="action-details">
+                        <div class="action-title">Add Ward</div>
+                        <div class="action-subtitle">Create new ward</div>
+                    </div>
+                </a>
+
+                <a href="{% url 'sub_county_list' %}" class="action-card">
+                    <div class="action-icon">
+                        <i class="bi bi-list-ul"></i>
+                    </div>
+                    <div class="action-details">
+                        <div class="action-title">View All Sub-Counties</div>
+                        <div class="action-subtitle">Browse complete list</div>
+                    </div>
+                </a>
+
+                <a href="{% url 'ward_list' %}" class="action-card">
+                    <div class="action-icon">
+                        <i class="bi bi-list-ul"></i>
+                    </div>
+                    <div class="action-details">
+                        <div class="action-title">View All Wards</div>
+                        <div class="action-subtitle">Browse complete list</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module Cards -->
+        <div class="modules-grid">
+            <!-- Sub-Counties Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-map-pin"></i>
+                    </div>
+                    <div>
+                        <div class="module-title">Sub-Counties</div>
+                        <div class="module-count">{{ sub_counties|default:0 }} Total</div>
+                    </div>
+                </div>
+
+                <div class="module-stats">
+                    <div class="module-stat">
+                        <div class="module-stat-label">Active</div>
+                        <div class="module-stat-value">{{ active_sub_counties|default:0 }}</div>
+                    </div>
+                    <div class="module-stat">
+                        <div class="module-stat-label">Inactive</div>
+                        <div class="module-stat-value">{{ sub_counties|add:"-"|add:active_sub_counties|default:0 }}</div>
+                    </div>
+                </div>
+
+                <div class="module-actions">
+                    <a href="{% url 'sub_county_list' %}" class="module-btn btn-primary-outline">
+                        <i class="bi bi-list-ul"></i>
+                        View All
+                    </a>
+                    <a href="{% url 'sub_county_create' %}" class="module-btn btn-secondary-outline">
+                        <i class="bi bi-plus"></i>
+                        Add New
+                    </a>
+                </div>
+            </div>
+
+            <!-- Wards Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div>
+                        <div class="module-title">Wards</div>
+                        <div class="module-count">{{ wards|default:0 }} Total</div>
+                    </div>
+                </div>
+
+                <div class="module-stats">
+                    <div class="module-stat">
+                        <div class="module-stat-label">Active</div>
+                        <div class="module-stat-value">{{ active_wards|default:0 }}</div>
+                    </div>
+                    <div class="module-stat">
+                        <div class="module-stat-label">Inactive</div>
+                        <div class="module-stat-value">{{ wards|add:"-"|add:active_wards|default:0 }}</div>
+                    </div>
+                </div>
+
+                <div class="module-actions">
+                    <a href="{% url 'ward_list' %}" class="module-btn btn-primary-outline">
+                        <i class="bi bi-list-ul"></i>
+                        View All
+                    </a>
+                    <a href="{% url 'ward_create' %}" class="module-btn btn-secondary-outline">
+                        <i class="bi bi-plus"></i>
+                        Add New
+                    </a>
+                </div>
+            </div>
+
+            <!-- Geographic Hierarchy Info -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon" style="background: rgba(155, 89, 182, 0.1); color: #9b59b6;">
+                        <i class="fas fa-sitemap"></i>
+                    </div>
+                    <div>
+                        <div class="module-title">Hierarchy Structure</div>
+                        <div class="module-count">3 Levels</div>
+                    </div>
+                </div>
+
+                <div style="padding: 12px 0;">
+                    <div style="margin-bottom: 12px; padding: 10px; background: #F8FAFC; border-radius: 6px; border-left: 3px solid #3498db;">
+                        <strong style="color: #1E293B;">County Level</strong>
+                        <div style="font-size: 12px; color: #64748B; margin-top: 4px;">National administrative unit</div>
+                    </div>
+                    <div style="margin-bottom: 12px; padding: 10px; background: #F8FAFC; border-radius: 6px; border-left: 3px solid #27ae60;">
+                        <strong style="color: #1E293B;">Sub-County Level</strong>
+                        <div style="font-size: 12px; color: #64748B; margin-top: 4px;">{{ sub_counties }} sub-counties configured</div>
+                    </div>
+                    <div style="padding: 10px; background: #F8FAFC; border-radius: 6px; border-left: 3px solid #f39c12;">
+                        <strong style="color: #1E293B;">Ward Level</strong>
+                        <div style="font-size: 12px; color: #64748B; margin-top: 4px;">{{ wards }} wards configured</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add any interactive functionality here
+    console.log('Geographic Setup Dashboard Loaded');
+</script>
+{% endblock %}

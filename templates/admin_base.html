@@ -859,26 +859,27 @@
         <div class="menu-section">
             <div class="menu-title">Administration</div>
             
-            <a href="#" class="menu-item">
+            <a href="{% url 'geographic_setup_dashboard' %}" class="menu-item">
                 <i class="fas fa-map-marked-alt"></i>
                 <span>Geographic Setup</span>
             </a>
 
-            <a href="#" class="menu-item">
+            <a href="{% url 'department_list' %}" class="menu-item">
                 <i class="fas fa-sitemap"></i>
                 <span>Departments</span>
             </a>
 
-            <a href="#" class="menu-item">
+            <a href="{% url 'case_list' %}" class="menu-item">
                 <i class="fas fa-gavel"></i>
                 <span>Case Management</span>
             </a>
 
-            <a href="#" class="menu-item">
+            <a href="{% url 'document_list' %}" class="menu-item">
                 <i class="fas fa-folder"></i>
                 <span>Documents</span>
             </a>
         </div>
+
 
         <div class="menu-section">
             <div class="menu-title">System</div>

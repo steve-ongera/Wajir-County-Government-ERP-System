@@ -11051,3 +11051,1065 @@ def health_reports(request):
         'facility_stats': facility_stats,
     }
     return render(request, 'heallth/reports.html', context)
+
+
+"""
+Administration Management Views
+Handles Geographic Setup, Departments, Case Management, and Documents
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from datetime import datetime
+
+# Import models
+from .models import (
+    County, SubCounty, Ward, Department, Case, CaseCategory, 
+    CaseDocument, CaseHearing, ElectronicDocument, DocumentCategory,
+    DocumentAccess, User
+)
+
+
+# ============================================================================
+# GEOGRAPHIC SETUP VIEWS
+# ============================================================================
+
+@login_required
+def geographic_setup_dashboard(request):
+    """Geographic setup overview"""
+    context = {
+        'counties': County.objects.count(),
+        'sub_counties': SubCounty.objects.count(),
+        'wards': Ward.objects.count(),
+        'active_sub_counties': SubCounty.objects.filter(is_active=True).count(),
+        'active_wards': Ward.objects.filter(is_active=True).count(),
+    }
+    return render(request, 'administration/geographic_setup.html', context)
+
+
+@login_required
+def sub_county_list(request):
+    """List all sub-counties with search and filters"""
+    sub_counties = SubCounty.objects.select_related('county').all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        sub_counties = sub_counties.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(headquarters__icontains=search_query)
+        )
+    
+    # Filters
+    county_filter = request.GET.get('county', '')
+    if county_filter:
+        sub_counties = sub_counties.filter(county_id=county_filter)
+    
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        is_active = status_filter == 'active'
+        sub_counties = sub_counties.filter(is_active=is_active)
+    
+    # Pagination
+    paginator = Paginator(sub_counties, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total': SubCounty.objects.count(),
+        'active': SubCounty.objects.filter(is_active=True).count(),
+        'inactive': SubCounty.objects.filter(is_active=False).count(),
+    }
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'counties': County.objects.all(),
+        'current_county': county_filter,
+        'current_status': status_filter,
+        'stats': stats,
+    }
+    return render(request, 'administration/sub_county_list.html', context)
+
+
+@login_required
+def sub_county_detail(request, code):
+    """Sub-county detail view"""
+    sub_county = get_object_or_404(SubCounty, code=code)
+    
+    context = {
+        'sub_county': sub_county,
+        'wards': sub_county.wards.all(),
+        'departments': Department.objects.filter(
+            Q(headed_departments__sub_county=sub_county) |
+            Q(id__in=User.objects.filter(sub_county=sub_county).values('department_id'))
+        ).distinct(),
+        'stats': {
+            'wards': sub_county.wards.count(),
+            'active_wards': sub_county.wards.filter(is_active=True).count(),
+            'staff': User.objects.filter(sub_county=sub_county).count(),
+        }
+    }
+    return render(request, 'administration/sub_county_detail.html', context)
+
+
+@login_required
+def sub_county_create(request):
+    """Create new sub-county"""
+    if request.method == 'POST':
+        try:
+            SubCounty.objects.create(
+                county_id=request.POST.get('county'),
+                name=request.POST.get('name'),
+                code=request.POST.get('code'),
+                headquarters=request.POST.get('headquarters'),
+                is_active=request.POST.get('is_active') == 'on'
+            )
+            messages.success(request, 'Sub-county created successfully!')
+            return redirect('sub_county_list')
+        except Exception as e:
+            messages.error(request, f'Error creating sub-county: {str(e)}')
+    
+    context = {
+        'counties': County.objects.all(),
+    }
+    return render(request, 'administration/sub_county_form.html', context)
+
+
+@login_required
+def sub_county_update(request, code):
+    """Update sub-county"""
+    sub_county = get_object_or_404(SubCounty, code=code)
+    
+    if request.method == 'POST':
+        try:
+            sub_county.county_id = request.POST.get('county')
+            sub_county.name = request.POST.get('name')
+            sub_county.headquarters = request.POST.get('headquarters')
+            sub_county.is_active = request.POST.get('is_active') == 'on'
+            sub_county.save()
+            
+            messages.success(request, 'Sub-county updated successfully!')
+            return redirect('sub_county_detail', code=code)
+        except Exception as e:
+            messages.error(request, f'Error updating sub-county: {str(e)}')
+    
+    context = {
+        'sub_county': sub_county,
+        'counties': County.objects.all(),
+    }
+    return render(request, 'administration/sub_county_form.html', context)
+
+
+@login_required
+def ward_list(request):
+    """List all wards with search and filters"""
+    wards = Ward.objects.select_related('sub_county', 'sub_county__county').all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        wards = wards.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filters
+    sub_county_filter = request.GET.get('sub_county', '')
+    if sub_county_filter:
+        wards = wards.filter(sub_county_id=sub_county_filter)
+    
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        is_active = status_filter == 'active'
+        wards = wards.filter(is_active=is_active)
+    
+    # Pagination
+    paginator = Paginator(wards, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total': Ward.objects.count(),
+        'active': Ward.objects.filter(is_active=True).count(),
+        'inactive': Ward.objects.filter(is_active=False).count(),
+    }
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'sub_counties': SubCounty.objects.all(),
+        'current_sub_county': sub_county_filter,
+        'current_status': status_filter,
+        'stats': stats,
+    }
+    return render(request, 'administration/ward_list.html', context)
+
+
+@login_required
+def ward_detail(request, code):
+    """Ward detail view"""
+    ward = get_object_or_404(Ward, code=code)
+    
+    context = {
+        'ward': ward,
+        'stats': {
+            'population': ward.population or 0,
+            'citizens': ward.citizen_set.count(),
+            'properties': ward.property_set.count(),
+        }
+    }
+    return render(request, 'administration/ward_detail.html', context)
+
+
+@login_required
+def ward_create(request):
+    """Create new ward"""
+    if request.method == 'POST':
+        try:
+            Ward.objects.create(
+                sub_county_id=request.POST.get('sub_county'),
+                name=request.POST.get('name'),
+                code=request.POST.get('code'),
+                population=request.POST.get('population') or None,
+                is_active=request.POST.get('is_active') == 'on'
+            )
+            messages.success(request, 'Ward created successfully!')
+            return redirect('ward_list')
+        except Exception as e:
+            messages.error(request, f'Error creating ward: {str(e)}')
+    
+    context = {
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    return render(request, 'administration/ward_form.html', context)
+
+
+@login_required
+def ward_update(request, code):
+    """Update ward"""
+    ward = get_object_or_404(Ward, code=code)
+    
+    if request.method == 'POST':
+        try:
+            ward.sub_county_id = request.POST.get('sub_county')
+            ward.name = request.POST.get('name')
+            ward.population = request.POST.get('population') or None
+            ward.is_active = request.POST.get('is_active') == 'on'
+            ward.save()
+            
+            messages.success(request, 'Ward updated successfully!')
+            return redirect('ward_detail', code=code)
+        except Exception as e:
+            messages.error(request, f'Error updating ward: {str(e)}')
+    
+    context = {
+        'ward': ward,
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    return render(request, 'administration/ward_form.html', context)
+
+
+# ============================================================================
+# DEPARTMENT VIEWS
+# ============================================================================
+
+@login_required
+def department_list(request):
+    """List all departments with search and filters"""
+    departments = Department.objects.select_related(
+        'parent_department', 'head_of_department'
+    ).prefetch_related('user_set')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        departments = departments.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Filters
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        is_active = status_filter == 'active'
+        departments = departments.filter(is_active=is_active)
+    
+    parent_filter = request.GET.get('parent', '')
+    if parent_filter:
+        departments = departments.filter(parent_department_id=parent_filter)
+    
+    # Pagination
+    paginator = Paginator(departments, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total': Department.objects.count(),
+        'active': Department.objects.filter(is_active=True).count(),
+        'inactive': Department.objects.filter(is_active=False).count(),
+        'with_head': Department.objects.exclude(head_of_department=None).count(),
+    }
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'current_status': status_filter,
+        'current_parent': parent_filter,
+        'parent_departments': Department.objects.filter(parent_department=None),
+        'stats': stats,
+    }
+    return render(request, 'administration/department_list.html', context)
+
+
+@login_required
+def department_detail(request, code):
+    """Department detail view"""
+    department = get_object_or_404(Department, code=code)
+    
+    staff = User.objects.filter(department=department)
+    
+    context = {
+        'department': department,
+        'staff': staff[:10],  # Latest 10 staff
+        'sub_departments': department.department_set.all(),
+        'stats': {
+            'total_staff': staff.count(),
+            'active_staff': staff.filter(is_active_staff=True).count(),
+            'sub_departments': department.department_set.count(),
+            'revenue_streams': department.revenue_streams.count(),
+        }
+    }
+    return render(request, 'administration/department_detail.html', context)
+
+
+@login_required
+def department_create(request):
+    """Create new department"""
+    if request.method == 'POST':
+        try:
+            Department.objects.create(
+                name=request.POST.get('name'),
+                code=request.POST.get('code'),
+                description=request.POST.get('description'),
+                parent_department_id=request.POST.get('parent_department') or None,
+                head_of_department_id=request.POST.get('head_of_department') or None,
+                is_active=request.POST.get('is_active') == 'on'
+            )
+            messages.success(request, 'Department created successfully!')
+            return redirect('department_list')
+        except Exception as e:
+            messages.error(request, f'Error creating department: {str(e)}')
+    
+    context = {
+        'departments': Department.objects.filter(is_active=True),
+        'users': User.objects.filter(is_active_staff=True),
+    }
+    return render(request, 'administration/department_form.html', context)
+
+
+@login_required
+def department_update(request, code):
+    """Update department"""
+    department = get_object_or_404(Department, code=code)
+    
+    if request.method == 'POST':
+        try:
+            department.name = request.POST.get('name')
+            department.description = request.POST.get('description')
+            department.parent_department_id = request.POST.get('parent_department') or None
+            department.head_of_department_id = request.POST.get('head_of_department') or None
+            department.is_active = request.POST.get('is_active') == 'on'
+            department.save()
+            
+            messages.success(request, 'Department updated successfully!')
+            return redirect('department_detail', code=code)
+        except Exception as e:
+            messages.error(request, f'Error updating department: {str(e)}')
+    
+    context = {
+        'department': department,
+        'departments': Department.objects.filter(is_active=True).exclude(id=department.id),
+        'users': User.objects.filter(is_active_staff=True),
+    }
+    return render(request, 'administration/department_form.html', context)
+
+
+@login_required
+def department_export_excel(request):
+    """Export departments to Excel"""
+    departments = Department.objects.select_related(
+        'parent_department', 'head_of_department'
+    ).all()
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        departments = departments.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Departments"
+    
+    # Headers
+    headers = ['Code', 'Name', 'Parent Department', 'Head of Department', 
+               'Total Staff', 'Status', 'Created Date']
+    ws.append(headers)
+    
+    # Style headers
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Data rows
+    for dept in departments:
+        ws.append([
+            dept.code,
+            dept.name,
+            dept.parent_department.name if dept.parent_department else '-',
+            dept.head_of_department.get_full_name() if dept.head_of_department else '-',
+            dept.user_set.count(),
+            'Active' if dept.is_active else 'Inactive',
+            dept.created_at.strftime('%Y-%m-%d %H:%M'),
+        ])
+    
+    # Adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=departments_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# CASE MANAGEMENT VIEWS
+# ============================================================================
+
+@login_required
+def case_list(request):
+    """List all cases with search and filters"""
+    cases = Case.objects.select_related(
+        'category', 'complainant', 'respondent', 'case_officer'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        cases = cases.filter(
+            Q(case_number__icontains=search_query) |
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Filters
+    category_filter = request.GET.get('category', '')
+    if category_filter:
+        cases = cases.filter(category_id=category_filter)
+    
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        cases = cases.filter(status=status_filter)
+    
+    officer_filter = request.GET.get('officer', '')
+    if officer_filter:
+        cases = cases.filter(case_officer_id=officer_filter)
+    
+    # Pagination
+    paginator = Paginator(cases, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total': Case.objects.count(),
+        'open': Case.objects.filter(status='open').count(),
+        'under_review': Case.objects.filter(status='under_review').count(),
+        'resolved': Case.objects.filter(status='resolved').count(),
+        'pending_hearing': Case.objects.filter(status='pending_hearing').count(),
+    }
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'categories': CaseCategory.objects.filter(is_active=True),
+        'officers': User.objects.filter(is_active_staff=True),
+        'current_category': category_filter,
+        'current_status': status_filter,
+        'current_officer': officer_filter,
+        'stats': stats,
+    }
+    return render(request, 'administration/case_list.html', context)
+
+
+@login_required
+def case_detail(request, case_number):
+    """Case detail view"""
+    case = get_object_or_404(Case, case_number=case_number)
+    
+    context = {
+        'case': case,
+        'documents': case.documents.all(),
+        'hearings': case.hearings.order_by('-hearing_date'),
+        'stats': {
+            'documents': case.documents.count(),
+            'hearings': case.hearings.count(),
+            'days_open': (datetime.now().date() - case.filing_date).days,
+        }
+    }
+    return render(request, 'administration/case_detail.html', context)
+
+
+@login_required
+def case_create(request):
+    """Create new case"""
+    if request.method == 'POST':
+        try:
+            # Generate case number
+            last_case = Case.objects.order_by('-id').first()
+            if last_case:
+                last_number = int(last_case.case_number.split('-')[-1])
+                case_number = f"CASE-{datetime.now().year}-{last_number + 1:05d}"
+            else:
+                case_number = f"CASE-{datetime.now().year}-00001"
+            
+            Case.objects.create(
+                case_number=case_number,
+                category_id=request.POST.get('category'),
+                title=request.POST.get('title'),
+                description=request.POST.get('description'),
+                complainant_id=request.POST.get('complainant') or None,
+                respondent_id=request.POST.get('respondent') or None,
+                filing_date=request.POST.get('filing_date'),
+                case_officer=request.user,
+                status='open'
+            )
+            messages.success(request, f'Case {case_number} created successfully!')
+            return redirect('case_list')
+        except Exception as e:
+            messages.error(request, f'Error creating case: {str(e)}')
+    
+    context = {
+        'categories': CaseCategory.objects.filter(is_active=True),
+        'officers': User.objects.filter(is_active_staff=True),
+    }
+    return render(request, 'administration/case_form.html', context)
+
+
+@login_required
+def case_update(request, case_number):
+    """Update case"""
+    case = get_object_or_404(Case, case_number=case_number)
+    
+    if request.method == 'POST':
+        try:
+            case.category_id = request.POST.get('category')
+            case.title = request.POST.get('title')
+            case.description = request.POST.get('description')
+            case.status = request.POST.get('status')
+            case.case_officer_id = request.POST.get('case_officer') or None
+            
+            if request.POST.get('hearing_date'):
+                case.hearing_date = request.POST.get('hearing_date')
+            
+            if request.POST.get('resolution'):
+                case.resolution = request.POST.get('resolution')
+                if request.POST.get('resolution_date'):
+                    case.resolution_date = request.POST.get('resolution_date')
+            
+            case.save()
+            
+            messages.success(request, 'Case updated successfully!')
+            return redirect('case_detail', case_number=case_number)
+        except Exception as e:
+            messages.error(request, f'Error updating case: {str(e)}')
+    
+    context = {
+        'case': case,
+        'categories': CaseCategory.objects.filter(is_active=True),
+        'officers': User.objects.filter(is_active_staff=True),
+    }
+    return render(request, 'administration/case_form.html', context)
+
+
+@login_required
+def case_add_hearing(request, case_number):
+    """Add hearing to case"""
+    case = get_object_or_404(Case, case_number=case_number)
+    
+    if request.method == 'POST':
+        try:
+            CaseHearing.objects.create(
+                case=case,
+                hearing_date=request.POST.get('hearing_date'),
+                venue=request.POST.get('venue'),
+                proceedings=request.POST.get('proceedings', ''),
+                decision=request.POST.get('decision', ''),
+                presiding_officer=request.user
+            )
+            
+            # Update case hearing date
+            case.hearing_date = request.POST.get('hearing_date')
+            case.status = 'pending_hearing'
+            case.save()
+            
+            messages.success(request, 'Hearing scheduled successfully!')
+            return redirect('case_detail', case_number=case_number)
+        except Exception as e:
+            messages.error(request, f'Error scheduling hearing: {str(e)}')
+    
+    context = {
+        'case': case,
+    }
+    return render(request, 'administration/case_hearing_form.html', context)
+
+
+@login_required
+def case_export_excel(request):
+    """Export cases to Excel"""
+    cases = Case.objects.select_related(
+        'category', 'complainant', 'respondent', 'case_officer'
+    ).all()
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        cases = cases.filter(
+            Q(case_number__icontains=search_query) |
+            Q(title__icontains=search_query)
+        )
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cases"
+    
+    # Headers
+    headers = ['Case Number', 'Title', 'Category', 'Complainant', 'Respondent',
+               'Filing Date', 'Status', 'Case Officer', 'Days Open']
+    ws.append(headers)
+    
+    # Style headers
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Data rows
+    for case in cases:
+        days_open = (datetime.now().date() - case.filing_date).days
+        ws.append([
+            case.case_number,
+            case.title,
+            case.category.name,
+            str(case.complainant) if case.complainant else '-',
+            str(case.respondent) if case.respondent else '-',
+            case.filing_date.strftime('%Y-%m-%d'),
+            case.get_status_display(),
+            case.case_officer.get_full_name() if case.case_officer else '-',
+            days_open,
+        ])
+    
+    # Adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=cases_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# DOCUMENT MANAGEMENT VIEWS
+# ============================================================================
+
+@login_required
+def document_list(request):
+    """List all electronic documents with search and filters"""
+    documents = ElectronicDocument.objects.select_related(
+        'category', 'department', 'created_by'
+    ).all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        documents = documents.filter(
+            Q(document_number__icontains=search_query) |
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Filters
+    category_filter = request.GET.get('category', '')
+    if category_filter:
+        documents = documents.filter(category_id=category_filter)
+    
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        documents = documents.filter(department_id=department_filter)
+    
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        documents = documents.filter(status=status_filter)
+    
+    # Pagination
+    paginator = Paginator(documents, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total': ElectronicDocument.objects.count(),
+        'draft': ElectronicDocument.objects.filter(status='draft').count(),
+        'active': ElectronicDocument.objects.filter(status='active').count(),
+        'archived': ElectronicDocument.objects.filter(status='archived').count(),
+    }
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'categories': DocumentCategory.objects.filter(is_active=True),
+        'departments': Department.objects.filter(is_active=True),
+        'current_category': category_filter,
+        'current_department': department_filter,
+        'current_status': status_filter,
+        'stats': stats,
+    }
+    return render(request, 'administration/document_list.html', context)
+
+
+@login_required
+def document_detail(request, document_number):
+    """Document detail view"""
+    document = get_object_or_404(ElectronicDocument, document_number=document_number)
+    
+    # Log access
+    DocumentAccess.objects.create(
+        document=document,
+        user=request.user,
+        access_type='view',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    context = {
+        'document': document,
+        'access_logs': document.access_logs.select_related('user').order_by('-access_date')[:20],
+        'stats': {
+            'views': document.access_logs.filter(access_type='view').count(),
+            'downloads': document.access_logs.filter(access_type='download').count(),
+            'edits': document.access_logs.filter(access_type='edit').count(),
+        }
+    }
+    return render(request, 'administration/document_detail.html', context)
+
+
+@login_required
+def document_create(request):
+    """Create new document"""
+    if request.method == 'POST':
+        try:
+            # Generate document number
+            last_doc = ElectronicDocument.objects.order_by('-id').first()
+            if last_doc:
+                last_number = int(last_doc.document_number.split('-')[-1])
+                doc_number = f"DOC-{datetime.now().year}-{last_number + 1:05d}"
+            else:
+                doc_number = f"DOC-{datetime.now().year}-00001"
+            
+            file = request.FILES.get('file')
+            
+            document = ElectronicDocument.objects.create(
+                document_number=doc_number,
+                title=request.POST.get('title'),
+                category_id=request.POST.get('category'),
+                description=request.POST.get('description', ''),
+                file=file,
+                file_size=file.size if file else 0,
+                file_type=file.content_type if file else '',
+                department_id=request.POST.get('department'),
+                document_date=request.POST.get('document_date'),
+                status='draft',
+                created_by=request.user
+            )
+            
+            messages.success(request, f'Document {doc_number} created successfully!')
+            return redirect('document_detail', document_number=doc_number)
+        except Exception as e:
+            messages.error(request, f'Error creating document: {str(e)}')
+    
+    context = {
+        'categories': DocumentCategory.objects.filter(is_active=True),
+        'departments': Department.objects.filter(is_active=True),
+    }
+    return render(request, 'administration/document_form.html', context)
+
+
+@login_required
+def document_update(request, document_number):
+    """Update document"""
+    document = get_object_or_404(ElectronicDocument, document_number=document_number)
+    
+    if request.method == 'POST':
+        try:
+            document.title = request.POST.get('title')
+            document.category_id = request.POST.get('category')
+            document.description = request.POST.get('description', '')
+            document.department_id = request.POST.get('department')
+            document.document_date = request.POST.get('document_date')
+            document.status = request.POST.get('status')
+            
+            if request.FILES.get('file'):
+                file = request.FILES['file']
+                document.file = file
+                document.file_size = file.size
+                document.file_type = file.content_type
+            
+            document.save()
+            
+            # Log edit access
+            DocumentAccess.objects.create(
+                document=document,
+                user=request.user,
+                access_type='edit',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            messages.success(request, 'Document updated successfully!')
+            return redirect('document_detail', document_number=document_number)
+        except Exception as e:
+            messages.error(request, f'Error updating document: {str(e)}')
+    
+    context = {
+        'document': document,
+        'categories': DocumentCategory.objects.filter(is_active=True),
+        'departments': Department.objects.filter(is_active=True),
+    }
+    return render(request, 'administration/document_form.html', context)
+
+
+@login_required
+def document_download(request, document_number):
+    """Download document"""
+    document = get_object_or_404(ElectronicDocument, document_number=document_number)
+    
+    # Log download access
+    DocumentAccess.objects.create(
+        document=document,
+        user=request.user,
+        access_type='download',
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+    
+    response = HttpResponse(document.file, content_type=document.file_type)
+    response['Content-Disposition'] = f'attachment; filename="{document.title}"'
+    return response
+
+
+@login_required
+def document_export_excel(request):
+    """Export documents to Excel"""
+    documents = ElectronicDocument.objects.select_related(
+        'category', 'department', 'created_by'
+    ).all()
+    
+    # Apply filters
+    search_query = request.GET.get('search', '')
+    if search_query:
+        documents = documents.filter(
+            Q(document_number__icontains=search_query) |
+            Q(title__icontains=search_query)
+        )
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Documents"
+    
+    # Headers
+    headers = ['Document Number', 'Title', 'Category', 'Department', 
+               'Document Date', 'File Type', 'File Size (KB)', 'Status', 
+               'Created By', 'Created Date']
+    ws.append(headers)
+    
+    # Style headers
+    header_fill = PatternFill(start_color='3498db', end_color='3498db', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Data rows
+    for doc in documents:
+        ws.append([
+            doc.document_number,
+            doc.title,
+            doc.category.name,
+            doc.department.name,
+            doc.document_date.strftime('%Y-%m-%d'),
+            doc.file_type,
+            round(doc.file_size / 1024, 2),
+            doc.get_status_display(),
+            doc.created_by.get_full_name() if doc.created_by else '-',
+            doc.created_at.strftime('%Y-%m-%d %H:%M'),
+        ])
+    
+    # Adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=documents_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================================
+# CASE CATEGORY MANAGEMENT
+# ============================================================================
+
+@login_required
+def case_category_list(request):
+    """List all case categories"""
+    categories = CaseCategory.objects.all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        categories = categories.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    context = {
+        'categories': categories,
+        'search_query': search_query,
+    }
+    return render(request, 'administration/case_category_list.html', context)
+
+
+@login_required
+def case_category_create(request):
+    """Create new case category"""
+    if request.method == 'POST':
+        try:
+            CaseCategory.objects.create(
+                name=request.POST.get('name'),
+                code=request.POST.get('code'),
+                description=request.POST.get('description'),
+                is_active=request.POST.get('is_active') == 'on'
+            )
+            messages.success(request, 'Case category created successfully!')
+            return redirect('case_category_list')
+        except Exception as e:
+            messages.error(request, f'Error creating category: {str(e)}')
+    
+    return render(request, 'administration/case_category_form.html')
+
+
+# ============================================================================
+# DOCUMENT CATEGORY MANAGEMENT
+# ============================================================================
+
+@login_required
+def document_category_list(request):
+    """List all document categories"""
+    categories = DocumentCategory.objects.all()
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        categories = categories.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    context = {
+        'categories': categories,
+        'search_query': search_query,
+    }
+    return render(request, 'administration/document_category_list.html', context)
+
+
+@login_required
+def document_category_create(request):
+    """Create new document category"""
+    if request.method == 'POST':
+        try:
+            DocumentCategory.objects.create(
+                name=request.POST.get('name'),
+                code=request.POST.get('code'),
+                description=request.POST.get('description'),
+                retention_period_years=request.POST.get('retention_period_years', 0),
+                is_active=request.POST.get('is_active') == 'on'
+            )
+            messages.success(request, 'Document category created successfully!')
+            return redirect('document_category_list')
+        except Exception as e:
+            messages.error(request, f'Error creating category: {str(e)}')
+    
+    return render(request, 'administration/document_category_form.html')
