@@ -1,0 +1,172 @@
+{% extends 'admin/health/base_health.html' %}
+
+{% block health_content %}
+<div class="patient-form">
+    <div class="card">
+        <div class="card-header">
+            <h4>{% if object %}Edit Patient{% else %}Register New Patient{% endif %}</h4>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.first_name.id_for_label }}">First Name *</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.first_name.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.middle_name.id_for_label }}">Middle Name</label>
+                            {{ form.middle_name }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.last_name.id_for_label }}">Last Name *</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.last_name.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.date_of_birth.id_for_label }}">Date of Birth *</label>
+                            {{ form.date_of_birth }}
+                            {% if form.date_of_birth.errors %}
+                            <div class="text-danger">
+                                {% for error in form.date_of_birth.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.gender.id_for_label }}">Gender *</label>
+                            {{ form.gender }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.id_number.id_for_label }}">ID Number</label>
+                            {{ form.id_number }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.phone.id_for_label }}">Phone *</label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}
+                            <div class="text-danger">
+                                {% for error in form.phone.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.email.id_for_label }}">Email</label>
+                            {{ form.email }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.address.id_for_label }}">Address *</label>
+                    {{ form.address }}
+                </div>
+                
+                <h5 class="mt-4">Next of Kin Information</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.next_of_kin_name.id_for_label }}">Name *</label>
+                            {{ form.next_of_kin_name }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.next_of_kin_phone.id_for_label }}">Phone *</label>
+                            {{ form.next_of_kin_phone }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="{{ form.next_of_kin_relationship.id_for_label }}">Relationship *</label>
+                            {{ form.next_of_kin_relationship }}
+                        </div>
+                    </div>
+                </div>
+                
+                <h5 class="mt-4">Medical Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.blood_group.id_for_label }}">Blood Group</label>
+                            {{ form.blood_group }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.allergies.id_for_label }}">Allergies</label>
+                            {{ form.allergies }}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if object %}
+                <div class="form-group">
+                    <label for="{{ form.is_active.id_for_label }}">Status</label>
+                    {{ form.is_active }}
+                </div>
+                {% endif %}
+                
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        {% if object %}Update Patient{% else %}Register Patient{% endif %}
+                    </button>
+                    <a href="{% url 'health:patient_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-control {
+    width: 100%;
+}
+</style>
+{% endblock %}

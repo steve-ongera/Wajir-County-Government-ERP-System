@@ -1,0 +1,817 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Patients - Health Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #3498db, #2980b9);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .stat-value.danger {
+        color: #e74c3c;
+    }
+
+    .search-section {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 14px 12px 42px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        background: white;
+    }
+
+    .search-btn {
+        padding: 12px 24px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .search-btn:hover {
+        background: #2980b9;
+    }
+
+    .clear-search-btn {
+        padding: 12px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .table-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .record-count {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .patients-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .patients-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .patients-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .patients-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .patients-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .patient-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .patient-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 600;
+        color: white;
+        text-transform: uppercase;
+    }
+
+    .patient-details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .patient-name {
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 2px;
+    }
+
+    .patient-meta {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .gender-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .gender-male {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .gender-female {
+        background: #FCE7F3;
+        color: #9F1239;
+    }
+
+    .gender-other {
+        background: #F3E8FF;
+        color: #6B21A8;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-inactive {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        background-color: transparent;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-outline-primary {
+        border-color: #3498db;
+        color: #3498db;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #3498db;
+        color: #fff;
+    }
+
+    .btn-outline-success {
+        border-color: #27ae60;
+        color: #27ae60;
+    }
+    
+    .btn-outline-success:hover {
+        background-color: #27ae60;
+        color: #fff;
+    }
+
+    .btn-outline-warning {
+        border-color: #f39c12;
+        color: #f39c12;
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: #f39c12;
+        color: #fff;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #F1F5F9;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .pagination-info {
+        color: #64748B;
+        font-size: 14px;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 5px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        color: #64748B;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .page-link:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .page-item.active .page-link {
+        background: #3498db;
+        border-color: #3498db;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+
+    .age-info {
+        font-size: 13px;
+        color: #64748B;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Health Management</a>
+            </li>
+            <li class="breadcrumb-item active">Patients</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-user-injured"></i>
+                    Patient Records
+                </h1>
+                <p class="page-subtitle">
+                    Manage patient registrations and medical records
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="#" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Export
+                </a>
+                <a href="#" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Register Patient
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-users"></i>
+                    Total Patients
+                </div>
+                <div class="stat-value">{{ page_obj.paginator.count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-user-check"></i>
+                    Active Patients
+                </div>
+                <div class="stat-value success">{{ page_obj.paginator.count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-calendar-day"></i>
+                    Today's Visits
+                </div>
+                <div class="stat-value warning">-</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-user-plus"></i>
+                    New This Month
+                </div>
+                <div class="stat-value">-</div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-section">
+            <form method="get" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search search-icon"></i>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        class="search-input" 
+                        placeholder="Search by patient number, name, or phone..."
+                        value="{{ request.GET.search }}"
+                    >
+                </div>
+                
+                <button type="submit" class="search-btn">
+                    <i class="bi bi-search"></i>
+                    Search
+                </button>
+                
+                {% if request.GET.search %}
+                <a href="{% url 'patient_list' %}" class="clear-search-btn">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Patients Table -->
+        <div class="table-header">
+            <h6 class="table-title">
+                <i class="bi bi-table"></i>
+                Patients List
+            </h6>
+            <span class="record-count">{{ page_obj.paginator.count|default:0 }} patients</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="patients-table">
+                <thead>
+                    <tr>
+                        <th>Patient Number</th>
+                        <th>Patient Name</th>
+                        <th>Gender</th>
+                        <th>Age</th>
+                        <th>Phone</th>
+                        <th>Blood Group</th>
+                        <th>Registration Date</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for patient in patients %}
+                    <tr>
+                        <td>
+                            <strong style="color: #3498db;">{{ patient.patient_number }}</strong>
+                        </td>
+                        <td>
+                            <div class="patient-info">
+                                <div class="patient-avatar">
+                                    {{ patient.first_name|first }}{{ patient.last_name|first }}
+                                </div>
+                                <div class="patient-details">
+                                    <div class="patient-name">{{ patient.first_name }} {{ patient.middle_name }} {{ patient.last_name }}</div>
+                                    <div class="patient-meta">
+                                        {% if patient.id_number %}ID: {{ patient.id_number }}{% else %}-{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="gender-badge gender-{{ patient.gender|lower }}">
+                                {% if patient.gender == 'M' %}
+                                    <i class="fas fa-mars"></i> Male
+                                {% elif patient.gender == 'F' %}
+                                    <i class="fas fa-venus"></i> Female
+                                {% else %}
+                                    <i class="fas fa-genderless"></i> Other
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="age-info">
+                                {% if patient.date_of_birth %}
+                                    {% now "Y" as current_year %}
+                                    {{ patient.date_of_birth|date:"Y"|add:"-2000"|add:current_year|add:"-2000" }} years
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ patient.phone }}</strong></div>
+                                {% if patient.email %}
+                                    <div style="color: #64748B;">{{ patient.email }}</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if patient.blood_group %}
+                                <span style="font-weight: 600; color: #e74c3c;">{{ patient.blood_group }}</span>
+                            {% else %}
+                                <span style="color: #94A3B8;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div>{{ patient.registered_at|date:"M d, Y" }}</div>
+                                <div style="color: #64748B;">{{ patient.registered_at|date:"h:i A" }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge {% if patient.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                {% if patient.is_active %}
+                                    <i class="fas fa-check-circle"></i> Active
+                                {% else %}
+                                    <i class="fas fa-times-circle"></i> Inactive
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="#" 
+                                   class="btn-action btn-outline-primary" 
+                                   title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="#" 
+                                   class="btn-action btn-outline-success" 
+                                   title="Medical Records">
+                                    <i class="bi bi-file-medical"></i>
+                                </a>
+                                <a href="#" 
+                                   class="btn-action btn-outline-warning" 
+                                   title="Edit Patient">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-user-injured"></i>
+                                </div>
+                                <h3 class="empty-title">No Patients Found</h3>
+                                <p>{% if request.GET.search %}No patients match your search.{% else %}No patients registered yet.{% endif %}</p>
+                                <a href="#" class="btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Register First Patient
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+            </div>
+            
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add any additional JavaScript functionality here
+    console.log('Patient list loaded');
+</script>
+{% endblock %}

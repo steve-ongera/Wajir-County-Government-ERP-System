@@ -10622,3 +10622,432 @@ def sacco_delete(request, pk):
         messages.error(request, f'Error deleting sacco: {str(e)}')
 
     return redirect('sacco_list')
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import JsonResponse
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from .models import (
+    Patient, HealthFacility, Triage, Visit, HospitalWard, Admission, 
+    LabTest, Imaging, Prescription, MorgueRecord
+)
+
+def is_admin_user(user):
+    """Check if user has admin privileges"""
+    return user.is_authenticated and (user.is_superuser or user.is_staff)
+
+# ============================================================================
+# PATIENT MANAGEMENT VIEWS
+# ============================================================================
+
+class PatientListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Patient
+    template_name = 'heallth/patient_list.html'
+    context_object_name = 'patients'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = Patient.objects.select_related('citizen').all()
+        search_query = self.request.GET.get('search', '')
+        if search_query:
+            queryset = queryset.filter(
+                Q(patient_number__icontains=search_query) |
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(phone__icontains=search_query)
+            )
+        return queryset.order_by('-registered_at')
+
+class PatientDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Patient
+    template_name = 'heallth/patient_detail.html'
+    context_object_name = 'patient'
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['visits'] = self.object.visits.select_related('facility').all()[:10]
+        context['admissions'] = self.object.admissions.select_related('ward').all()[:5]
+        return context
+
+class PatientCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Patient
+    template_name = 'heallth/patient_form.html'
+    fields = [
+        'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender',
+        'id_number', 'phone', 'email', 'address', 'next_of_kin_name',
+        'next_of_kin_phone', 'next_of_kin_relationship', 'blood_group', 'allergies'
+    ]
+    success_url = reverse_lazy('health:patient_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        # Generate patient number
+        last_patient = Patient.objects.order_by('-id').first()
+        if last_patient:
+            last_number = int(last_patient.patient_number.split('-')[-1])
+            new_number = f"PAT-{last_number + 1:06d}"
+        else:
+            new_number = "PAT-000001"
+        
+        form.instance.patient_number = new_number
+        messages.success(self.request, 'Patient registered successfully!')
+        return super().form_valid(form)
+
+class PatientUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Patient
+    template_name = 'heallth/patient_form.html'
+    fields = [
+        'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender',
+        'id_number', 'phone', 'email', 'address', 'next_of_kin_name',
+        'next_of_kin_phone', 'next_of_kin_relationship', 'blood_group', 'allergies', 'is_active'
+    ]
+    success_url = reverse_lazy('health:patient_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Patient updated successfully!')
+        return super().form_valid(form)
+
+# ============================================================================
+# VISIT MANAGEMENT VIEWS
+# ============================================================================
+
+class VisitListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Visit
+    template_name = 'heallth/visit_list.html'
+    context_object_name = 'visits'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = Visit.objects.select_related('patient', 'facility', 'attended_by').all()
+        status_filter = self.request.GET.get('status', '')
+        facility_filter = self.request.GET.get('facility', '')
+        date_filter = self.request.GET.get('date', '')
+        
+        if status_filter:
+            queryset = queryset.filter(is_complete=(status_filter == 'completed'))
+        if facility_filter:
+            queryset = queryset.filter(facility_id=facility_filter)
+        if date_filter:
+            queryset = queryset.filter(visit_date__date=date_filter)
+            
+        return queryset.order_by('-visit_date')
+
+class VisitCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Visit
+    template_name = 'heallth/visit_form.html'
+    fields = ['patient', 'facility', 'visit_type', 'diagnosis', 'treatment', 'notes']
+    success_url = reverse_lazy('health:visit_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        # Generate visit number
+        last_visit = Visit.objects.order_by('-id').first()
+        if last_visit:
+            last_number = int(last_visit.visit_number.split('-')[-1])
+            new_number = f"VIS-{last_number + 1:06d}"
+        else:
+            new_number = "VIS-000001"
+        
+        form.instance.visit_number = new_number
+        form.instance.visit_date = timezone.now()
+        form.instance.attended_by = self.request.user
+        messages.success(self.request, 'Visit recorded successfully!')
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['facilities'] = HealthFacility.objects.filter(is_active=True)
+        return context
+
+# ============================================================================
+# ADMISSION MANAGEMENT VIEWS
+# ============================================================================
+
+class AdmissionListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Admission
+    template_name = 'heallth/admission_list.html'
+    context_object_name = 'admissions'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = Admission.objects.select_related(
+            'patient', 'ward', 'ward__facility', 'admitted_by'
+        ).all()
+        status_filter = self.request.GET.get('status', '')
+        ward_filter = self.request.GET.get('ward', '')
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if ward_filter:
+            queryset = queryset.filter(ward_id=ward_filter)
+            
+        return queryset.order_by('-admission_date')
+
+class AdmissionCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Admission
+    template_name = 'heallth/admission_form.html'
+    fields = ['visit', 'patient', 'ward', 'bed_number', 'admission_reason']
+    success_url = reverse_lazy('health:admission_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        # Generate admission number
+        last_admission = Admission.objects.order_by('-id').first()
+        if last_admission:
+            last_number = int(last_admission.admission_number.split('-')[-1])
+            new_number = f"ADM-{last_number + 1:06d}"
+        else:
+            new_number = "ADM-000001"
+        
+        form.instance.admission_number = new_number
+        form.instance.admission_date = timezone.now()
+        form.instance.admitted_by = self.request.user
+        messages.success(self.request, 'Patient admitted successfully!')
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['wards'] = HospitalWard.objects.select_related('facility').filter(is_active=True)
+        return context
+
+# ============================================================================
+# FACILITY MANAGEMENT VIEWS
+# ============================================================================
+
+class HealthFacilityListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = HealthFacility
+    template_name = 'heallth/facility_list.html'
+    context_object_name = 'facilities'
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+
+class HealthFacilityCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = HealthFacility
+    template_name = 'heallth/facility_form.html'
+    fields = [
+        'name', 'code', 'facility_level', 'location', 'sub_county', 'ward',
+        'phone', 'email', 'bed_capacity'
+    ]
+    success_url = reverse_lazy('health:facility_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Health facility created successfully!')
+        return super().form_valid(form)
+
+# ============================================================================
+# LAB TEST MANAGEMENT VIEWS
+# ============================================================================
+
+class LabTestListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = LabTest
+    template_name = 'heallth/labtest_list.html'
+    context_object_name = 'lab_tests'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = LabTest.objects.select_related('patient', 'visit').all()
+        status_filter = self.request.GET.get('status', '')
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        return queryset.order_by('-requested_date')
+
+class LabTestUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = LabTest
+    template_name = 'heallth/labtest_form.html'
+    fields = ['results', 'remarks', 'status', 'test_cost']
+    success_url = reverse_lazy('health:labtest_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        if form.instance.status == 'completed' and not form.instance.completed_date:
+            form.instance.completed_date = timezone.now()
+            form.instance.processed_by = self.request.user
+        messages.success(self.request, 'Lab test updated successfully!')
+        return super().form_valid(form)
+
+# ============================================================================
+# IMAGING MANAGEMENT VIEWS
+# ============================================================================
+
+class ImagingListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Imaging
+    template_name = 'heallth/imaging_list.html'
+    context_object_name = 'imaging_tests'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = Imaging.objects.select_related('patient', 'visit').all()
+        status_filter = self.request.GET.get('status', '')
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        return queryset.order_by('-requested_date')
+
+# ============================================================================
+# PHARMACY MANAGEMENT VIEWS
+# ============================================================================
+
+class PrescriptionListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Prescription
+    template_name = 'heallth/prescription_list.html'
+    context_object_name = 'prescriptions'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = Prescription.objects.select_related('patient', 'visit').all()
+        status_filter = self.request.GET.get('status', '')
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        return queryset.order_by('-created_at')
+
+class PrescriptionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Prescription
+    template_name = 'heallth/prescription_form.html'
+    fields = ['status', 'dispensed_by', 'dispensed_date']
+    success_url = reverse_lazy('health:prescription_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        if form.instance.status == 'dispensed' and not form.instance.dispensed_date:
+            form.instance.dispensed_date = timezone.now()
+        messages.success(self.request, 'Prescription updated successfully!')
+        return super().form_valid(form)
+
+# ============================================================================
+# MORGUE MANAGEMENT VIEWS
+# ============================================================================
+
+class MorgueRecordListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = MorgueRecord
+    template_name = 'heallth/morgue_list.html'
+    context_object_name = 'morgue_records'
+    paginate_by = 20
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def get_queryset(self):
+        queryset = MorgueRecord.objects.select_related('facility').all()
+        status_filter = self.request.GET.get('status', '')
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        return queryset.order_by('-admission_date')
+
+class MorgueRecordCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = MorgueRecord
+    template_name = 'heallth/morgue_form.html'
+    fields = [
+        'deceased_name', 'age', 'gender', 'date_of_death', 'cause_of_death',
+        'next_of_kin_name', 'next_of_kin_phone', 'next_of_kin_relationship',
+        'compartment_number', 'facility'
+    ]
+    success_url = reverse_lazy('health:morgue_list')
+    
+    def test_func(self):
+        return is_admin_user(self.request.user)
+    
+    def form_valid(self, form):
+        # Generate morgue number
+        last_record = MorgueRecord.objects.order_by('-id').first()
+        if last_record:
+            last_number = int(last_record.morgue_number.split('-')[-1])
+            new_number = f"MOR-{last_number + 1:06d}"
+        else:
+            new_number = "MOR-000001"
+        
+        form.instance.morgue_number = new_number
+        form.instance.admission_date = timezone.now()
+        form.instance.admitted_by = self.request.user
+        messages.success(self.request, 'Morgue record created successfully!')
+        return super().form_valid(form)
+
+# ============================================================================
+# DASHBOARD & REPORTS
+# ============================================================================
+
+@login_required
+@user_passes_test(is_admin_user)
+def health_dashboard(request):
+    """Health Services Dashboard"""
+    total_patients = Patient.objects.filter(is_active=True).count()
+    total_facilities = HealthFacility.objects.filter(is_active=True).count()
+    today_visits = Visit.objects.filter(visit_date__date=timezone.now().date()).count()
+    current_admissions = Admission.objects.filter(status='admitted').count()
+    
+    # Recent activities
+    recent_visits = Visit.objects.select_related('patient', 'facility').order_by('-visit_date')[:5]
+    recent_admissions = Admission.objects.select_related('patient', 'ward').order_by('-admission_date')[:5]
+    
+    context = {
+        'total_patients': total_patients,
+        'total_facilities': total_facilities,
+        'today_visits': today_visits,
+        'current_admissions': current_admissions,
+        'recent_visits': recent_visits,
+        'recent_admissions': recent_admissions,
+    }
+    return render(request, 'heallth/dashboard.html', context)
+
+@login_required
+@user_passes_test(is_admin_user)
+def health_reports(request):
+    """Health Services Reports"""
+    facility_stats = HealthFacility.objects.annotate(
+        total_visits=Count('visits'),
+        total_admissions=Count('admissions')
+    )
+    
+    context = {
+        'facility_stats': facility_stats,
+    }
+    return render(request, 'heallth/reports.html', context)

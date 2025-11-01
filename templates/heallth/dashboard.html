@@ -1,0 +1,121 @@
+{% extends 'admin_base.html' %}
+
+{% block health_content %}
+<div class="health-dashboard">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ total_patients }}</h4>
+                            <p>Total Patients</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-user-injured fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ total_facilities }}</h4>
+                            <p>Health Facilities</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-hospital fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ today_visits }}</h4>
+                            <p>Today's Visits</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-stethoscope fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ current_admissions }}</h4>
+                            <p>Current Admissions</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-procedures fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Visits</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_visits %}
+                    <div class="list-group">
+                        {% for visit in recent_visits %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ visit.patient.first_name }} {{ visit.patient.last_name }}</h6>
+                                <small>{{ visit.visit_date|date:"M d, Y" }}</small>
+                            </div>
+                            <p class="mb-1">{{ visit.facility.name }}</p>
+                            <small class="text-muted">{{ visit.visit_type|title }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No recent visits</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Admissions</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_admissions %}
+                    <div class="list-group">
+                        {% for admission in recent_admissions %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ admission.patient.first_name }} {{ admission.patient.last_name }}</h6>
+                                <small>{{ admission.admission_date|date:"M d, Y" }}</small>
+                            </div>
+                            <p class="mb-1">{{ admission.ward.name }}</p>
+                            <small class="text-muted">Bed: {{ admission.bed_number }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No recent admissions</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

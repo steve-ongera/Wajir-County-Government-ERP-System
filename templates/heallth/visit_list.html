@@ -1,0 +1,78 @@
+{% extends 'admin/health/base_health.html' %}
+
+{% block health_content %}
+<div class="visit-management">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>Visit Management</h4>
+        <a href="{% url 'health:visit_add' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Record New Visit
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="mb-0">Patient Visits</h5>
+                </div>
+                <div class="col-md-6">
+                    <form method="get" class="form-inline float-right">
+                        <select name="status" class="form-control mr-2">
+                            <option value="">All Status</option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                        </select>
+                        <input type="date" name="date" class="form-control mr-2" value="{{ request.GET.date }}">
+                        <button type="submit" class="btn btn-outline-primary">Filter</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if visits %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Visit No.</th>
+                            <th>Patient</th>
+                            <th>Facility</th>
+                            <th>Visit Type</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Attended By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for visit in visits %}
+                        <tr>
+                            <td>{{ visit.visit_number }}</td>
+                            <td>{{ visit.patient.first_name }} {{ visit.patient.last_name }}</td>
+                            <td>{{ visit.facility.name }}</td>
+                            <td>{{ visit.get_visit_type_display }}</td>
+                            <td>{{ visit.visit_date|date:"M d, Y H:i" }}</td>
+                            <td>
+                                {% if visit.is_complete %}
+                                <span class="badge badge-success">Completed</span>
+                                {% else %}
+                                <span class="badge badge-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>{% if visit.attended_by %}{{ visit.attended_by.get_full_name }}{% else %}N/A{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination would go here -->
+            
+            {% else %}
+            <div class="alert alert-info">
+                No visits found.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

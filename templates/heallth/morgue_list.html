@@ -1,0 +1,826 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Morgue Records - Health Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .breadcrumb a:hover {
+        color: #2980b9;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #5f27cd, #341f97);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .stat-value.danger {
+        color: #5f27cd;
+    }
+
+    .filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+
+    .filter-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .filter-group label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #5f27cd;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .clear-btn {
+        padding: 10px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .table-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .record-count {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(95, 39, 205, 0.1);
+        color: #5f27cd;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .morgue-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .morgue-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .morgue-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .morgue-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .morgue-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .deceased-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .deceased-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(95, 39, 205, 0.1);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: #5f27cd;
+    }
+
+    .deceased-details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .deceased-name {
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 2px;
+    }
+
+    .deceased-meta {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-admitted {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .status-released {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-buried {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .gender-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .gender-male {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .gender-female {
+        background: #FCE7F3;
+        color: #9F1239;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        background-color: transparent;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-outline-primary {
+        border-color: #5f27cd;
+        color: #5f27cd;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #5f27cd;
+        color: #fff;
+    }
+
+    .btn-outline-success {
+        border-color: #27ae60;
+        color: #27ae60;
+    }
+    
+    .btn-outline-success:hover {
+        background-color: #27ae60;
+        color: #fff;
+    }
+
+    .btn-outline-warning {
+        border-color: #f39c12;
+        color: #f39c12;
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: #f39c12;
+        color: #fff;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #F1F5F9;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .pagination-info {
+        color: #64748B;
+        font-size: 14px;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 5px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        color: #64748B;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .page-link:hover {
+        background: #F8FAFC;
+        border-color: #5f27cd;
+        color: #5f27cd;
+    }
+
+    .page-item.active .page-link {
+        background: #5f27cd;
+        border-color: #5f27cd;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="#">Health Management</a>
+            </li>
+            <li class="breadcrumb-item active">Morgue Records</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-cross"></i>
+                    Morgue Records
+                </h1>
+                <p class="page-subtitle">
+                    Manage morgue admissions and releases
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="#" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Export
+                </a>
+                <a href="#" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Add Record
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-list"></i>
+                    Total Records
+                </div>
+                <div class="stat-value">{{ page_obj.paginator.count|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-bed"></i>
+                    Currently Admitted
+                </div>
+                <div class="stat-value danger">
+                    {{ morgue_records|length|default:0|intcomma }}
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-hand-holding-heart"></i>
+                    Released
+                </div>
+                <div class="stat-value success">-</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-calendar-day"></i>
+                    This Month
+                </div>
+                <div class="stat-value warning">-</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="filter-header" onclick="toggleFilters()">
+                <h6 class="filter-title">
+                    <i class="bi bi-funnel"></i>
+                    Filter Records
+                </h6>
+                <i class="bi bi-chevron-down" id="filterToggle"></i>
+            </div>
+            
+            <div class="filter-content" id="filtersContent" style="display: none;">
+                <form method="get">
+                    <div class="filter-content">
+                        <div class="filter-group">
+                            <label for="status">Status</label>
+                            <select class="filter-select" name="status" id="status">
+                                <option value="">All Status</option>
+                                <option value="admitted" {% if request.GET.status == 'admitted' %}selected{% endif %}>Admitted</option>
+                                <option value="released" {% if request.GET.status == 'released' %}selected{% endif %}>Released</option>
+                                <option value="buried" {% if request.GET.status == 'buried' %}selected{% endif %}>Buried</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="filter-btn">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <a href="#" class="clear-btn">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Morgue Table -->
+        <div class="table-header">
+            <h6 class="table-title">
+                <i class="bi bi-table"></i>
+                Records List
+            </h6>
+            <span class="record-count">{{ page_obj.paginator.count|default:0 }} records</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="morgue-table">
+                <thead>
+                    <tr>
+                        <th>Morgue Number</th>
+                        <th>Deceased Name</th>
+                        <th>Age/Gender</th>
+                        <th>Date of Death</th>
+                        <th>Admission Date</th>
+                        <th>Compartment</th>
+                        <th>Next of Kin</th>
+                        <th>Facility</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in morgue_records %}
+                    <tr>
+                        <td>
+                            <strong style="color: #5f27cd;">{{ record.morgue_number }}</strong>
+                        </td>
+                        <td>
+                            <div class="deceased-info">
+                                <div class="deceased-icon">
+                                    <i class="fas fa-cross"></i>
+                                </div>
+                                <div class="deceased-details">
+                                    <div class="deceased-name">{{ record.deceased_name }}</div>
+                                    <div class="deceased-meta">
+                                        {{ record.cause_of_death|truncatewords:5 }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ record.age|default:"-" }} years</strong></div>
+                                <span class="gender-badge gender-{{ record.gender|lower }}">
+                                    {{ record.gender }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ record.date_of_death|date:"M d, Y" }}</strong></div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div>{{ record.admission_date|date:"M d, Y" }}</div>
+                                <div style="color: #64748B;">{{ record.admission_date|date:"h:i A" }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600; color: #5f27cd;">
+                                {{ record.compartment_number }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ record.next_of_kin_name }}</strong></div>
+                                <div style="color: #64748B;">{{ record.next_of_kin_phone }}</div>
+                                <div style="color: #94A3B8; font-size: 11px;">{{ record.next_of_kin_relationship }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px;">
+                                <div><strong>{{ record.facility.name }}</strong></div>
+                                <div style="color: #64748B;">{{ record.facility.code }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ record.status }}">
+                                <i class="fas fa-circle" style="font-size: 6px;"></i>
+                                {{ record.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="#" 
+                                   class="btn-action btn-outline-primary" 
+                                   title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if record.status == 'admitted' %}
+                                <a href="#" 
+                                   class="btn-action btn-outline-success" 
+                                   title="Release Body">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                </a>
+                                {% endif %}
+                                <a href="#" 
+                                   class="btn-action btn-outline-warning" 
+                                   title="Edit Record">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-cross"></i>
+                                </div>
+                                <h3 class="empty-title">No Morgue Records Found</h3>
+                                <p>No records registered yet.</p>
+                                <a href="#" class="btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Add First Record
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+            </div>
+            
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleFilters() {
+        const content = document.getElementById('filtersContent');
+        const toggleIcon = document.getElementById('filterToggle');
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'grid';
+            toggleIcon.classList.remove('bi-chevron-down');
+            toggleIcon.classList.add('bi-chevron-up');
+        } else {
+            content.style.display = 'none';
+            toggleIcon.classList.remove('bi-chevron-up');
+            toggleIcon.classList.add('bi-chevron-down');
+        }
+    }
+</script>
+{% endblock %}

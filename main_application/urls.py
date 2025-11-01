@@ -212,4 +212,25 @@ urlpatterns = [
     path("fines/<int:pk>/waive/", views.fine_waive, name="fine_waive"),
     path("fines/export/", views.fine_export, name="fine_export"),
 
+    # HEALTH MODULE
+    path('health/dashboard/', views.health_dashboard, name='health_dashboard'),
+    path('health/reports/', views.health_reports, name='health_reports'),
+    path('health/patients/', views.PatientListView.as_view(), name='health_patient_list'),
+    path('health/patients/add/', views.PatientCreateView.as_view(), name='health_patient_add'),
+    path('health/patients/<int:pk>/', views.PatientDetailView.as_view(), name='health_patient_detail'),
+    path('health/patients/<int:pk>/edit/', views.PatientUpdateView.as_view(), name='health_patient_edit'),
+    path('health/visits/', views.VisitListView.as_view(), name='health_visit_list'),
+    path('health/visits/add/', views.VisitCreateView.as_view(), name='health_visit_add'),
+    path('health/admissions/', views.AdmissionListView.as_view(), name='health_admission_list'),
+    path('health/admissions/add/', views.AdmissionCreateView.as_view(), name='health_admission_add'),
+    path('health/facilities/', views.HealthFacilityListView.as_view(), name='health_facility_list'),
+    path('health/facilities/add/', views.HealthFacilityCreateView.as_view(), name='health_facility_add'),
+    path('health/lab-tests/', views.LabTestListView.as_view(), name='health_labtest_list'),
+    path('health/lab-tests/<int:pk>/edit/', views.LabTestUpdateView.as_view(), name='health_labtest_edit'),
+    path('health/imaging/', views.ImagingListView.as_view(), name='health_imaging_list'),
+    path('health/prescriptions/', views.PrescriptionListView.as_view(), name='health_prescription_list'),
+    path('health/prescriptions/<int:pk>/edit/', views.PrescriptionUpdateView.as_view(), name='health_prescription_edit'),
+    path('health/morgue/', views.MorgueRecordListView.as_view(), name='health_morgue_list'),
+    path('health/morgue/add/', views.MorgueRecordCreateView.as_view(), name='health_morgue_add'),
+
 ]

@@ -768,15 +768,18 @@
                 <span>Health Management</span>
                 <i class="fas fa-chevron-right arrow"></i>
             </div>
+
             <div class="submenu" id="submenu-health">
-                <a href="#" class="submenu-item">Patients</a>
-                <a href="#" class="submenu-item">Visits</a>
-                <a href="#" class="submenu-item">Admissions</a>
-                <a href="#" class="submenu-item">Facilities</a>
-                <a href="#" class="submenu-item">Lab Tests</a>
-                <a href="#" class="submenu-item">Imaging</a>
-                <a href="#" class="submenu-item">Pharmacy</a>
-                <a href="#" class="submenu-item">Morgue</a>
+
+                <a href="{% url 'health_patient_list' %}" class="submenu-item">Patients</a>
+                <a href="{% url 'health_visit_list' %}" class="submenu-item">Visits</a>
+                <a href="{% url 'health_admission_list' %}" class="submenu-item">Admissions</a>
+                <a href="{% url 'health_facility_list' %}" class="submenu-item">Facilities</a>
+                <a href="{% url 'health_labtest_list' %}" class="submenu-item">Lab Tests</a>
+                <a href="{% url 'health_imaging_list' %}" class="submenu-item">Imaging</a>
+                <a href="{% url 'health_prescription_list' %}" class="submenu-item">Pharmacy</a>
+                <a href="{% url 'health_morgue_list' %}" class="submenu-item">Morgue</a>
+
             </div>
         </div>
 
