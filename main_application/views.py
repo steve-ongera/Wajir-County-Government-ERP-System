@@ -9569,3 +9569,1056 @@ def subdivision_delete(request, pk):
         messages.error(request, f'Error deleting subdivision: {str(e)}')
     
     return redirect('subdivision_list')
+
+
+"""
+Wajir County ERP - Parking Management and Fines & Penalties Views
+Complete CRUD operations with search, filter, and Excel export
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Sum, Avg, F
+from django.http import HttpResponse
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+
+from .models import (
+    ParkingZone, Sacco, Vehicle, ParkingPayment, ClampingRecord,
+    FineCategory, Fine, FinePayment, Citizen, Payment, SubCounty, Ward,
+    User, PaymentMethod, RevenueStream
+)
+
+
+# ============================================================================
+# PARKING ZONE MANAGEMENT
+# ============================================================================
+
+@login_required
+def parking_zone_list(request):
+    """List all parking zones with search and filters"""
+    zones = ParkingZone.objects.select_related(
+        'sub_county', 'ward'
+    ).annotate(
+        total_payments=Count('parkingpayment'),
+        active_vehicles=Count('parkingpayment', filter=Q(parkingpayment__end_date__gte=datetime.now().date()))
+    ).order_by('name')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        zones = zones.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(zone_type__icontains=search_query)
+        )
+    
+    # Filters
+    zone_type = request.GET.get('zone_type', '')
+    sub_county_id = request.GET.get('sub_county', '')
+    status = request.GET.get('status', '')
+    
+    if zone_type:
+        zones = zones.filter(zone_type=zone_type)
+    if sub_county_id:
+        zones = zones.filter(sub_county_id=sub_county_id)
+    if status:
+        zones = zones.filter(is_active=(status == 'active'))
+    
+    # Statistics
+    stats = {
+        'total': ParkingZone.objects.count(),
+        'active': ParkingZone.objects.filter(is_active=True).count(),
+        'total_capacity': ParkingZone.objects.aggregate(Sum('capacity'))['capacity__sum'] or 0,
+        'total_vehicles': ParkingPayment.objects.filter(end_date__gte=datetime.now().date()).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(zones, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'zone_type': zone_type,
+        'sub_county_id': sub_county_id,
+        'status': status,
+        'sub_counties': SubCounty.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'parking/zone_list.html', context)
+
+
+@login_required
+def parking_zone_export(request):
+    """Export parking zones to Excel"""
+    zones = ParkingZone.objects.select_related('sub_county', 'ward').order_by('code')
+    
+    # Apply same filters as list view
+    search_query = request.GET.get('search', '')
+    if search_query:
+        zones = zones.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Parking Zones"
+    
+    # Styling
+    header_fill = PatternFill(start_color="3498db", end_color="3498db", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Zone Code', 'Zone Name', 'Type', 'Sub County', 'Ward', 'Capacity', 'Status']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Data rows
+    for row_num, zone in enumerate(zones, 2):
+        ws.cell(row=row_num, column=1).value = zone.code
+        ws.cell(row=row_num, column=2).value = zone.name
+        ws.cell(row=row_num, column=3).value = zone.zone_type
+        ws.cell(row=row_num, column=4).value = zone.sub_county.name
+        ws.cell(row=row_num, column=5).value = zone.ward.name
+        ws.cell(row=row_num, column=6).value = zone.capacity
+        ws.cell(row=row_num, column=7).value = "Active" if zone.is_active else "Inactive"
+        
+        # Apply borders
+        for col_num in range(1, 8):
+            ws.cell(row=row_num, column=col_num).border = border
+    
+    # Adjust column widths
+    for col_num in range(1, 8):
+        ws.column_dimensions[get_column_letter(col_num)].width = 18
+    
+    # Create response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=parking_zones_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# CLAMPING RECORDS
+# ============================================================================
+
+@login_required
+def clamping_list(request):
+    """List all clamping records"""
+    clampings = ClampingRecord.objects.select_related(
+        'vehicle', 'vehicle__owner', 'parking_zone', 'clamped_by', 'released_by'
+    ).order_by('-clamped_date')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        clampings = clampings.filter(
+            Q(clamping_number__icontains=search_query) |
+            Q(vehicle__registration_number__icontains=search_query) |
+            Q(reason__icontains=search_query)
+        )
+    
+    # Filters
+    status = request.GET.get('status', '')
+    zone_id = request.GET.get('zone', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if status:
+        clampings = clampings.filter(status=status)
+    if zone_id:
+        clampings = clampings.filter(parking_zone_id=zone_id)
+    if date_from:
+        clampings = clampings.filter(clamped_date__date__gte=date_from)
+    if date_to:
+        clampings = clampings.filter(clamped_date__date__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': ClampingRecord.objects.count(),
+        'clamped': ClampingRecord.objects.filter(status='clamped').count(),
+        'released': ClampingRecord.objects.filter(status='released').count(),
+        'total_fees': ClampingRecord.objects.aggregate(Sum('total_fee'))['total_fee__sum'] or 0,
+        'today': ClampingRecord.objects.filter(clamped_date__date=datetime.now().date()).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(clampings, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'status': status,
+        'zone_id': zone_id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'zones': ParkingZone.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'parking/clamping_list.html', context)
+
+
+@login_required
+def clamping_create(request):
+    """Create new clamping record"""
+    if request.method == 'POST':
+        try:
+            # Generate clamping number
+            last_clamping = ClampingRecord.objects.order_by('-id').first()
+            if last_clamping:
+                last_num = int(last_clamping.clamping_number.split('-')[-1])
+                clamping_number = f"CLAMP-{datetime.now().year}-{last_num + 1:05d}"
+            else:
+                clamping_number = f"CLAMP-{datetime.now().year}-00001"
+            
+            clamping_fee = float(request.POST.get('clamping_fee', 0))
+            towing_fee = float(request.POST.get('towing_fee', 0))
+            storage_fee = float(request.POST.get('storage_fee', 0))
+            total_fee = clamping_fee + towing_fee + storage_fee
+            
+            clamping = ClampingRecord.objects.create(
+                clamping_number=clamping_number,
+                vehicle_id=request.POST.get('vehicle'),
+                parking_zone_id=request.POST.get('parking_zone'),
+                reason=request.POST.get('reason'),
+                clamped_date=datetime.now(),
+                clamping_fee=clamping_fee,
+                towing_fee=towing_fee,
+                storage_fee=storage_fee,
+                total_fee=total_fee,
+                status='clamped',
+                clamped_by=request.user
+            )
+            
+            messages.success(request, f'Vehicle clamped successfully! Clamping No: {clamping_number}')
+            return redirect('clamping_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating clamping record: {str(e)}')
+    
+    context = {
+        'vehicles': Vehicle.objects.filter(is_active=True),
+        'zones': ParkingZone.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'parking/clamping_form.html', context)
+
+
+@login_required
+def clamping_release(request, pk):
+    """Release clamped vehicle"""
+    clamping = get_object_or_404(ClampingRecord, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            clamping.status = 'released'
+            clamping.released_by = request.user
+            clamping.released_date = datetime.now()
+            clamping.payment_id = request.POST.get('payment_id') or None
+            clamping.save()
+            
+            messages.success(request, f'Vehicle {clamping.vehicle.registration_number} released successfully!')
+            return redirect('clamping_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error releasing vehicle: {str(e)}')
+    
+    context = {
+        'clamping': clamping,
+    }
+    
+    return render(request, 'parking/clamping_release.html', context)
+
+
+@login_required
+def clamping_export(request):
+    """Export clamping records to Excel"""
+    clampings = ClampingRecord.objects.select_related(
+        'vehicle', 'parking_zone', 'clamped_by'
+    ).order_by('-clamped_date')
+    
+    # Apply filters
+    status = request.GET.get('status', '')
+    if status:
+        clampings = clampings.filter(status=status)
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Clamping Records"
+    
+    # Styling
+    header_fill = PatternFill(start_color="e74c3c", end_color="e74c3c", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Clamping No.', 'Vehicle', 'Parking Zone', 'Reason', 'Clamped Date', 
+               'Clamping Fee', 'Towing Fee', 'Storage Fee', 'Total Fee', 'Status', 'Clamped By']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data
+    for row_num, clamping in enumerate(clampings, 2):
+        ws.cell(row=row_num, column=1).value = clamping.clamping_number
+        ws.cell(row=row_num, column=2).value = clamping.vehicle.registration_number
+        ws.cell(row=row_num, column=3).value = clamping.parking_zone.name
+        ws.cell(row=row_num, column=4).value = clamping.reason
+        ws.cell(row=row_num, column=5).value = clamping.clamped_date.strftime('%Y-%m-%d %H:%M')
+        ws.cell(row=row_num, column=6).value = float(clamping.clamping_fee)
+        ws.cell(row=row_num, column=7).value = float(clamping.towing_fee)
+        ws.cell(row=row_num, column=8).value = float(clamping.storage_fee)
+        ws.cell(row=row_num, column=9).value = float(clamping.total_fee)
+        ws.cell(row=row_num, column=10).value = clamping.get_status_display()
+        ws.cell(row=row_num, column=11).value = clamping.clamped_by.get_full_name()
+        
+        for col_num in range(1, 12):
+            ws.cell(row=row_num, column=col_num).border = border
+    
+    # Adjust widths
+    for col_num in range(1, 12):
+        ws.column_dimensions[get_column_letter(col_num)].width = 16
+    
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=clamping_records_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# FINES & PENALTIES
+# ============================================================================
+
+@login_required
+def fine_list(request):
+    """List all fines"""
+    fines = Fine.objects.select_related(
+        'category', 'offender', 'issued_by', 'payment'
+    ).order_by('-issued_date')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        fines = fines.filter(
+            Q(fine_number__icontains=search_query) |
+            Q(offender__first_name__icontains=search_query) |
+            Q(offender__last_name__icontains=search_query) |
+            Q(offender__business_name__icontains=search_query) |
+            Q(offense_description__icontains=search_query)
+        )
+    
+    # Filters
+    category_id = request.GET.get('category', '')
+    status = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if category_id:
+        fines = fines.filter(category_id=category_id)
+    if status:
+        fines = fines.filter(status=status)
+    if date_from:
+        fines = fines.filter(issued_date__gte=date_from)
+    if date_to:
+        fines = fines.filter(issued_date__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': Fine.objects.count(),
+        'issued': Fine.objects.filter(status='issued').count(),
+        'paid': Fine.objects.filter(status='paid').count(),
+        'overdue': Fine.objects.filter(due_date__lt=datetime.now().date(), status='issued').count(),
+        'total_amount': Fine.objects.aggregate(Sum('fine_amount'))['fine_amount__sum'] or 0,
+        'collected': Fine.objects.aggregate(Sum('amount_paid'))['amount_paid__sum'] or 0,
+        'outstanding': Fine.objects.aggregate(Sum('balance'))['balance__sum'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(fines, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'category_id': category_id,
+        'status': status,
+        'date_from': date_from,
+        'date_to': date_to,
+        'categories': FineCategory.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'fines/fine_list.html', context)
+
+
+@login_required
+def fine_create(request):
+    """Create new fine"""
+    if request.method == 'POST':
+        try:
+            # Generate fine number
+            last_fine = Fine.objects.order_by('-id').first()
+            if last_fine:
+                last_num = int(last_fine.fine_number.split('-')[-1])
+                fine_number = f"FINE-{datetime.now().year}-{last_num + 1:05d}"
+            else:
+                fine_number = f"FINE-{datetime.now().year}-00001"
+            
+            fine_amount = float(request.POST.get('fine_amount'))
+            
+            fine = Fine.objects.create(
+                fine_number=fine_number,
+                category_id=request.POST.get('category'),
+                offender_id=request.POST.get('offender'),
+                offense_description=request.POST.get('offense_description'),
+                offense_date=request.POST.get('offense_date'),
+                fine_amount=fine_amount,
+                balance=fine_amount,
+                due_date=request.POST.get('due_date'),
+                status='issued',
+                issued_by=request.user,
+                issued_date=datetime.now().date(),
+                notes=request.POST.get('notes', '')
+            )
+            
+            messages.success(request, f'Fine {fine_number} issued successfully!')
+            return redirect('fine_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating fine: {str(e)}')
+    
+    context = {
+        'categories': FineCategory.objects.filter(is_active=True),
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'fines/fine_form.html', context)
+
+
+@login_required
+def fine_update(request, pk):
+    """Update fine"""
+    fine = get_object_or_404(Fine, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            fine.category_id = request.POST.get('category')
+            fine.offender_id = request.POST.get('offender')
+            fine.offense_description = request.POST.get('offense_description')
+            fine.offense_date = request.POST.get('offense_date')
+            fine.fine_amount = float(request.POST.get('fine_amount'))
+            fine.due_date = request.POST.get('due_date')
+            fine.status = request.POST.get('status')
+            fine.notes = request.POST.get('notes', '')
+            
+            # Recalculate balance
+            fine.balance = fine.fine_amount - fine.amount_paid
+            
+            fine.save()
+            
+            messages.success(request, 'Fine updated successfully!')
+            return redirect('fine_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating fine: {str(e)}')
+    
+    context = {
+        'fine': fine,
+        'categories': FineCategory.objects.filter(is_active=True),
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'fines/fine_form.html', context)
+
+
+@login_required
+def fine_waive(request, pk):
+    """Waive a fine"""
+    fine = get_object_or_404(Fine, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            fine.status = 'waived'
+            fine.notes = f"{fine.notes}\n\nWaived by {request.user.get_full_name()} on {datetime.now().strftime('%Y-%m-%d %H:%M')}. Reason: {request.POST.get('waive_reason')}"
+            fine.save()
+            
+            messages.success(request, f'Fine {fine.fine_number} waived successfully!')
+            return redirect('fine_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error waiving fine: {str(e)}')
+    
+    context = {
+        'fine': fine,
+    }
+    
+    return render(request, 'fines/fine_waive.html', context)
+
+
+@login_required
+def fine_export(request):
+    """Export fines to Excel"""
+    fines = Fine.objects.select_related(
+        'category', 'offender', 'issued_by'
+    ).order_by('-issued_date')
+    
+    # Apply filters
+    category_id = request.GET.get('category', '')
+    status = request.GET.get('status', '')
+    
+    if category_id:
+        fines = fines.filter(category_id=category_id)
+    if status:
+        fines = fines.filter(status=status)
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Fines & Penalties"
+    
+    # Styling
+    header_fill = PatternFill(start_color="e67e22", end_color="e67e22", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Fine No.', 'Category', 'Offender', 'Offense', 'Offense Date', 
+               'Fine Amount', 'Amount Paid', 'Balance', 'Due Date', 'Status', 'Issued By', 'Issued Date']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data
+    for row_num, fine in enumerate(fines, 2):
+        offender_name = (f"{fine.offender.first_name} {fine.offender.last_name}" 
+                        if fine.offender.entity_type == 'individual' 
+                        else fine.offender.business_name)
+        
+        ws.cell(row=row_num, column=1).value = fine.fine_number
+        ws.cell(row=row_num, column=2).value = fine.category.name
+        ws.cell(row=row_num, column=3).value = offender_name
+        ws.cell(row=row_num, column=4).value = fine.offense_description
+        ws.cell(row=row_num, column=5).value = fine.offense_date.strftime('%Y-%m-%d')
+        ws.cell(row=row_num, column=6).value = float(fine.fine_amount)
+        ws.cell(row=row_num, column=7).value = float(fine.amount_paid)
+        ws.cell(row=row_num, column=8).value = float(fine.balance)
+        ws.cell(row=row_num, column=9).value = fine.due_date.strftime('%Y-%m-%d')
+        ws.cell(row=row_num, column=10).value = fine.get_status_display()
+        ws.cell(row=row_num, column=11).value = fine.issued_by.get_full_name() if fine.issued_by else "N/A"
+        ws.cell(row=row_num, column=12).value = fine.issued_date.strftime('%Y-%m-%d')
+        
+        for col_num in range(1, 13):
+            ws.cell(row=row_num, column=col_num).border = border
+    
+    # Adjust widths
+    for col_num in range(1, 13):
+        ws.column_dimensions[get_column_letter(col_num)].width = 16
+    
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=fines_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# PARKING PAYMENTS
+# ============================================================================
+
+@login_required
+def parking_payment_list(request):
+    """List all parking payments"""
+    payments = ParkingPayment.objects.select_related(
+        'vehicle', 'vehicle__owner', 'parking_zone', 'payment'
+    ).order_by('-created_at')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        payments = payments.filter(
+            Q(vehicle__registration_number__icontains=search_query) |
+            Q(payment__receipt_number__icontains=search_query)
+        )
+    
+    # Filters
+    payment_type = request.GET.get('payment_type', '')
+    zone_id = request.GET.get('zone', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    if payment_type:
+        payments = payments.filter(payment_type=payment_type)
+    if zone_id:
+        payments = payments.filter(parking_zone_id=zone_id)
+    if date_from:
+        payments = payments.filter(start_date__gte=date_from)
+    if date_to:
+        payments = payments.filter(end_date__lte=date_to)
+    
+    # Statistics
+    stats = {
+        'total': ParkingPayment.objects.count(),
+        'daily': ParkingPayment.objects.filter(payment_type='daily').count(),
+        'monthly': ParkingPayment.objects.filter(payment_type='monthly').count(),
+        'yearly': ParkingPayment.objects.filter(payment_type='yearly').count(),
+        'total_revenue': ParkingPayment.objects.aggregate(Sum('amount'))['amount__sum'] or 0,
+        'active': ParkingPayment.objects.filter(end_date__gte=datetime.now().date()).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(payments, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'payment_type': payment_type,
+        'zone_id': zone_id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'zones': ParkingZone.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'parking/payment_list.html', context)
+
+
+@login_required
+def parking_payment_export(request):
+    """Export parking payments to Excel"""
+    payments = ParkingPayment.objects.select_related(
+        'vehicle', 'parking_zone', 'payment'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    payment_type = request.GET.get('payment_type', '')
+    if payment_type:
+        payments = payments.filter(payment_type=payment_type)
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Parking Payments"
+    
+    # Styling
+    header_fill = PatternFill(start_color="9b59b6", end_color="9b59b6", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Vehicle Reg', 'Parking Zone', 'Payment Type', 'Start Date', 
+               'End Date', 'Amount', 'Receipt No.', 'Payment Date']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data
+    for row_num, payment in enumerate(payments, 2):
+        ws.cell(row=row_num, column=1).value = payment.vehicle.registration_number
+        ws.cell(row=row_num, column=2).value = payment.parking_zone.name
+        ws.cell(row=row_num, column=3).value = payment.get_payment_type_display()
+        ws.cell(row=row_num, column=4).value = payment.start_date.strftime('%Y-%m-%d')
+        ws.cell(row=row_num, column=5).value = payment.end_date.strftime('%Y-%m-%d')
+        ws.cell(row=row_num, column=6).value = float(payment.amount)
+        ws.cell(row=row_num, column=7).value = payment.payment.receipt_number
+        ws.cell(row=row_num, column=8).value = payment.payment.payment_date.strftime('%Y-%m-%d')
+        
+        for col_num in range(1, 9):
+            ws.cell(row=row_num, column=col_num).border = border
+    
+    # Adjust widths
+    for col_num in range(1, 9):
+        ws.column_dimensions[get_column_letter(col_num)].width = 16
+    
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=parking_payments_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# SACCO MANAGEMENT
+# ============================================================================
+
+@login_required
+def sacco_list(request):
+    """List all vehicle saccos"""
+    saccos = Sacco.objects.select_related('citizen').annotate(
+        vehicle_count=Count('vehicles')
+    ).order_by('name')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        saccos = saccos.filter(
+            Q(name__icontains=search_query) |
+            Q(registration_number__icontains=search_query)
+        )
+    
+    # Filter by status
+    status = request.GET.get('status', '')
+    if status:
+        saccos = saccos.filter(is_active=(status == 'active'))
+    
+    # Statistics
+    stats = {
+        'total': Sacco.objects.count(),
+        'active': Sacco.objects.filter(is_active=True).count(),
+        'total_vehicles': Vehicle.objects.filter(sacco__isnull=False).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(saccos, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'status': status,
+    }
+    
+    return render(request, 'parking/sacco_list.html', context)
+
+
+@login_required
+def sacco_create(request):
+    """Create new sacco"""
+    if request.method == 'POST':
+        try:
+            sacco = Sacco.objects.create(
+                name=request.POST.get('name'),
+                registration_number=request.POST.get('registration_number'),
+                citizen_id=request.POST.get('citizen'),
+                phone=request.POST.get('phone'),
+                email=request.POST.get('email', ''),
+                physical_address=request.POST.get('physical_address'),
+                is_active=True
+            )
+            
+            messages.success(request, f'Sacco "{sacco.name}" registered successfully!')
+            return redirect('sacco_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error registering sacco: {str(e)}')
+    
+    context = {
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'parking/sacco_form.html', context)
+
+
+@login_required
+def sacco_update(request, pk):
+    """Update sacco information"""
+    sacco = get_object_or_404(Sacco, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            sacco.name = request.POST.get('name')
+            sacco.registration_number = request.POST.get('registration_number')
+            sacco.citizen_id = request.POST.get('citizen')
+            sacco.phone = request.POST.get('phone')
+            sacco.email = request.POST.get('email', '')
+            sacco.physical_address = request.POST.get('physical_address')
+            sacco.is_active = request.POST.get('is_active') == 'on'
+            
+            sacco.save()
+            
+            messages.success(request, 'Sacco updated successfully!')
+            return redirect('sacco_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating sacco: {str(e)}')
+    
+    context = {
+        'sacco': sacco,
+        'citizens': Citizen.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'parking/sacco_form.html', context)
+
+
+@login_required
+def sacco_export(request):
+    """Export saccos to Excel"""
+    saccos = Sacco.objects.select_related('citizen').annotate(
+        vehicle_count=Count('vehicles')
+    ).order_by('name')
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Vehicle Saccos"
+    
+    # Styling
+    header_fill = PatternFill(start_color="1abc9c", end_color="1abc9c", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Headers
+    headers = ['Sacco Name', 'Registration No.', 'Contact Person', 'Phone', 
+               'Email', 'Address', 'Vehicles', 'Status']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data
+    for row_num, sacco in enumerate(saccos, 2):
+        contact_person = (f"{sacco.citizen.first_name} {sacco.citizen.last_name}" 
+                         if sacco.citizen.entity_type == 'individual' 
+                         else sacco.citizen.business_name)
+        
+        ws.cell(row=row_num, column=1).value = sacco.name
+        ws.cell(row=row_num, column=2).value = sacco.registration_number
+        ws.cell(row=row_num, column=3).value = contact_person
+        ws.cell(row=row_num, column=4).value = sacco.phone
+        ws.cell(row=row_num, column=5).value = sacco.email
+        ws.cell(row=row_num, column=6).value = sacco.physical_address
+        ws.cell(row=row_num, column=7).value = sacco.vehicle_count
+        ws.cell(row=row_num, column=8).value = "Active" if sacco.is_active else "Inactive"
+        
+        for col_num in range(1, 9):
+            ws.cell(row=row_num, column=col_num).border = border
+    
+    # Adjust widths
+    for col_num in range(1, 9):
+        ws.column_dimensions[get_column_letter(col_num)].width = 18
+    
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=saccos_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    wb.save(response)
+    
+    return response
+
+
+# ============================================================================
+# FINE CATEGORY MANAGEMENT
+# ============================================================================
+
+@login_required
+def fine_category_list(request):
+    """List all fine categories"""
+    categories = FineCategory.objects.select_related('revenue_stream').annotate(
+        fine_count=Count('fines')
+    ).order_by('name')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        categories = categories.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filter by status
+    status = request.GET.get('status', '')
+    if status:
+        categories = categories.filter(is_active=(status == 'active'))
+    
+    # Statistics
+    stats = {
+        'total': FineCategory.objects.count(),
+        'active': FineCategory.objects.filter(is_active=True).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(categories, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_query': search_query,
+        'status': status,
+    }
+    
+    return render(request, 'fines/category_list.html', context)
+
+
+@login_required
+def fine_category_create(request):
+    """Create new fine category"""
+    if request.method == 'POST':
+        try:
+            category = FineCategory.objects.create(
+                name=request.POST.get('name'),
+                code=request.POST.get('code').upper(),
+                description=request.POST.get('description'),
+                revenue_stream_id=request.POST.get('revenue_stream'),
+                is_active=True
+            )
+            
+            messages.success(request, f'Fine category "{category.name}" created successfully!')
+            return redirect('fine_category_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating fine category: {str(e)}')
+    
+    context = {
+        'revenue_streams': RevenueStream.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'fines/category_form.html', context)
+
+
+@login_required
+def fine_category_update(request, pk):
+    """Update fine category"""
+    category = get_object_or_404(FineCategory, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            category.name = request.POST.get('name')
+            category.code = request.POST.get('code').upper()
+            category.description = request.POST.get('description')
+            category.revenue_stream_id = request.POST.get('revenue_stream')
+            category.is_active = request.POST.get('is_active') == 'on'
+            
+            category.save()
+            
+            messages.success(request, 'Fine category updated successfully!')
+            return redirect('fine_category_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating fine category: {str(e)}')
+    
+    context = {
+        'category': category,
+        'revenue_streams': RevenueStream.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'fines/category_form.html', context)
+
+
+@login_required
+def fine_category_delete(request, pk):
+    """Delete fine category"""
+    category = get_object_or_404(FineCategory, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            category_name = category.name
+            category.delete()
+            messages.success(request, f'Fine category "{category_name}" deleted successfully!')
+            return redirect('fine_category_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting fine category: {str(e)}')
+            return redirect('fine_category_list')
+    
+    context = {
+        'category': category,
+    }
+    
+    return render(request, 'fines/category_confirm_delete.html', context)
+
+
+# ============================================================================
+# DELETE VIEWS
+# ============================================================================
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+
+@login_required
+def clamping_delete(request, pk):
+    clamping = get_object_or_404(ClampingRecord, pk=pk)
+    try:
+        clamping_number = clamping.clamping_number
+        clamping.delete()
+        messages.success(request, f'Clamping record {clamping_number} deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting clamping record: {str(e)}')
+
+    return redirect('clamping_list')
+
+
+@login_required
+def fine_delete(request, pk):
+    fine = get_object_or_404(Fine, pk=pk)
+    try:
+        fine_number = fine.fine_number
+        fine.delete()
+        messages.success(request, f'Fine {fine_number} deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting fine: {str(e)}')
+
+    return redirect('fine_list')
+
+
+@login_required
+def sacco_delete(request, pk):
+    sacco = get_object_or_404(Sacco, pk=pk)
+    try:
+        sacco_name = sacco.name
+        sacco.delete()
+        messages.success(request, f'Sacco "{sacco_name}" deleted successfully!')
+    except Exception as e:
+        messages.error(request, f'Error deleting sacco: {str(e)}')
+
+    return redirect('sacco_list')

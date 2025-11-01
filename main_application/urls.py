@@ -196,4 +196,20 @@ urlpatterns = [
     path('subdivisions/<int:pk>/update/', views.subdivision_update, name='subdivision_update'),
     path('subdivisions/<int:pk>/delete/', views.subdivision_delete, name='subdivision_delete'),
 
+    # PARKING ZONES & CLAMPING RECORDS
+    path("zones/", views.parking_zone_list, name="parking_zone_list"),
+    path("zones/export/", views.parking_zone_export, name="parking_zone_export"),
+    path("clamping/", views.clamping_list, name="clamping_list"),
+    path("clamping/create/", views.clamping_create, name="clamping_create"),
+    path("clamping/<int:pk>/release/", views.clamping_release, name="clamping_release"),
+    path("clamping/export/", views.clamping_export, name="clamping_export"),
+
+    # FINES & PENALTIES
+
+    path("fines/", views.fine_list, name="fine_list"),
+    path("fines/create/", views.fine_create, name="fine_create"),
+    path("fines/<int:pk>/edit/", views.fine_update, name="fine_update"),
+    path("fines/<int:pk>/waive/", views.fine_waive, name="fine_waive"),
+    path("fines/export/", views.fine_export, name="fine_export"),
+
 ]

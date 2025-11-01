@@ -1,0 +1,1015 @@
+{% extends 'admin_base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Fines & Penalties - Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .breadcrumb {
+        padding: 0;
+        margin-bottom: 20px;
+        font-size: 14px;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .breadcrumb-item {
+        color: #64748B;
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "/ ";
+        color: #94A3B8;
+        padding: 0 8px;
+    }
+
+    .breadcrumb-item.active {
+        color: #1E293B;
+        font-weight: 500;
+    }
+
+    .breadcrumb a {
+        color: #3498db;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .section-container {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        margin-bottom: 24px;
+        border: 1px solid #E2E8F0;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .page-subtitle {
+        color: #64748B;
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-primary, .export-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        color: white;
+    }
+
+    .export-btn {
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+    }
+
+    .export-btn:hover {
+        background: #F8FAFC;
+        border-color: #CBD5E1;
+        color: #64748B;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #e67e22, #d35400);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1E293B;
+        line-height: 1;
+    }
+
+    .stat-value.success {
+        color: #27ae60;
+    }
+
+    .stat-value.warning {
+        color: #f39c12;
+    }
+
+    .stat-value.danger {
+        color: #e74c3c;
+    }
+
+    .search-section {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px 14px 12px 42px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #F8FAFC;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        background: white;
+    }
+
+    .search-btn {
+        padding: 12px 24px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .search-btn:hover {
+        background: #2980b9;
+    }
+
+    .clear-search-btn {
+        padding: 12px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+
+    .filter-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .filter-group label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .filter-select, .filter-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .clear-btn {
+        padding: 10px 20px;
+        background: white;
+        color: #64748B;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .table-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1E293B;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .record-count {
+        display: inline-block;
+        padding: 6px 12px;
+        background: rgba(231, 126, 34, 0.1);
+        color: #e67e22;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .data-table thead th {
+        background: #F8FAFC;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #E2E8F0;
+        white-space: nowrap;
+    }
+
+    .data-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .data-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+    .fine-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .fine-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #e67e22, #d35400);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 600;
+        color: white;
+    }
+
+    .fine-details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .fine-number {
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 2px;
+    }
+
+    .fine-category {
+        font-size: 12px;
+        color: #64748B;
+    }
+
+    .offender-name {
+        font-weight: 500;
+        color: #1E293B;
+        margin-bottom: 2px;
+    }
+
+    .offense-desc {
+        font-size: 12px;
+        color: #64748B;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .amount-display {
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    .amount-paid {
+        font-size: 12px;
+        color: #27ae60;
+        margin-top: 2px;
+    }
+
+    .balance-owed {
+        font-size: 12px;
+        color: #e74c3c;
+        margin-top: 2px;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .status-issued {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-paid {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-partially_paid {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .status-overdue {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .status-waived {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    .status-cancelled {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        background-color: transparent;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-outline-primary {
+        border-color: #3498db;
+        color: #3498db;
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: #3498db;
+        color: #fff;
+    }
+
+    .btn-outline-warning {
+        border-color: #f39c12;
+        color: #f39c12;
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: #f39c12;
+        color: #fff;
+    }
+
+    .btn-outline-success {
+        border-color: #27ae60;
+        color: #27ae60;
+    }
+    
+    .btn-outline-success:hover {
+        background-color: #27ae60;
+        color: #fff;
+    }
+
+    .btn-outline-danger {
+        border-color: #e74c3c;
+        color: #e74c3c;
+    }
+    
+    .btn-outline-danger:hover {
+        background-color: #e74c3c;
+        color: #fff;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #F1F5F9;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .pagination-info {
+        color: #64748B;
+        font-size: 14px;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 5px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid #E2E8F0;
+        border-radius: 6px;
+        color: #64748B;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .page-link:hover {
+        background: #F8FAFC;
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .page-item.active .page-link {
+        background: #3498db;
+        border-color: #3498db;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: #CBD5E1;
+        margin-bottom: 16px;
+    }
+
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-item">Fines & Penalties</li>
+            <li class="breadcrumb-item active">All Fines</li>
+        </ol>
+    </nav>
+
+    <div class="section-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-gavel"></i>
+                    Fines & Penalties
+                </h1>
+                <p class="page-subtitle">
+                    Manage fines, penalties, and enforcement actions
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'fine_export' %}?{{ request.GET.urlencode }}" class="export-btn">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Export to Excel
+                </a>
+                <a href="{% url 'fine_create' %}" class="btn-primary">
+                    <i class="bi bi-plus-circle"></i>
+                    Issue New Fine
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-gavel"></i>
+                    Total Fines
+                </div>
+                <div class="stat-value">{{ stats.total|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-file-invoice"></i>
+                    Issued
+                </div>
+                <div class="stat-value warning">{{ stats.issued|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-check-circle"></i>
+                    Paid
+                </div>
+                <div class="stat-value success">{{ stats.paid|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Overdue
+                </div>
+                <div class="stat-value danger">{{ stats.overdue|default:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-dollar-sign"></i>
+                    Total Amount
+                </div>
+                <div class="stat-value">KES {{ stats.total_amount|floatformat:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-money-check-alt"></i>
+                    Collected
+                </div>
+                <div class="stat-value success">KES {{ stats.collected|floatformat:0|intcomma }}</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-balance-scale"></i>
+                    Outstanding
+                </div>
+                <div class="stat-value danger">KES {{ stats.outstanding|floatformat:0|intcomma }}</div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-section">
+            <form method="get" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                <div class="search-input-wrapper">
+                    <i class="bi bi-search search-icon"></i>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        class="search-input" 
+                        placeholder="Search by fine number, offender name, or offense description..."
+                        value="{{ search_query }}"
+                    >
+                </div>
+                
+                {% if category_id %}<input type="hidden" name="category" value="{{ category_id }}">{% endif %}
+                {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+                {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+                {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+                
+                <button type="submit" class="search-btn">
+                    <i class="bi bi-search"></i>
+                    Search
+                </button>
+                
+                {% if search_query %}
+                <a href="{% url 'fine_list' %}" class="clear-search-btn">
+                    <i class="bi bi-x-circle"></i>
+                    Clear
+                </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="filter-header" onclick="toggleFilters()">
+                <h6 class="filter-title">
+                    <i class="bi bi-funnel"></i>
+                    Filter Fines
+                </h6>
+                <i class="bi bi-chevron-down" id="filterToggle"></i>
+            </div>
+            
+            <div class="filter-content" id="filtersContent" style="display: none;">
+                <form method="get">
+                    {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
+                    
+                    <div class="filter-content">
+                        <div class="filter-group">
+                            <label for="category">Fine Category</label>
+                            <select class="filter-select" name="category">
+                                <option value="">All Categories</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if category_id == cat.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="status">Status</label>
+                            <select class="filter-select" name="status">
+                                <option value="">All Statuses</option>
+                                <option value="issued" {% if status == 'issued' %}selected{% endif %}>Issued</option>
+                                <option value="paid" {% if status == 'paid' %}selected{% endif %}>Paid</option>
+                                <option value="partially_paid" {% if status == 'partially_paid' %}selected{% endif %}>Partially Paid</option>
+                                <option value="waived" {% if status == 'waived' %}selected{% endif %}>Waived</option>
+                                <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="date_from">Date From</label>
+                            <input type="date" class="filter-input" name="date_from" value="{{ date_from }}">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="date_to">Date To</label>
+                            <input type="date" class="filter-input" name="date_to" value="{{ date_to }}">
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="filter-btn">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <a href="{% url 'fine_list' %}" class="clear-btn">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-header">
+            <h6 class="table-title">
+                <i class="bi bi-table"></i>
+                Fines List
+            </h6>
+            <span class="record-count">{{ page_obj.paginator.count|default:0 }} fines</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Fine Details</th>
+                        <th>Offender</th>
+                        <th>Offense</th>
+                        <th>Fine Amount</th>
+                        <th>Amount Paid</th>
+                        <th>Balance</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fine in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="fine-info">
+                                <div class="fine-icon">
+                                    <i class="fas fa-gavel"></i>
+                                </div>
+                                <div class="fine-details">
+                                    <div class="fine-number">{{ fine.fine_number }}</div>
+                                    <div class="fine-category">{{ fine.category.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="offender-name">
+                                {% if fine.offender.entity_type == 'individual' %}
+                                    {{ fine.offender.first_name }} {{ fine.offender.last_name }}
+                                {% else %}
+                                    {{ fine.offender.business_name }}
+                                {% endif %}
+                            </div>
+                            <div class="fine-category">{{ fine.offender.phone_primary }}</div>
+                        </td>
+                        <td>
+                            <div class="offense-desc" title="{{ fine.offense_description }}">
+                                {{ fine.offense_description|truncatewords:10 }}
+                            </div>
+                            <div class="fine-category">{{ fine.offense_date }}</div>
+                        </td>
+                        <td>
+                            <div class="amount-display">KES {{ fine.fine_amount|floatformat:2|intcomma }}</div>
+                        </td>
+                        <td>
+                            <div class="amount-paid">KES {{ fine.amount_paid|floatformat:2|intcomma }}</div>
+                        </td>
+                        <td>
+                            <div class="balance-owed">KES {{ fine.balance|floatformat:2|intcomma }}</div>
+                        </td>
+                        <td>{{ fine.due_date }}</td>
+                        <td>
+                            <span class="status-badge status-{{ fine.status }}">
+                                {{ fine.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="#" 
+                                   class="btn-action btn-outline-primary" 
+                                   title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if fine.status == 'issued' or fine.status == 'partially_paid' %}
+                                <a href="{% url 'fine_update' fine.pk %}" 
+                                   class="btn-action btn-outline-warning" 
+                                   title="Edit Fine">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'fine_waive' fine.pk %}" 
+                                   class="btn-action btn-outline-success" 
+                                   title="Waive Fine">
+                                    <i class="bi bi-check-circle"></i>
+                                </a>
+                                {% endif %}
+                                <button class="btn-action btn-outline-danger" 
+                                        title="Delete Fine"
+                                        onclick="confirmDelete({{ fine.pk }}, '{{ fine.fine_number }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-gavel"></i>
+                                </div>
+                                <h3 class="empty-title">No Fines Found</h3>
+                                <p>{% if search_query %}No fines match your search.{% else %}No fines issued yet.{% endif %}</p>
+                                <a href="{% url 'fine_create' %}" class="btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Issue First Fine
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+            </div>
+            
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode|safe }}">
+                            &laquo; Previous
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo; Previous</span>
+                    </li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode|safe }}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode|safe }}">
+                            Next &raquo;
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Next &raquo;</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+    function toggleFilters() {
+        const content = document.getElementById('filtersContent');
+        const toggleIcon = document.getElementById('filterToggle');
+        if (content.style.display === 'none' || content.style.display === '') {
+            content.style.display = 'block';
+            toggleIcon.classList.remove('bi-chevron-down');
+            toggleIcon.classList.add('bi-chevron-up');
+        } else {
+            content.style.display = 'none';
+            toggleIcon.classList.remove('bi-chevron-up');
+            toggleIcon.classList.add('bi-chevron-down');
+        }
+    }
+
+    function confirmDelete(fineId, fineNumber) {
+        if (confirm(`Are you sure you want to delete fine ${fineNumber}? This action cannot be undone.`)) {
+            window.location.href = `{% url 'fine_waive' 0 %}`.replace('/0/', `/${fineId}/`);
+        }
+    }
+</script>
+{% endblock %}
